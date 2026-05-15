@@ -21,6 +21,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# LibreOffice / OpenOffice lock files
+.~lock.*
+
 # Build artifacts
 dist/
 build/

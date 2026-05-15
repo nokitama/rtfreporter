@@ -1,0 +1,12 @@
+Package: rtfreporter
+Type: Package
+Title: Cross-Language RTF Reporting Toolkit
+Version: 0.0.1
+Authors@R: person("ichirio", email = "ichirio@example.com", role = c("aut", "cre"))
+Description: Minimal R package scaffold for rtfreporter.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports: 
+	R6
+RoxygenNote: 7.3.2

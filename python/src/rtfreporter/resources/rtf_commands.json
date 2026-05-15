@@ -1,0 +1,36 @@
+{
+  "document": {
+    "rtf_header_open": "{\\rtf1\\ansi\\deff0",
+    "font_table_template": "{\\fonttbl{\\f0 {font_name};}}",
+    "color_table_default": "{\\colortbl;\\red0\\green0\\blue0;}",
+    "page_settings_template": "\\paperw{width_twips}\\paperh{height_twips}\\landscape\\margl{margin_left_twips}\\margr{margin_right_twips}\\margt{margin_top_twips}\\margb{margin_bottom_twips}\\fs{font_size_half_points}",
+    "section_defaults": "\\sectd",
+    "page_break": "\\page",
+    "section_break": "\\sect",
+    "header_wrapper": "{\\header {content}}",
+    "footer_wrapper": "{\\footer {content}}",
+    "document_close": "}"
+  },
+  "paragraph": {
+    "center_bold_template": "\\pard\\qc\\b {text}\\b0\\par",
+    "left_template": "\\pard\\ql {text}\\par",
+    "figure_placeholder_center_template": "\\pard\\qc [Figure: {filename}]\\par",
+    "empty_table": "\\par [empty table]\\par"
+  },
+  "table": {
+    "row_start": "\\trowd",
+    "row_end": "\\row",
+    "row_height_template": "\\trrh{row_height_twips}",
+    "cell_boundary_template": "\\cellx{cx}",
+    "cell_boundary_top_border_template": "\\clbrdrt\\brdrs\\brdrw10\\cellx{cx}",
+    "header_cell_text_template": "\\b {text}\\b0\\cell",
+    "cell_text_template": "{text}\\cell",
+    "cell_text_aligned_template": "{align} {text}\\cell"
+  },
+  "alignment": {
+    "left": "\\ql",
+    "right": "\\qr",
+    "center": "\\qc",
+    "default": "\\ql"
+  }
+}
