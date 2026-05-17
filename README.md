@@ -1,35 +1,17 @@
-# rtfreporter
-Generate TFLs as RTF reports.
+# rtfreporter (R package)
 
-A cross-language toolkit for creating RTF reports.
+This package provides RTF report generation features specialized for clinical tables and listings. It is not a general-purpose RTF library, but is focused on the needs of clinical trial reporting (TFLs).
 
-## Repository layout
+Currently, only RTF output is supported. In the future, embedding objects from table creation tools (e.g., rtables, huxtable) will be implemented.
 
-- `r/rtfreporter`: R package (CRAN target)
-- `python`: Python package (PyPI target)
-- `specs`: shared API contracts for parity tests
-- `.github/workflows`: CI for both language implementations
+## Main Functions
 
-## Quick start
+- `rtfreport`: Create and manage RTF report objects
+- `generate_rtfreport`: Output to RTF file
+- `rtftable`: Table object (data.frame + formatting)
+- `rtfplot`: Embed PNG/JPEG images into RTF
+- `hello_rtfreporter`: Simple greeting for testing
 
-### Python
+---
 
-```bash
-cd python
-pip install -e .
-pytest
-```
-
-### R
-
-```r
-setwd("r/rtfreporter")
-source("R/hello.R")
-hello_rtfreporter()
-```
-
-## Release strategy
-
-- Publish `r/rtfreporter` to CRAN
-- Publish `python` to PyPI as `rtfreporter`
-- Keep behavior aligned using `specs/api_contract.md`
+Cross-language RTF reporting toolkit - R implementation.
