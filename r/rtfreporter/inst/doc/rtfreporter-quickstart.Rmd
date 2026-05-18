@@ -1,0 +1,156 @@
+---
+title: "rtfreporter Quick Start"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{rtfreporter Quick Start}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(rtfreporter)
+```
+
+## Overview
+
+`rtfreporter` is a clinical RTF reporting toolkit for tables, listings, and
+figures. It is aimed at clinical-trial style outputs, not as a general-purpose
+RTF library.
+
+This quick start uses bundled test data to build two reports:
+
+1. A one-page demographics report.
+2. A laboratory report with one section per analyte and the analyte name in the section header.
+
+## Test data
+
+```{r data-load}
+data_dir <- file.path("..", "tests", "testdata")
+dm <- read.csv(file.path(data_dir, "dm.csv"), stringsAsFactors = FALSE)
+ae <- read.csv(file.path(data_dir, "ae.csv"), stringsAsFactors = FALSE)
+lb <- read.csv(file.path(data_dir, "lb.csv"), stringsAsFactors = FALSE)
+head(dm)
+head(ae)
+head(lb)
+```
+
+## Common report styling
+
+```{r common-style}
+make_common_header <- function(study_title) {
+  list(
+    rows = list(
+      list(columns = c(l = "Protocol: RTF-101", r = "Page {PAGE} of {TOTAL_PAGES}")),
+      list(columns = c(l = study_title, r = "For Clinical Study Use Only"))
+    )
+  )
+}
+
+make_common_footer <- function() {
+  list(
+    rows = list(
+      list(columns = c(l = "Confidential - Internal Use Only"))
+    )
+  )
+}
+```
+
+## Example 1: One-page DM report
+
+```{r dm-report}
+dm_report <- rtfreport$new()
+dm_report$set_default_header(make_common_header("Table 14.1.1 Demographics"))
+dm_report$set_default_footer(make_common_footer())
+
+dm_sec <- dm_report$add_section(
+  header = list(columns = c(l = "Demographics (Screened Population)", r = "Safety Set"))
+)
+dm_page <- dm_report$add_page(
+  section_index = dm_sec,
+  title = "Table 14.1.1 Demographics by Treatment Arm"
+)
+
+dm_disp <- data.frame(
+  `Subject ID` = dm$USUBJID,
+  `Treatment Arm` = dm$ARM,
+  Sex = dm$SEX,
+  Age = dm$AGE,
+  check.names = FALSE,
+  stringsAsFactors = FALSE
+)
+
+dm_tbl <- rtftable$new(
+  dm_disp,
+  col_header = c("Subject ID", "Treatment Arm", "Sex", "Age"),
+  col_rel_width = c(1.8, 2.2, 0.8, 0.8),
+  row_height_twips = 300L,
+  header_row_height_twips = 300L
+)
+
+dm_report$add_table(dm_sec, dm_page, data = dm_tbl, footer = "Source: DM domain")
+
+dm_out <- file.path(tempdir(), "rtfreporter_quickstart_dm_report.rtf")
+generate_rtfreport(dm_report, dm_out, overwrite = TRUE)
+dm_out
+```
+
+The report uses a common protocol header, a section title, a page title, and a
+clinical-style footer.
+
+## Example 2: Laboratory report with one section per analyte
+
+```{r lb-report}
+lb_report <- rtfreport$new()
+lb_report$set_default_header(make_common_header("Table 14.2.1 Clinical Laboratory Summary"))
+lb_report$set_default_footer(make_common_footer())
+
+lb_tests <- unique(lb$LBTEST)
+
+for (test_name in lb_tests) {
+  sec <- lb_report$add_section(
+    header = list(columns = c(l = paste0("Clinical Laboratory: ", test_name), r = "Page {PAGE} of {TOTAL_PAGES}"))
+  )
+  page <- lb_report$add_page(
+    section_index = sec,
+    title = paste0(test_name, " by Subject")
+  )
+
+  test_df <- subset(lb, LBTEST == test_name, select = c(USUBJID, ARM, VISIT, LBSTRESN, LBSTRESU, LBNRLO, LBNRHI, LBNRIND))
+  names(test_df) <- c("Subject ID", "Treatment Arm", "Visit", "Result", "Unit", "Ref Low", "Ref High", "Flag")
+
+  test_tbl <- rtftable$new(
+    test_df,
+    col_rel_width = c(1.4, 1.6, 1.0, 0.8, 0.8, 0.8, 0.8, 0.7),
+    row_height_twips = 300L,
+    header_row_height_twips = 300L
+  )
+
+  lb_report$add_table(sec, page, data = test_tbl, footer = paste0("Source: LB domain | ", test_name))
+}
+
+lb_out <- file.path(tempdir(), "rtfreporter_quickstart_lab_report.rtf")
+generate_rtfreport(lb_report, lb_out, overwrite = TRUE)
+lb_out
+```
+
+Each section uses the analyte name in the header so the report reads naturally
+as a clinical laboratory listing.
+
+## Reusable section helper
+
+When a section needs multiple pages from multiple data frames, the convenience
+method `add_section_from_dataframes()` can create the section and append one
+page per data frame in one call.
+
+```{r helper-note}
+report <- rtfreport$new()
+report$add_section_from_dataframes(
+  data_list = list("DM page" = dm[1:2, ], "AE page" = ae[1:2, ])
+)
+```
+
+## Next steps
+
+The package also provides `rtftable()` for table metadata, `rtfplot()` for
+embedded figures, and `generate_rtfreport()` for writing the final document.
