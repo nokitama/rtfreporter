@@ -25,8 +25,78 @@
 
 #' RTF report object
 #'
-#' `rtfreport` represents one RTF report and stores content in
-#' document -> section -> page hierarchy.
+#' `rtfreport` is an R6 class representing one RTF clinical report. Content is
+#' organised in a three-level hierarchy: **document → section → page**.
+#'
+#' @section Header / Footer format:
+#'
+#' Headers and footers use a plain named character vector to specify cell
+#' content. The names map to alignment:
+#'
+#' | Name | Alignment |
+#' |------|-----------|
+#' | `l`  | left      |
+#' | `r`  | right     |
+#' | `c`  | center    |
+#'
+#' **Section-level header/footer** (single row, passed directly):
+#' ```r
+#' add_section(header = c(l = "Protocol", r = "Page {PAGE} of {TOTAL_PAGES}"))
+#' set_section_footer(sec, c(l = "Confidential"))
+#' ```
+#'
+#' **Document-level default header/footer** (may be multi-row):
+#' ```r
+#' report$set_default_header(list(
+#'   rows = list(
+#'     c(l = "Protocol: RTF-101", r = "Page {PAGE} of {TOTAL_PAGES}"),
+#'     c(l = "Study Title",       r = "Company Name")
+#'   )
+#' ))
+#' report$set_default_footer(list(
+#'   rows = list(c(l = "Confidential - For Clinical Study Use Only")),
+#'   top_border = TRUE
+#' ))
+#' ```
+#'
+#' **Page tokens** available in header/footer text:
+#' - `{PAGE}` — replaced with `\chpgn` (dynamic page number rendered by the RTF viewer).
+#' - `{TOTAL_PAGES}` — replaced with the static total page count computed at render time.
+#'
+#' @param font_table A list of font definitions. Each element is a list with at
+#'   least a `name` element (character string). Default: `list(list(name = "Courier"))`.
+#' @param color_table A character vector of hex color codes (e.g. `"#000000"`).
+#'   Default: `c("#000000")`.
+#' @param default_page A named list of page layout settings. Keys:
+#'   `paper`, `orientation`, `width_twips`, `height_twips`,
+#'   `margin_top_twips`, `margin_bottom_twips`, `margin_left_twips`,
+#'   `margin_right_twips`. Default: letter landscape with 0.75″ top/bottom and
+#'   0.5″ left/right margins.
+#' @param default_header Document-wide default header applied to all sections
+#'   that do not specify their own header. A list with:
+#'   \describe{
+#'     \item{`rows`}{A list of plain named character vectors (see Header/Footer
+#'       format section above). Default: empty list (no document-wide header).}
+#'     \item{`width_twips`}{Header width in twips, or `NULL` for full writable
+#'       width.}
+#'   }
+#' @param default_footer Document-wide default footer. Same structure as
+#'   `default_header`, plus:
+#'   \describe{
+#'     \item{`top_border`}{Logical. Draw a horizontal rule above the footer.
+#'       Default: `TRUE`.}
+#'   }
+#' @param default_format A named list of text/table formatting defaults. Keys:
+#'   `font_index`, `font_size_half_points`, `line_spacing`,
+#'   `table_cell_height_twips`.
+#'
+#' @examples
+#' report <- rtfreport$new()
+#' sec <- report$add_section(
+#'   header = c(l = "Protocol: RTF-101", r = "Page {PAGE} of {TOTAL_PAGES}"),
+#'   footer = c(l = "Confidential")
+#' )
+#' report$add_page(sec, title = "Table 1")
 #'
 #' @export
 rtfreport <- R6::R6Class(

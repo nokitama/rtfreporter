@@ -84,9 +84,52 @@ Defaults are resolved with this order (lowest to highest):
 - Layout: equal-width columns only.
 - Width default: full writable width (between margins).
 - Alignment default by column count:
-  - 1 column: center
+  - 1 column: center (header) / left (footer)
   - 2 columns: left / right
   - 3 columns: left / center / right
+
+#### Header/Footer row representation
+
+A header or footer passed directly to `add_section(header=)`, `set_section_header()`,
+or `set_section_footer()` is **a plain named character vector**:
+
+```r
+# Single section header/footer — plain named vector
+add_section(header = c(l = "Protocol: RTF-101", r = "Page {PAGE} of {TOTAL_PAGES}"))
+set_section_footer(sec, c(l = "Confidential"))
+```
+
+A document-level default header/footer (`set_default_header()`, `set_default_footer()`)
+uses a **list with a `rows` element** whose values are plain named vectors — one vector
+per row:
+
+```r
+# Multi-row document-wide header
+set_default_header(list(
+  rows = list(
+    c(l = "Protocol: RTF-101", r = "Page {PAGE} of {TOTAL_PAGES}"),
+    c(l = "Study Title",       r = "For Clinical Study Use Only")
+  )
+))
+
+# Document-wide footer with top border
+set_default_footer(list(
+  rows = list(c(l = "Confidential - Internal Use Only")),
+  top_border = TRUE
+))
+```
+
+**Named vector keys and their alignment mapping**:
+
+| Key | Alignment |
+|-----|-----------|
+| `l` | left      |
+| `r` | right     |
+| `c` | center    |
+| (unnamed) | determined by column count (see defaults above) |
+
+**Backward compatibility**: The legacy form `list(columns = c(...))` per row is still
+accepted by the renderer but must not be used in new code.
 
 #### Header/Footer dynamic fields
 

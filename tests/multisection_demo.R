@@ -100,18 +100,18 @@ r <- rtfreport$new()
 r$set_document_defaults(
   default_header = list(
     rows = list(
-      list(columns = c(
+      c(
         l = "Sponsor: Example Corp          Study: LAB-2026-001",
         r = "Page {PAGE} of {TOTAL_PAGES}"
-      ))
+      )
     )
   ),
   default_footer = list(
     rows = list(
-      list(columns = c(
+      c(
         l = "CONFIDENTIAL — For internal use only",
         r = "Data cut-off: 2026-01-01"
-      ))
+      )
     ),
     top_border = TRUE
   )
@@ -120,7 +120,7 @@ r$set_document_defaults(
 # ── Section 1: Hemoglobin (2 pages) ──────────────────────────────────────────
 # sec$header はヘッダー最下行に追加。空白スペーサー行は自動挿入。
 s1 <- r$add_section(
-  header = list(columns = c(l = "Lab Test: Hemoglobin (g/dL)"))
+  header = c(l = "Lab Test: Hemoglobin (g/dL)")
 )
 r$add_page(
   section_index = s1,
@@ -151,7 +151,7 @@ r$add_page(
 
 # ── Section 2: White Blood Cells (1 page) ────────────────────────────────────
 s2 <- r$add_section(
-  header = list(columns = c(l = "Lab Test: White Blood Cells (10^{3}/\u03bcL)"))
+  header = c(l = "Lab Test: White Blood Cells (10^{3}/\u03bcL)")
 )
 r$add_page(
   section_index = s2,
@@ -169,7 +169,7 @@ r$add_page(
 
 # ── Section 3: Platelets (2 pages) ───────────────────────────────────────────
 s3 <- r$add_section(
-  header = list(columns = c(l = "Lab Test: Platelets (10^{3}/\u03bcL)"))
+  header = c(l = "Lab Test: Platelets (10^{3}/\u03bcL)")
 )
 r$add_page(
   section_index = s3,

@@ -51,16 +51,16 @@ r <- rtfreport$new(
 r$set_document_defaults(
   default_header = list(
     rows = list(
-      list(columns = c(
+      c(
         l = "rtfreporter Row Height Demo — Courier 9pt, 9-inch table",
         r = "Page {PAGE} of {TOTAL_PAGES}"
-      ))
+      )
     )
   ),
   default_footer = list(
-    rows = list(list(columns = c(
+    rows = list(c(
       l = "Note: trrh positive = minimum height; negative = exact height"
-    ))),
+    )),
     top_border = TRUE
   )
 )

@@ -11,8 +11,8 @@ dir.create(file.path("tests", "output"), recursive = TRUE, showWarnings = FALSE)
 make_common_header <- function(study_title) {
   list(
     rows = list(
-      list(columns = c(l = "Protocol: RTF-101", r = "Page {PAGE} of {TOTAL_PAGES}")),
-      list(columns = c(l = study_title, r = "For Clinical Study Use Only"))
+      c(l = "Protocol: RTF-101", r = "Page {PAGE} of {TOTAL_PAGES}"),
+      c(l = study_title, r = "For Clinical Study Use Only")
     )
   )
 }
@@ -20,7 +20,7 @@ make_common_header <- function(study_title) {
 make_common_footer <- function() {
   list(
     rows = list(
-      list(columns = c(l = "Confidential - Internal Use Only"))
+      c(l = "Confidential - Internal Use Only")
     )
   )
 }
@@ -33,7 +33,7 @@ dm_report$set_default_header(make_common_header("Table 14.1.1 Demographics"))
 dm_report$set_default_footer(make_common_footer())
 
 dm_sec <- dm_report$add_section(
-  header = list(columns = c(l = "Demographics (Screened Population)", r = "Safety Set"))
+  header = c(l = "Demographics (Screened Population)", r = "Safety Set")
 )
 dm_page <- dm_report$add_page(
   section_index = dm_sec,
@@ -70,7 +70,7 @@ lb_report$set_default_footer(make_common_footer())
 lb_tests <- unique(LB$LBTEST)
 for (test_name in lb_tests) {
   sec <- lb_report$add_section(
-    header = list(columns = c(l = paste0("Clinical Laboratory: ", test_name), r = "Page {PAGE} of {TOTAL_PAGES}"))
+    header = c(l = paste0("Clinical Laboratory: ", test_name), r = "Page {PAGE} of {TOTAL_PAGES}")
   )
   page <- lb_report$add_page(
     section_index = sec,

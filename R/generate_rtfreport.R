@@ -514,7 +514,8 @@
   out_rows <- character()
   for (row_idx in seq_along(rows)) {
     row_def  <- rows[[row_idx]]
-    cols_vec <- row_def$columns
+    # Accept plain vector c(l=..., r=...) directly, or legacy list(columns=c(...)).
+    cols_vec <- if (is.list(row_def) && !is.null(row_def$columns)) row_def$columns else row_def
     if (is.null(cols_vec) || length(cols_vec) == 0L) {
       cols_vec <- c("")
     }
@@ -645,7 +646,7 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
     # When sec$header is present, automatically insert an empty spacer row
     # above it so the section title is visually separated from the common rows.
     sec_header_extra <- if (!is.null(sec$header)) {
-      list(list(columns = c(l = "")), sec$header)
+      list(c(l = ""), sec$header)
     } else {
       list()
     }

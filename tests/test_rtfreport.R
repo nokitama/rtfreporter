@@ -14,7 +14,7 @@ AE <- read.csv(file.path("tests", "testdata", "ae.csv"), stringsAsFactors = FALS
 # ============================================================================
 report <- rtfreport$new()
 sec <- report$add_section(
-  header = list(columns = c(l = "DM/AE Listing", r = "Page {PAGE} of {TOTAL_PAGES}"))
+  header = c(l = "DM/AE Listing", r = "Page {PAGE} of {TOTAL_PAGES}")
 )
 
 report$add_page(
@@ -35,7 +35,7 @@ report$add_page(
 )
 
 # Add a section footer: single-column (left align) + top border.
-report$set_section_footer(sec, list(columns = c(l = "Confidential - Do Not Distribute")))
+report$set_section_footer(sec, c(l = "Confidential - Do Not Distribute"))
 
 outfile <- file.path(tempdir(), "dm_ae_report.rtf")
 generate_rtfreport(report, outfile, overwrite = TRUE)
@@ -47,9 +47,9 @@ stopifnot(grepl("\\\\rtf1", rtf_txt))
 stopifnot(grepl("Demographics \\(DM\\)", rtf_txt))
 stopifnot(grepl("Adverse Events \\(AE\\)", rtf_txt))
 stopifnot(grepl("DM/AE Listing", rtf_txt))
-# Page numbers should be embedded as actual numbers: "1 of 2" and "2 of 2"
-stopifnot(grepl("1 of 2", rtf_txt, fixed = TRUE))
-stopifnot(grepl("2 of 2", rtf_txt, fixed = TRUE))
+# {PAGE} renders as \chpgn (RTF dynamic field); {TOTAL_PAGES} renders as static count "2".
+stopifnot(grepl("\\chpgn", rtf_txt, fixed = TRUE))
+stopifnot(grepl(" of 2", rtf_txt, fixed = TRUE))
 # Single-column footer: top border (\\clbrdrt) must be present.
 stopifnot(grepl("clbrdrt", rtf_txt))
 # Single-column footer: left align (\\ql) must be present.
@@ -84,8 +84,8 @@ report_manual$set_document_defaults(
 )
 
 sec_m <- report_manual$add_section()
-report_manual$set_section_header(sec_m, list(columns = c(l = "Protocol: XYZ", r = "HOGE company")))
-report_manual$set_section_footer(sec_m, list(columns = c(l = "Page {PAGE} of {TOTAL_PAGES}")))
+report_manual$set_section_header(sec_m, c(l = "Protocol: XYZ", r = "HOGE company"))
+report_manual$set_section_footer(sec_m, c(l = "Page {PAGE} of {TOTAL_PAGES}"))
 
 page_m <- report_manual$add_page(section_index = sec_m, title = "Manual Build")
 report_manual$add_table(sec_m, page_m, data = DM, footer = "DM table footer")
@@ -102,8 +102,9 @@ stopifnot(grepl("Protocol: XYZ", rtf_manual))
 stopifnot(grepl("DM table footer", rtf_manual))
 stopifnot(grepl("AE listing footer", rtf_manual))
 stopifnot(grepl("Manual footer note", rtf_manual))
-# Single-column section footer: page number embedded (1 of 1)
-stopifnot(grepl("1 of 1", rtf_manual, fixed = TRUE))
+# {PAGE} renders as \chpgn; {TOTAL_PAGES} renders as static "1".
+stopifnot(grepl("\\chpgn", rtf_manual, fixed = TRUE))
+stopifnot(grepl(" of 1", rtf_manual, fixed = TRUE))
 # Single-column section footer: top border (\\clbrdrt) must appear.
 stopifnot(grepl("clbrdrt", rtf_manual))
 
@@ -153,22 +154,22 @@ report2 <- rtfreport$new()
 # Row 3: 1-column center (Table title)
 report2$set_default_header(list(
   rows = list(
-    list(columns = c(l = "Protocol: XXXXX", r = "HOGE company")),
-    list(columns = c(l = "Study Title", r = "Page {PAGE} of {TOTAL_PAGES}")),
-    list(columns = c(c = "Table 14.1.1 Demographic and Safety Summary"))
+    c(l = "Protocol: XXXXX", r = "HOGE company"),
+    c(l = "Study Title", r = "Page {PAGE} of {TOTAL_PAGES}"),
+    c(c = "Table 14.1.1 Demographic and Safety Summary")
   )
 ))
 
 # Document-wide footer: 1 shared row + top border (default)
 report2$set_default_footer(list(
   rows = list(
-    list(columns = c(l = "Confidential"))
+    c(l = "Confidential")
   )
 ))
 
 # Section 1: header row 4 is section-specific (1-column left)
 sec1 <- report2$add_section(
-  header = list(columns = c(l = "Cohort: Cohort 1"))
+  header = c(l = "Cohort: Cohort 1")
 )
 
 report2$add_page(
@@ -189,7 +190,7 @@ report2$add_page(
 
 # Section 2: header row 4 is section-specific
 sec2 <- report2$add_section(
-  header = list(columns = c(l = "Cohort: Cohort 2"))
+  header = c(l = "Cohort: Cohort 2")
 )
 
 report2$add_page(
@@ -215,11 +216,9 @@ generate_rtfreport(report2, outfile2, overwrite = TRUE)
 stopifnot(file.exists(outfile2))
 rtf_txt2 <- paste(readLines(outfile2, warn = FALSE), collapse = "\n")
 
-# Page numbers should be embedded as actual numbers (4 pages total)
-stopifnot(grepl("1 of 4", rtf_txt2, fixed = TRUE))
-stopifnot(grepl("2 of 4", rtf_txt2, fixed = TRUE))
-stopifnot(grepl("3 of 4", rtf_txt2, fixed = TRUE))
-stopifnot(grepl("4 of 4", rtf_txt2, fixed = TRUE))
+# {PAGE} renders as \chpgn; {TOTAL_PAGES} renders as static "4".
+stopifnot(grepl("\\chpgn", rtf_txt2, fixed = TRUE))
+stopifnot(grepl(" of 4", rtf_txt2, fixed = TRUE))
 
 # Document-wide header rows must appear in output
 stopifnot(grepl("HOGE company", rtf_txt2))
@@ -274,7 +273,7 @@ bundle_sec <- report_bundle$add_section_from_dataframes(
     `DM page` = DM[1:2, ],
     `AE page` = AE[1:2, ]
   ),
-  section_header = list(columns = c(l = "Bundle Section")),
+  section_header = c(l = "Bundle Section"),
   page_footer_notes = "bundle note"
 )
 

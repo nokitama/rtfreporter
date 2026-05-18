@@ -299,8 +299,49 @@ def _render_dataframe_table(df: Any, writable_width_twips: int, metadata: Option
 class rtfreport:
     """RTF report object.
 
-    Stores content in document -> section -> page hierarchy.
-    Matches the R rtfreport R6 class API.
+    Stores content in a document -> section -> page hierarchy.
+    Mirrors the R ``rtfreport`` R6 class API.
+
+    Header / Footer format
+    ----------------------
+    Headers and footers use a plain ``dict`` with alignment-keyed cell text:
+
+    ======  =========
+    Key     Alignment
+    ======  =========
+    ``l``   left
+    ``r``   right
+    ``c``   center
+    ======  =========
+
+    **Section-level header/footer** (single row, passed directly):
+
+    .. code-block:: python
+
+        sec = report.add_section(
+            header={"l": "Protocol: RTF-101", "r": "Page {PAGE} of {TOTAL_PAGES}"},
+            footer={"l": "Confidential"},
+        )
+
+    **Document-level default header/footer** (may be multi-row):
+
+    .. code-block:: python
+
+        report.set_default_header({
+            "rows": [
+                {"l": "Protocol: RTF-101", "r": "Page {PAGE} of {TOTAL_PAGES}"},
+                {"l": "Study Title",       "r": "Company Name"},
+            ]
+        })
+        report.set_default_footer({
+            "rows": [{"l": "Confidential - For Clinical Study Use Only"}],
+            "top_border": True,
+        })
+
+    Page tokens available in header/footer strings:
+
+    - ``{PAGE}`` — dynamic page-number RTF field (``\\chpgn``) updated by the viewer.
+    - ``{TOTAL_PAGES}`` — static total page count computed at render time.
     """
 
     def __init__(
@@ -354,7 +395,18 @@ class rtfreport:
     # ------------------------------------------------------------------
 
     def add_section(self, header: Optional[dict] = None, footer: Optional[dict] = None) -> int:
-        """Add a section and return its 1-based index."""
+        """Add a section and return its 1-based index.
+
+        Parameters
+        ----------
+        header:
+            Section header as a plain alignment-keyed dict, e.g.
+            ``{"l": "Left", "r": "Page {PAGE} of {TOTAL_PAGES}"}``.
+            ``None`` falls back to the document-wide default header.
+        footer:
+            Section footer in the same format as *header*.
+            ``None`` falls back to the document-wide default footer.
+        """
         self.sections.append({"header": header, "footer": footer, "pages": []})
         return len(self.sections)
 
@@ -363,11 +415,29 @@ class rtfreport:
         return self.sections[idx - 1]
 
     def set_section_header(self, section_index: int, header: dict) -> "rtfreport":
+        """Set or replace the header for an existing section.
+
+        Parameters
+        ----------
+        section_index:
+            1-based section index.
+        header:
+            Plain alignment-keyed dict, e.g. ``{"l": "Left", "r": "Right"}``.
+        """
         idx = _assert_index(section_index, len(self.sections), "section_index")
         self.sections[idx - 1]["header"] = header
         return self
 
     def set_section_footer(self, section_index: int, footer: dict) -> "rtfreport":
+        """Set or replace the footer for an existing section.
+
+        Parameters
+        ----------
+        section_index:
+            1-based section index.
+        footer:
+            Plain alignment-keyed dict, e.g. ``{"l": "Confidential"}``.
+        """
         idx = _assert_index(section_index, len(self.sections), "section_index")
         self.sections[idx - 1]["footer"] = footer
         return self
@@ -543,10 +613,33 @@ class rtfreport:
         return self
 
     def set_default_header(self, header: dict) -> "rtfreport":
+        """Update the document-wide default header.
+
+        Parameters
+        ----------
+        header:
+            Dict with a ``rows`` key whose value is a list of plain
+            alignment-keyed dicts (one per header row), e.g.::
+
+                {
+                    "rows": [
+                        {"l": "Protocol", "r": "Page {PAGE} of {TOTAL_PAGES}"},
+                        {"l": "Study Title", "r": "Company"},
+                    ]
+                }
+        """
         self.document["default_header"] = _merge_dict(self.document["default_header"], header)
         return self
 
     def set_default_footer(self, footer: dict) -> "rtfreport":
+        """Update the document-wide default footer.
+
+        Parameters
+        ----------
+        footer:
+            Same structure as *header* for ``set_default_header``, plus an
+            optional ``top_border`` key (bool, default ``True``).
+        """
         self.document["default_footer"] = _merge_dict(self.document["default_footer"], footer)
         return self
 

@@ -489,14 +489,14 @@ run_test("COMP-a: Clinical AE listing (全機能組み合わせ)", {
   r$set_document_defaults(
     default_header = list(
       rows = list(
-        list(columns = c(l = "Sponsor: Example Corp",
-                         r = "Study: EX-2026-001")),
-        list(columns = c(l = "Table 14.3.1: Adverse Events",
-                         r = "Page {PAGE} of {TOTAL_PAGES}"))
+        c(l = "Sponsor: Example Corp",
+                         r = "Study: EX-2026-001"),
+        c(l = "Table 14.3.1: Adverse Events",
+                         r = "Page {PAGE} of {TOTAL_PAGES}")
       )
     ),
     default_footer = list(
-      rows      = list(list(columns = c(l = "Confidential"))),
+      rows      = list(c(l = "Confidential")),
       top_border = TRUE
     )
   )
@@ -786,20 +786,20 @@ run_test("TFL-DEMO: Demographics Summary Table (TFL style)", {
   r$set_document_defaults(
     default_header = list(
       rows = list(
-        list(columns = c(
+        c(
           l = "Sponsor: Example Corp          Study: EX-2026-001",
           r = "Page {PAGE} of {TOTAL_PAGES}"
-        )),
-        list(columns = c(
+        ),
+        c(
           l = "Table 14.1.1: Demographic and Baseline Characteristics",
           r = ""
-        ))
+        )
       )
     ),
     default_footer = list(
       rows = list(
-        list(columns = c(l = "Note: Values are n (%) unless otherwise specified.")),
-        list(columns = c(l = "Source: ADSL dataset. Data cut-off: 2026-01-01."))
+        c(l = "Note: Values are n (%) unless otherwise specified."),
+        c(l = "Source: ADSL dataset. Data cut-off: 2026-01-01.")
       ),
       top_border = TRUE
     )
@@ -861,16 +861,16 @@ r_summary <- rtfreport$new()
 r_summary$set_document_defaults(
   default_header = list(
     rows = list(
-      list(columns = c(
+      c(
         l = "rtfreporter Feature Test Report",
         r = paste0("Run: ", format(Sys.time(), "%Y-%m-%d %H:%M"))
-      ))
+      )
     )
   ),
   default_footer = list(
-    rows = list(list(columns = c(
+    rows = list(c(
       l = sprintf("PASS: %d / FAIL: %d / TOTAL: %d", n_pass, n_fail, n_pass + n_fail)
-    ))),
+    )),
     top_border = TRUE
   )
 )
