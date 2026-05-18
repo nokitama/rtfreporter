@@ -79,9 +79,29 @@ pip install https://github.com/ichirio/rtfreporter/releases/download/vX.Y.Z-alph
 
 ---
 
+## Vignette の管理
+
+`vignette()` コマンドで参照できるようにするには、**ビルド済みHTMLを `r/rtfreporter/inst/doc/` に含める**必要がある。
+`install_local()` はデフォルトでRmdをビルドしないため、事前ビルドが必須。
+
+```r
+# vignette を手動ビルドして inst/doc/ に配置
+rmarkdown::render(
+  'r/rtfreporter/vignettes/rtfreporter-quickstart.Rmd',
+  output_dir = 'r/rtfreporter/inst/doc',
+  output_format = 'rmarkdown::html_vignette'
+)
+# Rmd のコピーも inst/doc/ に置く（R の規約）
+file.copy('r/rtfreporter/vignettes/rtfreporter-quickstart.Rmd',
+          'r/rtfreporter/inst/doc/')
+```
+
+---
+
 ## チェックリスト（リリース前確認）
 
 - [ ] `r/rtfreporter/DESCRIPTION` の `Version` が数字のみか確認
+- [ ] vignette を `inst/doc/` にビルド済みHTMLとして配置したか確認
 - [ ] R用 tar.gz を `r/` ディレクトリのみで作成したか確認
 - [ ] Python用 tar.gz を `python/` ディレクトリのみで作成したか確認
 - [ ] 両アセットを Release にアップロードしたか確認
