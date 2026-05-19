@@ -37,22 +37,22 @@ head(lb)
 
 ## Common report styling
 
+Use `rtf_header()` and `rtf_footer()` to build reusable header/footer objects.
+Both accept a single named vector (one row) or a `list` of named vectors
+(multi-row). Keys `l`, `c`, `r` map to left, center, and right columns.
+
 ```{r common-style}
 make_common_header <- function(study_title) {
-  list(
+  rtf_header(
     rows = list(
-      c(l = "Protocol: RTF-101", r = "Page {PAGE} of {TOTAL_PAGES}"),
-      c(l = study_title, r = "For Clinical Study Use Only")
+      c(l = "Protocol: RTF-101", r = "Page {AUTO_PAGE} of {TOTAL_PAGES}"),
+      c(l = study_title,         r = "For Clinical Study Use Only")
     )
   )
 }
 
 make_common_footer <- function() {
-  list(
-    rows = list(
-      c(l = "Confidential - Internal Use Only")
-    )
-  )
+  rtf_footer(c(l = "Confidential - Internal Use Only"))
 }
 ```
 
@@ -60,11 +60,10 @@ make_common_footer <- function() {
 
 ```{r dm-report}
 dm_report <- rtfreport$new()
-dm_report$set_default_header(make_common_header("Table 14.1.1 Demographics"))
-dm_report$set_default_footer(make_common_footer())
 
 dm_sec <- dm_report$add_section(
-  header = c(l = "Demographics (Screened Population)", r = "Safety Set")
+  header = make_common_header("Table 14.1.1 Demographics"),
+  footer = make_common_footer()
 )
 dm_page <- dm_report$add_page(
   section_index = dm_sec,
@@ -102,22 +101,27 @@ clinical-style footer.
 
 ```{r lb-report}
 lb_report <- rtfreport$new()
-lb_report$set_default_header(make_common_header("Table 14.2.1 Clinical Laboratory Summary"))
-lb_report$set_default_footer(make_common_footer())
-
 lb_tests <- unique(lb$LBTEST)
 
 for (test_name in lb_tests) {
   sec <- lb_report$add_section(
-    header = c(l = paste0("Clinical Laboratory: ", test_name), r = "Page {PAGE} of {TOTAL_PAGES}")
+    header = rtf_header(
+      rows = list(
+        c(l = "Protocol: RTF-101",                    r = "Page {AUTO_PAGE} of {TOTAL_PAGES}"),
+        c(l = paste0("Table 14.2.1 Clinical Lab: ", test_name), r = "For Clinical Study Use Only")
+      )
+    ),
+    footer = make_common_footer()
   )
   page <- lb_report$add_page(
     section_index = sec,
     title = paste0(test_name, " by Subject")
   )
 
-  test_df <- subset(lb, LBTEST == test_name, select = c(USUBJID, ARM, VISIT, LBSTRESN, LBSTRESU, LBNRLO, LBNRHI, LBNRIND))
-  names(test_df) <- c("Subject ID", "Treatment Arm", "Visit", "Result", "Unit", "Ref Low", "Ref High", "Flag")
+  test_df <- subset(lb, LBTEST == test_name,
+                    select = c(USUBJID, ARM, VISIT, LBSTRESN, LBSTRESU, LBNRLO, LBNRHI, LBNRIND))
+  names(test_df) <- c("Subject ID", "Treatment Arm", "Visit", "Result", "Unit",
+                      "Ref Low", "Ref High", "Flag")
 
   test_tbl <- rtftable$new(
     test_df,
@@ -126,7 +130,8 @@ for (test_name in lb_tests) {
     header_row_height_twips = 300L
   )
 
-  lb_report$add_table(sec, page, data = test_tbl, footer = paste0("Source: LB domain | ", test_name))
+  lb_report$add_table(sec, page, data = test_tbl,
+                       footer = paste0("Source: LB domain | ", test_name))
 }
 
 lb_out <- file.path(tempdir(), "rtfreporter_quickstart_lab_report.rtf")
@@ -134,21 +139,37 @@ generate_rtfreport(lb_report, lb_out, overwrite = TRUE)
 lb_out
 ```
 
-Each section uses the analyte name in the header so the report reads naturally
-as a clinical laboratory listing.
+Each section specifies its header and footer directly. If a section omits
+`header` or `footer`, the value is inherited from the immediately preceding
+section.
 
 ## Reusable section helper
 
 When a section needs multiple pages from multiple data frames, the convenience
-method `add_section_from_dataframes()` can create the section and append one
-page per data frame in one call.
+method `add_section_from_dataframes()` creates the section and appends one
+page per data frame in a single call.
 
 ```{r helper-note}
 report <- rtfreport$new()
 report$add_section_from_dataframes(
-  data_list = list("DM page" = dm[1:2, ], "AE page" = ae[1:2, ])
+  data_list        = list("DM page" = dm[1:2, ], "AE page" = ae[1:2, ]),
+  section_header   = make_common_header("Bundle Demo"),
+  section_footer   = make_common_footer()
 )
 ```
+
+## Page tokens
+
+Use these tokens in header/footer text:
+
+| Token | Behavior |
+|-------|----------|
+| `{AUTO_PAGE}` | Dynamic page number updated by the RTF viewer (`\chpgn`) — **recommended** |
+| `{PAGE}` | Alias for `{AUTO_PAGE}` |
+| `{TOTAL_PAGES}` | Static total page count computed when `generate_rtfreport()` is called |
+| `{AUTO_TOTAL_PAGES}` | Alias for `{TOTAL_PAGES}` |
+
+Recommended usage: `"Page {AUTO_PAGE} of {TOTAL_PAGES}"`.
 
 ## Next steps
 
