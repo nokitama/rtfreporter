@@ -1,5 +1,5 @@
 ---
-title: "Pipe-Based API"
+title: "Pipe-Based API for rtfreporter"
 author: "ichirio"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette

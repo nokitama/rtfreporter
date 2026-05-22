@@ -30,3 +30,5 @@ build/
 *.egg-info/
 /doc/
 /Meta/
+/doc/
+/Meta/

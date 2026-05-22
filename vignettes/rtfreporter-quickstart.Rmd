@@ -1,8 +1,8 @@
 ---
-title: "rtfreporter — Clinical RTF Reporting"
+title: "rtfreporter - Clinical RTF Reporting"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{rtfreporter — Clinical RTF Reporting}
+  %\VignetteIndexEntry{Clinical RTF Reporting with rtfreporter}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
