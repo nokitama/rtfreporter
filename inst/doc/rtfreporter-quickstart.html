@@ -12,7 +12,7 @@
 
 
 
-<title>rtfreporter Quick Start</title>
+<title>rtfreporter — Clinical RTF Reporting</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -337,208 +337,661 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 
-<h1 class="title toc-ignore">rtfreporter Quick Start</h1>
+<h1 class="title toc-ignore">rtfreporter — Clinical RTF Reporting</h1>
 
 
 
 <div id="overview" class="section level2">
 <h2>Overview</h2>
-<p><code>rtfreporter</code> is a clinical RTF reporting toolkit for
-tables, listings, and figures. It is aimed at clinical-trial style
-outputs, not as a general-purpose RTF library.</p>
-<p>This quick start uses bundled test data to build two reports:</p>
-<ol style="list-style-type: decimal">
-<li>A one-page demographics report.</li>
-<li>A laboratory report with one section per analyte and the analyte
-name in the section header.</li>
-</ol>
+<p><code>rtfreporter</code> produces clinical-trial–style RTF reports
+(tables, listings, figures) without depending on r2rtf or any other RTF
+library.</p>
+<p><strong>Document hierarchy:</strong> Document → Section → Page →
+Block Each section carries its own <code>header</code> /
+<code>footer</code>. When you omit them, the previous section’s values
+are inherited automatically.</p>
+<hr />
 </div>
-<div id="test-data" class="section level2">
-<h2>Test data</h2>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>data_dir <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="st">&quot;..&quot;</span>, <span class="st">&quot;tests&quot;</span>, <span class="st">&quot;testdata&quot;</span>)</span>
-<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>dm <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="fu">file.path</span>(data_dir, <span class="st">&quot;dm.csv&quot;</span>), <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>ae <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="fu">file.path</span>(data_dir, <span class="st">&quot;ae.csv&quot;</span>), <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>lb <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="fu">file.path</span>(data_dir, <span class="st">&quot;lb.csv&quot;</span>), <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="fu">head</span>(dm)</span></code></pre></div>
-<pre><code>##    USUBJID SEX AGE       ARM
-## 1 SUBJ-001   M  64   Placebo
-## 2 SUBJ-002   F  52  Low Dose
-## 3 SUBJ-003   M  71 High Dose
-## 4 SUBJ-004   F  45   Placebo</code></pre>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">head</span>(ae)</span></code></pre></div>
-<pre><code>##    USUBJID      AETERM    AESEV AESER
-## 1 SUBJ-001    Headache     Mild    No
-## 2 SUBJ-001      Nausea Moderate    No
-## 3 SUBJ-003 Neutropenia   Severe   Yes
-## 4 SUBJ-004     Pyrexia     Mild    No</code></pre>
-<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">head</span>(lb)</span></code></pre></div>
-<pre><code>##   USUBJID      ARM    VISIT     LBTEST LBSTRESN LBSTRESU LBNRLO LBNRHI LBNRIND
-## 1 101-001  Placebo Baseline Hemoglobin     13.8     g/dL     12     16       N
-## 2 101-002  Placebo Baseline Hemoglobin     11.9     g/dL     12     16       L
-## 3 101-003 Low Dose Baseline Hemoglobin     14.2     g/dL     12     16       N
-## 4 101-001  Placebo Baseline        ALT     21.0      U/L      0     35       N
-## 5 101-002  Placebo Baseline        ALT     46.0      U/L      0     35       H
-## 6 101-003 Low Dose Baseline        ALT     33.0      U/L      0     35       N</code></pre>
+<div id="minimal-one-page-report" class="section level2">
+<h2>1 Minimal one-page report</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>report <span class="ot">&lt;-</span> rtfreport<span class="sc">$</span><span class="fu">new</span>()</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>sec <span class="ot">&lt;-</span> report<span class="sc">$</span><span class="fu">add_section</span>(</span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>  <span class="at">header =</span> <span class="fu">rtf_header</span>(<span class="at">rows =</span> <span class="fu">list</span>(</span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>    <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Protocol: RTF-101&quot;</span>,          <span class="at">r =</span> <span class="st">&quot;ACME Pharma&quot;</span>),</span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a>    <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Table 14.1.1 Demographics&quot;</span>,  <span class="at">r =</span> <span class="st">&quot;Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}&quot;</span>)</span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>  )),</span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>  <span class="at">footer =</span> <span class="fu">rtf_footer</span>(<span class="at">rows =</span> <span class="fu">list</span>(</span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a>    <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Source: DM domain.&quot;</span>, <span class="at">r =</span> <span class="st">&quot;CONFIDENTIAL&quot;</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>  ))</span>
+<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a>)</span>
+<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb1-14"><a href="#cb1-14" tabindex="-1"></a>  <span class="at">Subject =</span> <span class="fu">c</span>(<span class="st">&quot;001&quot;</span>, <span class="st">&quot;002&quot;</span>, <span class="st">&quot;003&quot;</span>),</span>
+<span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a>  <span class="at">Arm     =</span> <span class="fu">c</span>(<span class="st">&quot;Active&quot;</span>, <span class="st">&quot;Placebo&quot;</span>, <span class="st">&quot;Active&quot;</span>),</span>
+<span id="cb1-16"><a href="#cb1-16" tabindex="-1"></a>  <span class="at">Age     =</span> <span class="fu">c</span>(<span class="dv">34</span><span class="dt">L</span>, <span class="dv">45</span><span class="dt">L</span>, <span class="dv">28</span><span class="dt">L</span>),</span>
+<span id="cb1-17"><a href="#cb1-17" tabindex="-1"></a>  <span class="at">Sex     =</span> <span class="fu">c</span>(<span class="st">&quot;M&quot;</span>, <span class="st">&quot;F&quot;</span>, <span class="st">&quot;M&quot;</span>),</span>
+<span id="cb1-18"><a href="#cb1-18" tabindex="-1"></a>  <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
+<span id="cb1-19"><a href="#cb1-19" tabindex="-1"></a>)</span>
+<span id="cb1-20"><a href="#cb1-20" tabindex="-1"></a></span>
+<span id="cb1-21"><a href="#cb1-21" tabindex="-1"></a>report<span class="sc">$</span><span class="fu">add_page</span>(</span>
+<span id="cb1-22"><a href="#cb1-22" tabindex="-1"></a>  <span class="at">section_index =</span> sec,</span>
+<span id="cb1-23"><a href="#cb1-23" tabindex="-1"></a>  <span class="at">content =</span> <span class="fu">list</span>(</span>
+<span id="cb1-24"><a href="#cb1-24" tabindex="-1"></a>    <span class="fu">list</span>(<span class="at">type =</span> <span class="st">&quot;table&quot;</span>,</span>
+<span id="cb1-25"><a href="#cb1-25" tabindex="-1"></a>         <span class="at">data =</span> rtftable<span class="sc">$</span><span class="fu">new</span>(df,</span>
+<span id="cb1-26"><a href="#cb1-26" tabindex="-1"></a>           <span class="at">col_rel_width    =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">1</span>, <span class="dv">1</span>),</span>
+<span id="cb1-27"><a href="#cb1-27" tabindex="-1"></a>           <span class="at">row_height_twips =</span> <span class="dv">280</span><span class="dt">L</span>))</span>
+<span id="cb1-28"><a href="#cb1-28" tabindex="-1"></a>  ),</span>
+<span id="cb1-29"><a href="#cb1-29" tabindex="-1"></a>  <span class="at">footer_notes =</span> <span class="st">&quot;Source: DM domain. One row per subject.&quot;</span></span>
+<span id="cb1-30"><a href="#cb1-30" tabindex="-1"></a>)</span>
+<span id="cb1-31"><a href="#cb1-31" tabindex="-1"></a></span>
+<span id="cb1-32"><a href="#cb1-32" tabindex="-1"></a><span class="fu">generate_rtfreport</span>(report, <span class="fu">tempfile</span>(<span class="at">fileext =</span> <span class="st">&quot;.rtf&quot;</span>), <span class="at">overwrite =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+<hr />
 </div>
-<div id="common-report-styling" class="section level2">
-<h2>Common report styling</h2>
-<p>Use <code>rtf_header()</code> and <code>rtf_footer()</code> to build
-reusable header/footer objects. Both accept a single named vector (one
-row) or a <code>list</code> of named vectors (multi-row). Keys
-<code>l</code>, <code>c</code>, <code>r</code> map to left, center, and
-right columns.</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>make_common_header <span class="ot">&lt;-</span> <span class="cf">function</span>(study_title) {</span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  <span class="fu">rtf_header</span>(</span>
-<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>    <span class="at">rows =</span> <span class="fu">list</span>(</span>
-<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>      <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Protocol: RTF-101&quot;</span>, <span class="at">r =</span> <span class="st">&quot;Page {AUTO_PAGE} of {TOTAL_PAGES}&quot;</span>),</span>
-<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>      <span class="fu">c</span>(<span class="at">l =</span> study_title,         <span class="at">r =</span> <span class="st">&quot;For Clinical Study Use Only&quot;</span>)</span>
-<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>    )</span>
-<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>  )</span>
-<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>}</span>
-<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a></span>
-<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a>make_common_footer <span class="ot">&lt;-</span> <span class="cf">function</span>() {</span>
-<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a>  <span class="fu">rtf_footer</span>(<span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Confidential - Internal Use Only&quot;</span>))</span>
-<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a>}</span></code></pre></div>
+<div id="lab-shift-table-one-section-per-analyte" class="section level2">
+<h2>2 Lab shift table — one section per analyte</h2>
+<p>The shift table is the canonical multi-section clinical TFL. Each
+analyte (ALT, AST, HGB, …) occupies its own RTF section so the
+<strong>analyte name appears in the section header bottom-left</strong>,
+changing from page to page.</p>
+<p>RTF headers and footers are per-section; this is the correct way to
+vary header content across pages of the same document.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">library</span>(rtfreporter)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co"># --- synthetic shift-count data ----------------------------------------------</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>make_shift_df <span class="ot">&lt;-</span> <span class="cf">function</span>(a_low, a_norm, a_high, b_low, b_norm, b_high) {</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  <span class="fu">data.frame</span>(</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>    <span class="at">Baseline =</span> <span class="fu">c</span>(<span class="st">&quot;Low&quot;</span>, <span class="st">&quot;Normal&quot;</span>, <span class="st">&quot;High&quot;</span>),</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>    <span class="at">A_Low    =</span> a_low,  <span class="at">A_Normal =</span> a_norm,  <span class="at">A_High =</span> a_high,</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>    <span class="at">B_Low    =</span> b_low,  <span class="at">B_Normal =</span> b_norm,  <span class="at">B_High =</span> b_high,</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>    <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span>, <span class="at">check.names =</span> <span class="cn">FALSE</span></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>  )</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>}</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>lab_data <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">label =</span> <span class="st">&quot;ALT (Alanine Aminotransferase)&quot;</span>,</span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>       <span class="at">df    =</span> <span class="fu">make_shift_df</span>(<span class="fu">c</span>(<span class="dv">4</span>,<span class="dv">0</span>,<span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">13</span>,<span class="dv">1</span>), <span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">2</span>,<span class="dv">3</span>),</span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>                             <span class="fu">c</span>(<span class="dv">3</span>,<span class="dv">0</span>,<span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">14</span>,<span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">1</span>,<span class="dv">4</span>))),</span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">label =</span> <span class="st">&quot;AST (Aspartate Aminotransferase)&quot;</span>,</span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>       <span class="at">df    =</span> <span class="fu">make_shift_df</span>(<span class="fu">c</span>(<span class="dv">5</span>,<span class="dv">0</span>,<span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">11</span>,<span class="dv">2</span>), <span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">1</span>,<span class="dv">5</span>),</span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>                             <span class="fu">c</span>(<span class="dv">4</span>,<span class="dv">0</span>,<span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">12</span>,<span class="dv">1</span>), <span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">2</span>,<span class="dv">4</span>))),</span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">label =</span> <span class="st">&quot;HGB (Hemoglobin)&quot;</span>,</span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>       <span class="at">df    =</span> <span class="fu">make_shift_df</span>(<span class="fu">c</span>(<span class="dv">2</span>,<span class="dv">1</span>,<span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">16</span>,<span class="dv">1</span>), <span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">1</span>,<span class="dv">2</span>),</span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a>                             <span class="fu">c</span>(<span class="dv">3</span>,<span class="dv">0</span>,<span class="dv">0</span>), <span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">15</span>,<span class="dv">2</span>), <span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">2</span>,<span class="dv">2</span>)))</span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a>)</span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a></span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a><span class="co"># --- shared table structure --------------------------------------------------</span></span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a>spanning_hdr <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">from =</span> <span class="dv">2</span><span class="dt">L</span>, <span class="at">to =</span> <span class="dv">4</span><span class="dt">L</span>, <span class="at">label =</span> <span class="st">&quot;Treatment A  (N=24)&quot;</span>, <span class="at">underline =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">from =</span> <span class="dv">5</span><span class="dt">L</span>, <span class="at">to =</span> <span class="dv">7</span><span class="dt">L</span>, <span class="at">label =</span> <span class="st">&quot;Treatment B  (N=24)&quot;</span>, <span class="at">underline =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a>)</span>
+<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a>col_hdr    <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;Baseline&quot;</span>, <span class="st">&quot;Low&quot;</span>, <span class="st">&quot;Normal&quot;</span>, <span class="st">&quot;High&quot;</span>, <span class="st">&quot;Low&quot;</span>, <span class="st">&quot;Normal&quot;</span>, <span class="st">&quot;High&quot;</span>)</span>
+<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a>col_widths <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">2160</span><span class="dt">L</span>, <span class="dv">900</span><span class="dt">L</span>, <span class="dv">900</span><span class="dt">L</span>, <span class="dv">900</span><span class="dt">L</span>, <span class="dv">900</span><span class="dt">L</span>, <span class="dv">900</span><span class="dt">L</span>, <span class="dv">900</span><span class="dt">L</span>)</span>
+<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a></span>
+<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a>col_spec_shift <span class="ot">&lt;-</span> <span class="fu">lapply</span>(<span class="fu">seq_len</span>(<span class="dv">7</span><span class="dt">L</span>), <span class="cf">function</span>(j)</span>
+<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">col =</span> j, <span class="at">align =</span> <span class="cf">if</span> (j <span class="sc">==</span> <span class="dv">1</span><span class="dt">L</span>) <span class="st">&quot;left&quot;</span> <span class="cf">else</span> <span class="st">&quot;center&quot;</span>))</span>
+<span id="cb2-35"><a href="#cb2-35" tabindex="-1"></a></span>
+<span id="cb2-36"><a href="#cb2-36" tabindex="-1"></a>make_shift_table <span class="ot">&lt;-</span> <span class="cf">function</span>(df) {</span>
+<span id="cb2-37"><a href="#cb2-37" tabindex="-1"></a>  rtftable<span class="sc">$</span><span class="fu">new</span>(</span>
+<span id="cb2-38"><a href="#cb2-38" tabindex="-1"></a>    <span class="at">data                =</span> df,</span>
+<span id="cb2-39"><a href="#cb2-39" tabindex="-1"></a>    <span class="at">col_header          =</span> col_hdr,</span>
+<span id="cb2-40"><a href="#cb2-40" tabindex="-1"></a>    <span class="at">spanning_header     =</span> spanning_hdr,</span>
+<span id="cb2-41"><a href="#cb2-41" tabindex="-1"></a>    <span class="at">col_spec            =</span> col_spec_shift,</span>
+<span id="cb2-42"><a href="#cb2-42" tabindex="-1"></a>    <span class="at">column_widths_twips =</span> col_widths,</span>
+<span id="cb2-43"><a href="#cb2-43" tabindex="-1"></a>    <span class="at">border              =</span> <span class="st">&quot;tfl&quot;</span>,</span>
+<span id="cb2-44"><a href="#cb2-44" tabindex="-1"></a>    <span class="at">row_height_twips    =</span> <span class="dv">280</span><span class="dt">L</span></span>
+<span id="cb2-45"><a href="#cb2-45" tabindex="-1"></a>  )</span>
+<span id="cb2-46"><a href="#cb2-46" tabindex="-1"></a>}</span>
+<span id="cb2-47"><a href="#cb2-47" tabindex="-1"></a></span>
+<span id="cb2-48"><a href="#cb2-48" tabindex="-1"></a><span class="co"># --- common footer (same for all sections) -----------------------------------</span></span>
+<span id="cb2-49"><a href="#cb2-49" tabindex="-1"></a>common_footer <span class="ot">&lt;-</span> <span class="fu">rtf_footer</span>(</span>
+<span id="cb2-50"><a href="#cb2-50" tabindex="-1"></a>  <span class="at">rows =</span> <span class="fu">list</span>(</span>
+<span id="cb2-51"><a href="#cb2-51" tabindex="-1"></a>    <span class="fu">c</span>(<span class="at">l =</span> <span class="fu">paste0</span>(<span class="st">&quot;ALT=Alanine Aminotransferase; &quot;</span>,</span>
+<span id="cb2-52"><a href="#cb2-52" tabindex="-1"></a>                 <span class="st">&quot;AST=Aspartate Aminotransferase; HGB=Hemoglobin&quot;</span>)),</span>
+<span id="cb2-53"><a href="#cb2-53" tabindex="-1"></a>    <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Low/Normal/High: site reference range categories.  n = number of subjects.&quot;</span>,</span>
+<span id="cb2-54"><a href="#cb2-54" tabindex="-1"></a>      <span class="at">r =</span> <span class="st">&quot;CONFIDENTIAL&quot;</span>)</span>
+<span id="cb2-55"><a href="#cb2-55" tabindex="-1"></a>  )</span>
+<span id="cb2-56"><a href="#cb2-56" tabindex="-1"></a>)</span>
+<span id="cb2-57"><a href="#cb2-57" tabindex="-1"></a></span>
+<span id="cb2-58"><a href="#cb2-58" tabindex="-1"></a><span class="co"># --- build report: one section per analyte -----------------------------------</span></span>
+<span id="cb2-59"><a href="#cb2-59" tabindex="-1"></a>report <span class="ot">&lt;-</span> rtfreport<span class="sc">$</span><span class="fu">new</span>()</span>
+<span id="cb2-60"><a href="#cb2-60" tabindex="-1"></a></span>
+<span id="cb2-61"><a href="#cb2-61" tabindex="-1"></a><span class="cf">for</span> (item <span class="cf">in</span> lab_data) {</span>
+<span id="cb2-62"><a href="#cb2-62" tabindex="-1"></a>  sec_header <span class="ot">&lt;-</span> <span class="fu">rtf_header</span>(</span>
+<span id="cb2-63"><a href="#cb2-63" tabindex="-1"></a>    <span class="at">rows =</span> <span class="fu">list</span>(</span>
+<span id="cb2-64"><a href="#cb2-64" tabindex="-1"></a>      <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Protocol: LAB-001&quot;</span>,                           <span class="at">r =</span> <span class="st">&quot;ACME Pharma&quot;</span>),</span>
+<span id="cb2-65"><a href="#cb2-65" tabindex="-1"></a>      <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Study Title: Phase III Safety Lab Assessment&quot;</span>, <span class="at">r =</span> <span class="st">&quot;Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}&quot;</span>),</span>
+<span id="cb2-66"><a href="#cb2-66" tabindex="-1"></a>      <span class="fu">c</span>(<span class="at">c =</span> <span class="st">&quot;Table 14.3.1  Laboratory Shift Table (Safety Population)&quot;</span>),</span>
+<span id="cb2-67"><a href="#cb2-67" tabindex="-1"></a>      <span class="fu">c</span>(<span class="at">l =</span> item<span class="sc">$</span>label)       <span class="co"># ← analyte name: bottom-left, unique per section</span></span>
+<span id="cb2-68"><a href="#cb2-68" tabindex="-1"></a>    )</span>
+<span id="cb2-69"><a href="#cb2-69" tabindex="-1"></a>  )</span>
+<span id="cb2-70"><a href="#cb2-70" tabindex="-1"></a></span>
+<span id="cb2-71"><a href="#cb2-71" tabindex="-1"></a>  sec <span class="ot">&lt;-</span> report<span class="sc">$</span><span class="fu">add_section</span>(<span class="at">header =</span> sec_header, <span class="at">footer =</span> common_footer)</span>
+<span id="cb2-72"><a href="#cb2-72" tabindex="-1"></a>  report<span class="sc">$</span><span class="fu">add_page</span>(</span>
+<span id="cb2-73"><a href="#cb2-73" tabindex="-1"></a>    <span class="at">section_index =</span> sec,</span>
+<span id="cb2-74"><a href="#cb2-74" tabindex="-1"></a>    <span class="at">content       =</span> <span class="fu">list</span>(<span class="fu">list</span>(<span class="at">type =</span> <span class="st">&quot;table&quot;</span>, <span class="at">data =</span> <span class="fu">make_shift_table</span>(item<span class="sc">$</span>df))),</span>
+<span id="cb2-75"><a href="#cb2-75" tabindex="-1"></a>    <span class="at">footer_notes  =</span> <span class="fu">paste0</span>(<span class="st">&quot;Source: LB domain.  &quot;</span>,</span>
+<span id="cb2-76"><a href="#cb2-76" tabindex="-1"></a>      <span class="st">&quot;Subjects with both a baseline and at least one post-baseline assessment included.&quot;</span>)</span>
+<span id="cb2-77"><a href="#cb2-77" tabindex="-1"></a>  )</span>
+<span id="cb2-78"><a href="#cb2-78" tabindex="-1"></a>}</span>
+<span id="cb2-79"><a href="#cb2-79" tabindex="-1"></a></span>
+<span id="cb2-80"><a href="#cb2-80" tabindex="-1"></a><span class="fu">generate_rtfreport</span>(report, <span class="fu">tempfile</span>(<span class="at">fileext =</span> <span class="st">&quot;.rtf&quot;</span>), <span class="at">overwrite =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+<p>The resulting file has <strong>3 sections</strong> (one per analyte),
+each with its own header row 4 set to the analyte label.</p>
+<hr />
 </div>
-<div id="example-1-one-page-dm-report" class="section level2">
-<h2>Example 1: One-page DM report</h2>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>dm_report <span class="ot">&lt;-</span> rtfreport<span class="sc">$</span><span class="fu">new</span>()</span>
-<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a></span>
-<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>dm_sec <span class="ot">&lt;-</span> dm_report<span class="sc">$</span><span class="fu">add_section</span>(</span>
-<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>  <span class="at">header =</span> <span class="fu">make_common_header</span>(<span class="st">&quot;Table 14.1.1 Demographics&quot;</span>),</span>
-<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a>  <span class="at">footer =</span> <span class="fu">make_common_footer</span>()</span>
-<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a>)</span>
-<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a>dm_page <span class="ot">&lt;-</span> dm_report<span class="sc">$</span><span class="fu">add_page</span>(</span>
-<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a>  <span class="at">section_index =</span> dm_sec,</span>
-<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a>  <span class="at">title =</span> <span class="st">&quot;Table 14.1.1 Demographics by Treatment Arm&quot;</span></span>
-<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a>)</span>
-<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a></span>
-<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a>dm_disp <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a>  <span class="st">`</span><span class="at">Subject ID</span><span class="st">`</span> <span class="ot">=</span> dm<span class="sc">$</span>USUBJID,</span>
-<span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a>  <span class="st">`</span><span class="at">Treatment Arm</span><span class="st">`</span> <span class="ot">=</span> dm<span class="sc">$</span>ARM,</span>
-<span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a>  <span class="at">Sex =</span> dm<span class="sc">$</span>SEX,</span>
-<span id="cb8-16"><a href="#cb8-16" tabindex="-1"></a>  <span class="at">Age =</span> dm<span class="sc">$</span>AGE,</span>
-<span id="cb8-17"><a href="#cb8-17" tabindex="-1"></a>  <span class="at">check.names =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb8-18"><a href="#cb8-18" tabindex="-1"></a>  <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
-<span id="cb8-19"><a href="#cb8-19" tabindex="-1"></a>)</span>
-<span id="cb8-20"><a href="#cb8-20" tabindex="-1"></a></span>
-<span id="cb8-21"><a href="#cb8-21" tabindex="-1"></a>dm_tbl <span class="ot">&lt;-</span> rtftable<span class="sc">$</span><span class="fu">new</span>(</span>
-<span id="cb8-22"><a href="#cb8-22" tabindex="-1"></a>  dm_disp,</span>
-<span id="cb8-23"><a href="#cb8-23" tabindex="-1"></a>  <span class="at">col_header =</span> <span class="fu">c</span>(<span class="st">&quot;Subject ID&quot;</span>, <span class="st">&quot;Treatment Arm&quot;</span>, <span class="st">&quot;Sex&quot;</span>, <span class="st">&quot;Age&quot;</span>),</span>
-<span id="cb8-24"><a href="#cb8-24" tabindex="-1"></a>  <span class="at">col_rel_width =</span> <span class="fu">c</span>(<span class="fl">1.8</span>, <span class="fl">2.2</span>, <span class="fl">0.8</span>, <span class="fl">0.8</span>),</span>
-<span id="cb8-25"><a href="#cb8-25" tabindex="-1"></a>  <span class="at">row_height_twips =</span> <span class="dv">300</span><span class="dt">L</span>,</span>
-<span id="cb8-26"><a href="#cb8-26" tabindex="-1"></a>  <span class="at">header_row_height_twips =</span> <span class="dv">300</span><span class="dt">L</span></span>
-<span id="cb8-27"><a href="#cb8-27" tabindex="-1"></a>)</span>
-<span id="cb8-28"><a href="#cb8-28" tabindex="-1"></a></span>
-<span id="cb8-29"><a href="#cb8-29" tabindex="-1"></a>dm_report<span class="sc">$</span><span class="fu">add_table</span>(dm_sec, dm_page, <span class="at">data =</span> dm_tbl, <span class="at">footer =</span> <span class="st">&quot;Source: DM domain&quot;</span>)</span>
-<span id="cb8-30"><a href="#cb8-30" tabindex="-1"></a></span>
-<span id="cb8-31"><a href="#cb8-31" tabindex="-1"></a>dm_out <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="fu">tempdir</span>(), <span class="st">&quot;rtfreporter_quickstart_dm_report.rtf&quot;</span>)</span>
-<span id="cb8-32"><a href="#cb8-32" tabindex="-1"></a><span class="fu">generate_rtfreport</span>(dm_report, dm_out, <span class="at">overwrite =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb8-33"><a href="#cb8-33" tabindex="-1"></a>dm_out</span></code></pre></div>
-<pre><code>## [1] &quot;C:\\Users\\ichir\\AppData\\Local\\Temp\\RtmpsJ9lbx/rtfreporter_quickstart_dm_report.rtf&quot;</code></pre>
-<p>The report uses a common protocol header, a section title, a page
-title, and a clinical-style footer.</p>
+<div id="embedding-figures-ggplot2" class="section level2">
+<h2>3 Embedding figures (ggplot2)</h2>
+<p><code>rtfplot</code> embeds a PNG or JPEG image binary directly into
+the RTF <code>\pict</code> block. The default alignment is
+<strong>center</strong>; specify <code>width_twips</code> to control the
+display size.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co"># --- build a ggplot and save to a temp PNG -----------------------------------</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">x =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>, <span class="at">y =</span> (<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>)<span class="sc">^</span><span class="dv">2</span> <span class="sc">+</span> <span class="fu">rnorm</span>(<span class="dv">10</span>, <span class="at">sd =</span> <span class="dv">3</span>)),</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>  <span class="fu">aes</span>(<span class="at">x =</span> x, <span class="at">y =</span> y)) <span class="sc">+</span></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">size =</span> <span class="dv">3</span>, <span class="at">colour =</span> <span class="st">&quot;#2166AC&quot;</span>) <span class="sc">+</span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">&quot;lm&quot;</span>, <span class="at">se =</span> <span class="cn">FALSE</span>, <span class="at">colour =</span> <span class="st">&quot;#D6604D&quot;</span>) <span class="sc">+</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">&quot;Lab value vs. Visit (simulated)&quot;</span>, <span class="at">x =</span> <span class="st">&quot;Visit&quot;</span>, <span class="at">y =</span> <span class="st">&quot;Lab value&quot;</span>) <span class="sc">+</span></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>  <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">11</span>)</span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a></span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a>png_path <span class="ot">&lt;-</span> <span class="fu">tempfile</span>(<span class="at">fileext =</span> <span class="st">&quot;.png&quot;</span>)</span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a><span class="fu">ggsave</span>(png_path, <span class="at">plot =</span> p, <span class="at">width =</span> <span class="dv">7</span>, <span class="at">height =</span> <span class="fl">4.5</span>, <span class="at">dpi =</span> <span class="dv">150</span>)</span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a><span class="co"># --- embed in RTF ------------------------------------------------------------</span></span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a>plot_obj <span class="ot">&lt;-</span> rtfplot<span class="sc">$</span><span class="fu">new</span>(</span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>  <span class="at">path        =</span> png_path,</span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a>  <span class="at">width_twips =</span> <span class="dv">9000</span><span class="dt">L</span>   <span class="co"># ~6.25 in; height computed from aspect ratio</span></span>
+<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a>)</span>
+<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a></span>
+<span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a>report <span class="ot">&lt;-</span> rtfreport<span class="sc">$</span><span class="fu">new</span>()</span>
+<span id="cb3-22"><a href="#cb3-22" tabindex="-1"></a>sec <span class="ot">&lt;-</span> report<span class="sc">$</span><span class="fu">add_section</span>(</span>
+<span id="cb3-23"><a href="#cb3-23" tabindex="-1"></a>  <span class="at">header =</span> <span class="fu">rtf_header</span>(<span class="at">rows =</span> <span class="fu">list</span>(</span>
+<span id="cb3-24"><a href="#cb3-24" tabindex="-1"></a>    <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Protocol: FIG-001&quot;</span>,           <span class="at">r =</span> <span class="st">&quot;ACME Pharma&quot;</span>),</span>
+<span id="cb3-25"><a href="#cb3-25" tabindex="-1"></a>    <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Figure 14.1.1  Lab Value vs. Visit (Safety Population)&quot;</span>)</span>
+<span id="cb3-26"><a href="#cb3-26" tabindex="-1"></a>  )),</span>
+<span id="cb3-27"><a href="#cb3-27" tabindex="-1"></a>  <span class="at">footer =</span> <span class="fu">rtf_footer</span>(<span class="at">rows =</span> <span class="fu">list</span>(<span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Source: LB domain.&quot;</span>)))</span>
+<span id="cb3-28"><a href="#cb3-28" tabindex="-1"></a>)</span>
+<span id="cb3-29"><a href="#cb3-29" tabindex="-1"></a>report<span class="sc">$</span><span class="fu">add_page</span>(sec, <span class="at">content =</span> <span class="fu">list</span>(<span class="fu">list</span>(<span class="at">type =</span> <span class="st">&quot;figure&quot;</span>, <span class="at">data =</span> plot_obj)))</span>
+<span id="cb3-30"><a href="#cb3-30" tabindex="-1"></a></span>
+<span id="cb3-31"><a href="#cb3-31" tabindex="-1"></a><span class="fu">generate_rtfreport</span>(report, <span class="fu">tempfile</span>(<span class="at">fileext =</span> <span class="st">&quot;.rtf&quot;</span>), <span class="at">overwrite =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+<hr />
 </div>
-<div id="example-2-laboratory-report-with-one-section-per-analyte" class="section level2">
-<h2>Example 2: Laboratory report with one section per analyte</h2>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>lb_report <span class="ot">&lt;-</span> rtfreport<span class="sc">$</span><span class="fu">new</span>()</span>
-<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>lb_tests <span class="ot">&lt;-</span> <span class="fu">unique</span>(lb<span class="sc">$</span>LBTEST)</span>
-<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a></span>
-<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="cf">for</span> (test_name <span class="cf">in</span> lb_tests) {</span>
-<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>  sec <span class="ot">&lt;-</span> lb_report<span class="sc">$</span><span class="fu">add_section</span>(</span>
-<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a>    <span class="at">header =</span> <span class="fu">rtf_header</span>(</span>
-<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a>      <span class="at">rows =</span> <span class="fu">list</span>(</span>
-<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a>        <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Protocol: RTF-101&quot;</span>,                    <span class="at">r =</span> <span class="st">&quot;Page {AUTO_PAGE} of {TOTAL_PAGES}&quot;</span>),</span>
-<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a>        <span class="fu">c</span>(<span class="at">l =</span> <span class="fu">paste0</span>(<span class="st">&quot;Table 14.2.1 Clinical Lab: &quot;</span>, test_name), <span class="at">r =</span> <span class="st">&quot;For Clinical Study Use Only&quot;</span>)</span>
-<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a>      )</span>
-<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a>    ),</span>
-<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a>    <span class="at">footer =</span> <span class="fu">make_common_footer</span>()</span>
-<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a>  )</span>
-<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a>  page <span class="ot">&lt;-</span> lb_report<span class="sc">$</span><span class="fu">add_page</span>(</span>
-<span id="cb10-15"><a href="#cb10-15" tabindex="-1"></a>    <span class="at">section_index =</span> sec,</span>
-<span id="cb10-16"><a href="#cb10-16" tabindex="-1"></a>    <span class="at">title =</span> <span class="fu">paste0</span>(test_name, <span class="st">&quot; by Subject&quot;</span>)</span>
-<span id="cb10-17"><a href="#cb10-17" tabindex="-1"></a>  )</span>
-<span id="cb10-18"><a href="#cb10-18" tabindex="-1"></a></span>
-<span id="cb10-19"><a href="#cb10-19" tabindex="-1"></a>  test_df <span class="ot">&lt;-</span> <span class="fu">subset</span>(lb, LBTEST <span class="sc">==</span> test_name,</span>
-<span id="cb10-20"><a href="#cb10-20" tabindex="-1"></a>                    <span class="at">select =</span> <span class="fu">c</span>(USUBJID, ARM, VISIT, LBSTRESN, LBSTRESU, LBNRLO, LBNRHI, LBNRIND))</span>
-<span id="cb10-21"><a href="#cb10-21" tabindex="-1"></a>  <span class="fu">names</span>(test_df) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;Subject ID&quot;</span>, <span class="st">&quot;Treatment Arm&quot;</span>, <span class="st">&quot;Visit&quot;</span>, <span class="st">&quot;Result&quot;</span>, <span class="st">&quot;Unit&quot;</span>,</span>
-<span id="cb10-22"><a href="#cb10-22" tabindex="-1"></a>                      <span class="st">&quot;Ref Low&quot;</span>, <span class="st">&quot;Ref High&quot;</span>, <span class="st">&quot;Flag&quot;</span>)</span>
-<span id="cb10-23"><a href="#cb10-23" tabindex="-1"></a></span>
-<span id="cb10-24"><a href="#cb10-24" tabindex="-1"></a>  test_tbl <span class="ot">&lt;-</span> rtftable<span class="sc">$</span><span class="fu">new</span>(</span>
-<span id="cb10-25"><a href="#cb10-25" tabindex="-1"></a>    test_df,</span>
-<span id="cb10-26"><a href="#cb10-26" tabindex="-1"></a>    <span class="at">col_rel_width =</span> <span class="fu">c</span>(<span class="fl">1.4</span>, <span class="fl">1.6</span>, <span class="fl">1.0</span>, <span class="fl">0.8</span>, <span class="fl">0.8</span>, <span class="fl">0.8</span>, <span class="fl">0.8</span>, <span class="fl">0.7</span>),</span>
-<span id="cb10-27"><a href="#cb10-27" tabindex="-1"></a>    <span class="at">row_height_twips =</span> <span class="dv">300</span><span class="dt">L</span>,</span>
-<span id="cb10-28"><a href="#cb10-28" tabindex="-1"></a>    <span class="at">header_row_height_twips =</span> <span class="dv">300</span><span class="dt">L</span></span>
-<span id="cb10-29"><a href="#cb10-29" tabindex="-1"></a>  )</span>
-<span id="cb10-30"><a href="#cb10-30" tabindex="-1"></a></span>
-<span id="cb10-31"><a href="#cb10-31" tabindex="-1"></a>  lb_report<span class="sc">$</span><span class="fu">add_table</span>(sec, page, <span class="at">data =</span> test_tbl,</span>
-<span id="cb10-32"><a href="#cb10-32" tabindex="-1"></a>                       <span class="at">footer =</span> <span class="fu">paste0</span>(<span class="st">&quot;Source: LB domain | &quot;</span>, test_name))</span>
-<span id="cb10-33"><a href="#cb10-33" tabindex="-1"></a>}</span>
-<span id="cb10-34"><a href="#cb10-34" tabindex="-1"></a></span>
-<span id="cb10-35"><a href="#cb10-35" tabindex="-1"></a>lb_out <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="fu">tempdir</span>(), <span class="st">&quot;rtfreporter_quickstart_lab_report.rtf&quot;</span>)</span>
-<span id="cb10-36"><a href="#cb10-36" tabindex="-1"></a><span class="fu">generate_rtfreport</span>(lb_report, lb_out, <span class="at">overwrite =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb10-37"><a href="#cb10-37" tabindex="-1"></a>lb_out</span></code></pre></div>
-<pre><code>## [1] &quot;C:\\Users\\ichir\\AppData\\Local\\Temp\\RtmpsJ9lbx/rtfreporter_quickstart_lab_report.rtf&quot;</code></pre>
-<p>Each section specifies its header and footer directly. If a section
-omits <code>header</code> or <code>footer</code>, the value is inherited
-from the immediately preceding section.</p>
+<div id="figure-and-table-on-the-same-page" class="section level2">
+<h2>4 Figure and table on the same page</h2>
+<p>Keep the figure width moderate so both elements fit on one page.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>tbl_summary <span class="ot">&lt;-</span> rtftable<span class="sc">$</span><span class="fu">new</span>(</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  <span class="fu">data.frame</span>(</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>    <span class="at">Statistic =</span> <span class="fu">c</span>(<span class="st">&quot;n&quot;</span>, <span class="st">&quot;Mean&quot;</span>, <span class="st">&quot;SD&quot;</span>),</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>    <span class="at">Value     =</span> <span class="fu">c</span>(<span class="st">&quot;30&quot;</span>, <span class="st">&quot;42.7&quot;</span>, <span class="st">&quot;8.4&quot;</span>),</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>    <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>  ),</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>  <span class="at">table_width_pct  =</span> <span class="dv">40</span>,     <span class="co"># 40 % of writable width</span></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>  <span class="at">table_align      =</span> <span class="st">&quot;left&quot;</span>,</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>  <span class="at">row_height_twips =</span> <span class="dv">280</span><span class="dt">L</span></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>)</span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>report2 <span class="ot">&lt;-</span> rtfreport<span class="sc">$</span><span class="fu">new</span>()</span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a>sec2 <span class="ot">&lt;-</span> report2<span class="sc">$</span><span class="fu">add_section</span>(</span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a>  <span class="at">header =</span> <span class="fu">rtf_header</span>(<span class="at">rows =</span> <span class="fu">list</span>(</span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a>    <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Protocol: FIG-001&quot;</span>, <span class="at">r =</span> <span class="st">&quot;ACME Pharma&quot;</span>),</span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a>    <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Figure + Summary Table&quot;</span>)</span>
+<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a>  )),</span>
+<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a>  <span class="at">footer =</span> <span class="fu">rtf_footer</span>(<span class="at">rows =</span> <span class="fu">list</span>(<span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Source: LB domain.&quot;</span>, <span class="at">r =</span> <span class="st">&quot;CONFIDENTIAL&quot;</span>)))</span>
+<span id="cb4-19"><a href="#cb4-19" tabindex="-1"></a>)</span>
+<span id="cb4-20"><a href="#cb4-20" tabindex="-1"></a>report2<span class="sc">$</span><span class="fu">add_page</span>(</span>
+<span id="cb4-21"><a href="#cb4-21" tabindex="-1"></a>  <span class="at">section_index =</span> sec2,</span>
+<span id="cb4-22"><a href="#cb4-22" tabindex="-1"></a>  <span class="at">content =</span> <span class="fu">list</span>(</span>
+<span id="cb4-23"><a href="#cb4-23" tabindex="-1"></a>    <span class="fu">list</span>(<span class="at">type =</span> <span class="st">&quot;figure&quot;</span>, <span class="at">data =</span> rtfplot<span class="sc">$</span><span class="fu">new</span>(png_path, <span class="at">width_twips =</span> <span class="dv">7200</span><span class="dt">L</span>)),</span>
+<span id="cb4-24"><a href="#cb4-24" tabindex="-1"></a>    <span class="fu">list</span>(<span class="at">type =</span> <span class="st">&quot;table&quot;</span>,  <span class="at">data =</span> tbl_summary)</span>
+<span id="cb4-25"><a href="#cb4-25" tabindex="-1"></a>  )</span>
+<span id="cb4-26"><a href="#cb4-26" tabindex="-1"></a>)</span>
+<span id="cb4-27"><a href="#cb4-27" tabindex="-1"></a><span class="fu">generate_rtfreport</span>(report2, <span class="fu">tempfile</span>(<span class="at">fileext =</span> <span class="st">&quot;.rtf&quot;</span>), <span class="at">overwrite =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+<hr />
 </div>
-<div id="reusable-section-helper" class="section level2">
-<h2>Reusable section helper</h2>
-<p>When a section needs multiple pages from multiple data frames, the
-convenience method <code>add_section_from_dataframes()</code> creates
-the section and appends one page per data frame in a single call.</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>report <span class="ot">&lt;-</span> rtfreport<span class="sc">$</span><span class="fu">new</span>()</span>
-<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>report<span class="sc">$</span><span class="fu">add_section_from_dataframes</span>(</span>
-<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a>  <span class="at">data_list        =</span> <span class="fu">list</span>(<span class="st">&quot;DM page&quot;</span> <span class="ot">=</span> dm[<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>, ], <span class="st">&quot;AE page&quot;</span> <span class="ot">=</span> ae[<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>, ]),</span>
-<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>  <span class="at">section_header   =</span> <span class="fu">make_common_header</span>(<span class="st">&quot;Bundle Demo&quot;</span>),</span>
-<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>  <span class="at">section_footer   =</span> <span class="fu">make_common_footer</span>()</span>
-<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a>)</span></code></pre></div>
-<pre><code>## [1] 1</code></pre>
+<div id="table-width-and-alignment" class="section level2">
+<h2>5 Table width and alignment</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>table_width_pct = 70</code></td>
+<td>70 % of writable page width</td>
+</tr>
+<tr class="even">
+<td><code>table_width_twips = 9000L</code></td>
+<td>Absolute: 9000 twips = 6.25 in</td>
+</tr>
+<tr class="odd">
+<td><code>table_align = &quot;center&quot;</code></td>
+<td>Center the table on the page</td>
+</tr>
+<tr class="even">
+<td><code>table_align = &quot;right&quot;</code></td>
+<td>Right-align the table</td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">A =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="at">B =</span> letters[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>], <span class="at">C =</span> <span class="fu">c</span>(<span class="fl">1.1</span>, <span class="fl">2.2</span>, <span class="fl">3.3</span>))</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co"># 70 % of writable width, left-aligned (default)</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>tbl_left <span class="ot">&lt;-</span> rtftable<span class="sc">$</span><span class="fu">new</span>(df, <span class="at">table_width_pct =</span> <span class="dv">70</span>)</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co"># Absolute width, centered</span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>tbl_center <span class="ot">&lt;-</span> rtftable<span class="sc">$</span><span class="fu">new</span>(df,</span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>  <span class="at">table_width_twips =</span> <span class="dv">9000</span><span class="dt">L</span>,</span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>  <span class="at">table_align       =</span> <span class="st">&quot;center&quot;</span>)</span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="co"># Absolute width, right-aligned, with relative column widths 3:1:1</span></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a>tbl_right <span class="ot">&lt;-</span> rtftable<span class="sc">$</span><span class="fu">new</span>(df,</span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a>  <span class="at">table_width_twips =</span> <span class="dv">7200</span><span class="dt">L</span>,</span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a>  <span class="at">table_align       =</span> <span class="st">&quot;right&quot;</span>,</span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a>  <span class="at">col_rel_width     =</span> <span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">1</span>, <span class="dv">1</span>))</span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a></span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a><span class="co"># Full writable width (100 %)</span></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a>tbl_full  <span class="ot">&lt;-</span> rtftable<span class="sc">$</span><span class="fu">new</span>(df, <span class="at">table_width_pct =</span> <span class="dv">100</span>)</span></code></pre></div>
+<hr />
 </div>
-<div id="page-tokens" class="section level2">
-<h2>Page tokens</h2>
-<p>Use these tokens in header/footer text:</p>
+<div id="column-width-control" class="section level2">
+<h2>6 Column width control</h2>
+<p>Three ways to set column widths, in order of precedence:</p>
 <table>
 <colgroup>
-<col width="41%" />
-<col width="58%" />
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Parameter</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Absolute</td>
+<td><code>column_widths_twips = c(2880L, 1440L, 1440L)</code></td>
+<td>One value per column</td>
+</tr>
+<tr class="even">
+<td>Relative</td>
+<td><code>col_rel_width = c(2, 1, 1)</code> +
+<code>table_width_twips</code></td>
+<td>Proportional split</td>
+</tr>
+<tr class="odd">
+<td>Auto</td>
+<td><code>auto_col_widths(df)</code></td>
+<td>Font-aware estimation</td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># Absolute column widths (twips)</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>tbl_abs <span class="ot">&lt;-</span> rtftable<span class="sc">$</span><span class="fu">new</span>(df,</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  <span class="at">column_widths_twips =</span> <span class="fu">c</span>(<span class="dv">4320</span><span class="dt">L</span>, <span class="dv">2160</span><span class="dt">L</span>, <span class="dv">2160</span><span class="dt">L</span>))</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co"># Relative widths 2:1:1 within a 7-inch table</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>tbl_rel <span class="ot">&lt;-</span> rtftable<span class="sc">$</span><span class="fu">new</span>(df,</span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>  <span class="at">col_rel_width     =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">1</span>, <span class="dv">1</span>),</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>  <span class="at">table_width_twips =</span> <span class="dv">10080</span><span class="dt">L</span>)</span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a><span class="co"># Auto-sizing: widths computed from the widest cell in each column</span></span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a>w <span class="ot">&lt;-</span> <span class="fu">auto_col_widths</span>(df, <span class="at">table_width_twips =</span> <span class="dv">14400</span><span class="dt">L</span>)</span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a>tbl_auto <span class="ot">&lt;-</span> rtftable<span class="sc">$</span><span class="fu">new</span>(df, <span class="at">column_widths_twips =</span> w)</span></code></pre></div>
+<hr />
+</div>
+<div id="header-footer-layout" class="section level2">
+<h2>7 Header / footer layout</h2>
+<p>Keys <code>l</code>, <code>c</code>, <code>r</code> map to left,
+center, right alignment. An unnamed single element defaults to
+<strong>center</strong> (for both header and footer).</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co"># Single row, two columns</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>sec_hf1 <span class="ot">&lt;-</span> <span class="fu">rtf_header</span>(<span class="at">rows =</span> <span class="fu">list</span>(</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Protocol: RTF-101&quot;</span>, <span class="at">r =</span> <span class="st">&quot;Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}&quot;</span>)</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>))</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="co"># Multi-row header</span></span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>sec_hf2 <span class="ot">&lt;-</span> <span class="fu">rtf_header</span>(<span class="at">rows =</span> <span class="fu">list</span>(</span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Protocol: RTF-101&quot;</span>,    <span class="at">r =</span> <span class="st">&quot;ACME Pharma&quot;</span>),</span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Phase III Safety Study&quot;</span>, <span class="at">r =</span> <span class="st">&quot;Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}&quot;</span>),</span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">c =</span> <span class="st">&quot;Table 14.3.1  Shift Table (Safety Population)&quot;</span>),</span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;ALT (Alanine Aminotransferase)&quot;</span>)   <span class="co"># bottom-left: analyte name</span></span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a>))</span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a></span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a><span class="co"># Footer with two rows; top border on row 1 only (default)</span></span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a>sec_ftr <span class="ot">&lt;-</span> <span class="fu">rtf_footer</span>(<span class="at">rows =</span> <span class="fu">list</span>(</span>
+<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;ALT=Alanine Aminotransferase&quot;</span>,     <span class="at">r =</span> <span class="st">&quot;CONFIDENTIAL&quot;</span>),</span>
+<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Low/Normal/High: site reference range categories.&quot;</span>)</span>
+<span id="cb7-18"><a href="#cb7-18" tabindex="-1"></a>))</span>
+<span id="cb7-19"><a href="#cb7-19" tabindex="-1"></a></span>
+<span id="cb7-20"><a href="#cb7-20" tabindex="-1"></a><span class="co"># Single unnamed row → center (default)</span></span>
+<span id="cb7-21"><a href="#cb7-21" tabindex="-1"></a>ftr_center <span class="ot">&lt;-</span> <span class="fu">rtf_footer</span>(<span class="at">rows =</span> <span class="fu">list</span>(<span class="fu">c</span>(<span class="st">&quot;Confidential — Internal Use Only&quot;</span>)))</span></code></pre></div>
+<hr />
+</div>
+<div id="page-tokens" class="section level2">
+<h2>8 Page tokens</h2>
+<table>
+<colgroup>
+<col width="50%" />
+<col width="50%" />
 </colgroup>
 <thead>
 <tr class="header">
 <th>Token</th>
-<th>Behavior</th>
+<th>Behaviour</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td><code>{AUTO_PAGE}</code></td>
-<td>Dynamic page number updated by the RTF viewer (<code>\chpgn</code>)
-— <strong>recommended</strong></td>
-</tr>
-<tr class="even">
-<td><code>{PAGE}</code></td>
-<td>Alias for <code>{AUTO_PAGE}</code></td>
-</tr>
-<tr class="odd">
-<td><code>{TOTAL_PAGES}</code></td>
-<td>Static total page count computed when
-<code>generate_rtfreport()</code> is called</td>
+<td>Dynamic page number (<code>\chpgn</code>), updated per page by the
+viewer</td>
 </tr>
 <tr class="even">
 <td><code>{AUTO_TOTAL_PAGES}</code></td>
-<td>Alias for <code>{TOTAL_PAGES}</code></td>
+<td>Dynamic NUMPAGES field, updated by the viewer — <strong>recommended
+for assembled docs</strong></td>
+</tr>
+<tr class="odd">
+<td><code>{TOTAL_PAGES}</code></td>
+<td>Static total computed at render time by
+<code>generate_rtfreport()</code></td>
+</tr>
+<tr class="even">
+<td><code>{SECTION_PAGES}</code></td>
+<td>Dynamic SECTIONPAGES field (pages in the current section)</td>
 </tr>
 </tbody>
 </table>
-<p>Recommended usage:
-<code>&quot;Page {AUTO_PAGE} of {TOTAL_PAGES}&quot;</code>.</p>
+<p>Recommended:
+<code>&quot;Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}&quot;</code>.</p>
+<p>Use <code>{TOTAL_PAGES}</code> only when generating a single,
+self-contained file where the total page count is known at render
+time.</p>
+<hr />
 </div>
-<div id="next-steps" class="section level2">
-<h2>Next steps</h2>
-<p>The package also provides <code>rtftable()</code> for table metadata,
-<code>rtfplot()</code> for embedded figures, and
-<code>generate_rtfreport()</code> for writing the final document.</p>
+<div id="spanning-headers" class="section level2">
+<h2>9 Spanning headers</h2>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>df_shift <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>  <span class="at">Baseline =</span> <span class="fu">c</span>(<span class="st">&quot;Low&quot;</span>, <span class="st">&quot;Normal&quot;</span>, <span class="st">&quot;High&quot;</span>),</span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>  <span class="at">A_Low =</span> <span class="fu">c</span>(<span class="dv">4</span><span class="dt">L</span>, <span class="dv">0</span><span class="dt">L</span>, <span class="dv">0</span><span class="dt">L</span>), <span class="at">A_Norm =</span> <span class="fu">c</span>(<span class="dv">1</span><span class="dt">L</span>, <span class="dv">13</span><span class="dt">L</span>, <span class="dv">1</span><span class="dt">L</span>), <span class="at">A_High =</span> <span class="fu">c</span>(<span class="dv">0</span><span class="dt">L</span>, <span class="dv">2</span><span class="dt">L</span>, <span class="dv">3</span><span class="dt">L</span>),</span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>  <span class="at">B_Low =</span> <span class="fu">c</span>(<span class="dv">3</span><span class="dt">L</span>, <span class="dv">0</span><span class="dt">L</span>, <span class="dv">0</span><span class="dt">L</span>), <span class="at">B_Norm =</span> <span class="fu">c</span>(<span class="dv">1</span><span class="dt">L</span>, <span class="dv">14</span><span class="dt">L</span>, <span class="dv">0</span><span class="dt">L</span>), <span class="at">B_High =</span> <span class="fu">c</span>(<span class="dv">0</span><span class="dt">L</span>, <span class="dv">1</span><span class="dt">L</span>, <span class="dv">4</span><span class="dt">L</span>)</span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a>)</span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a>tbl_span <span class="ot">&lt;-</span> rtftable<span class="sc">$</span><span class="fu">new</span>(</span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a>  <span class="at">data =</span> df_shift,</span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a>  <span class="at">col_header =</span> <span class="fu">c</span>(<span class="st">&quot;Baseline&quot;</span>, <span class="st">&quot;Low&quot;</span>, <span class="st">&quot;Normal&quot;</span>, <span class="st">&quot;High&quot;</span>, <span class="st">&quot;Low&quot;</span>, <span class="st">&quot;Normal&quot;</span>, <span class="st">&quot;High&quot;</span>),</span>
+<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a>  <span class="at">spanning_header =</span> <span class="fu">list</span>(</span>
+<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a>    <span class="fu">list</span>(<span class="at">from =</span> <span class="dv">2</span><span class="dt">L</span>, <span class="at">to =</span> <span class="dv">4</span><span class="dt">L</span>, <span class="at">label =</span> <span class="st">&quot;Treatment A  (N=24)&quot;</span>, <span class="at">underline =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a>    <span class="fu">list</span>(<span class="at">from =</span> <span class="dv">5</span><span class="dt">L</span>, <span class="at">to =</span> <span class="dv">7</span><span class="dt">L</span>, <span class="at">label =</span> <span class="st">&quot;Treatment B  (N=24)&quot;</span>, <span class="at">underline =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a>  ),</span>
+<span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a>  <span class="at">column_widths_twips =</span> <span class="fu">c</span>(<span class="dv">2160</span><span class="dt">L</span>, <span class="dv">900</span><span class="dt">L</span>, <span class="dv">900</span><span class="dt">L</span>, <span class="dv">900</span><span class="dt">L</span>, <span class="dv">900</span><span class="dt">L</span>, <span class="dv">900</span><span class="dt">L</span>, <span class="dv">900</span><span class="dt">L</span>),</span>
+<span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a>  <span class="at">col_spec =</span> <span class="fu">lapply</span>(<span class="fu">seq_len</span>(<span class="dv">7</span><span class="dt">L</span>), <span class="cf">function</span>(j)</span>
+<span id="cb8-16"><a href="#cb8-16" tabindex="-1"></a>    <span class="fu">list</span>(<span class="at">col =</span> j, <span class="at">align =</span> <span class="cf">if</span> (j <span class="sc">==</span> <span class="dv">1</span><span class="dt">L</span>) <span class="st">&quot;left&quot;</span> <span class="cf">else</span> <span class="st">&quot;center&quot;</span>)),</span>
+<span id="cb8-17"><a href="#cb8-17" tabindex="-1"></a>  <span class="at">border           =</span> <span class="st">&quot;tfl&quot;</span>,</span>
+<span id="cb8-18"><a href="#cb8-18" tabindex="-1"></a>  <span class="at">row_height_twips =</span> <span class="dv">280</span><span class="dt">L</span></span>
+<span id="cb8-19"><a href="#cb8-19" tabindex="-1"></a>)</span></code></pre></div>
+<hr />
+</div>
+<div id="multi-data.frame-table" class="section level2">
+<h2>10 Multi data.frame table</h2>
+<p>When <code>data</code> is a list of data.frames each is rendered in
+sequence, with its own column-header rows. This lets you combine cohorts
+or time points in one table without duplicating the spanning header.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>df_a <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">Label =</span> <span class="fu">c</span>(<span class="st">&quot;Low&quot;</span>, <span class="st">&quot;Normal&quot;</span>, <span class="st">&quot;High&quot;</span>), <span class="at">n =</span> <span class="fu">c</span>(<span class="dv">4</span><span class="dt">L</span>, <span class="dv">13</span><span class="dt">L</span>, <span class="dv">3</span><span class="dt">L</span>))</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>df_b <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">Label =</span> <span class="fu">c</span>(<span class="st">&quot;Low&quot;</span>, <span class="st">&quot;Normal&quot;</span>, <span class="st">&quot;High&quot;</span>), <span class="at">n =</span> <span class="fu">c</span>(<span class="dv">3</span><span class="dt">L</span>, <span class="dv">14</span><span class="dt">L</span>, <span class="dv">4</span><span class="dt">L</span>))</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>tbl_multi <span class="ot">&lt;-</span> rtftable<span class="sc">$</span><span class="fu">new</span>(</span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a>  <span class="at">data       =</span> <span class="fu">list</span>(df_a, df_b),</span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a>  <span class="at">col_header =</span> <span class="fu">list</span>(</span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a>    <span class="fu">c</span>(<span class="st">&quot;Baseline&quot;</span>, <span class="st">&quot;Arm A&quot;</span>),   <span class="co"># header for df_a</span></span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a>    <span class="fu">c</span>(<span class="st">&quot;Baseline&quot;</span>, <span class="st">&quot;Arm B&quot;</span>)    <span class="co"># header for df_b</span></span>
+<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a>  ),</span>
+<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a>  <span class="at">column_widths_twips =</span> <span class="fu">c</span>(<span class="dv">3600</span><span class="dt">L</span>, <span class="dv">2160</span><span class="dt">L</span>),</span>
+<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a>  <span class="at">border              =</span> <span class="st">&quot;tfl&quot;</span>,</span>
+<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a>  <span class="at">row_height_twips    =</span> <span class="dv">280</span><span class="dt">L</span></span>
+<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a>)</span></code></pre></div>
+<hr />
+</div>
+<div id="border-customization" class="section level2">
+<h2>11 Border customization</h2>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># TFL clinical preset (default): header top+bottom, last-row bottom</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>tbl_tfl <span class="ot">&lt;-</span> rtftable<span class="sc">$</span><span class="fu">new</span>(df, <span class="at">border =</span> <span class="st">&quot;tfl&quot;</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="co"># Custom per-zone</span></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>tbl_custom <span class="ot">&lt;-</span> rtftable<span class="sc">$</span><span class="fu">new</span>(df,</span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a>  <span class="at">border =</span> <span class="fu">rtf_table_border</span>(</span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a>    <span class="at">header   =</span> <span class="fu">rtf_border</span>(<span class="at">top =</span> <span class="fu">rtf_border_side</span>(), <span class="at">bottom =</span> <span class="fu">rtf_border_side</span>()),</span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a>    <span class="at">last_row =</span> <span class="fu">rtf_border</span>(<span class="at">bottom =</span> <span class="fu">rtf_border_side</span>(<span class="st">&quot;double&quot;</span>, <span class="dv">10</span><span class="dt">L</span>))</span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a>  )</span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a>)</span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a></span>
+<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a><span class="co"># Header with bottom divider, footer with thick blue top border</span></span>
+<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a>hdr_bordered <span class="ot">&lt;-</span> <span class="fu">rtf_header</span>(</span>
+<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a>  <span class="at">rows   =</span> <span class="fu">list</span>(<span class="fu">c</span>(<span class="at">c =</span> <span class="st">&quot;Study Title&quot;</span>)),</span>
+<span id="cb10-15"><a href="#cb10-15" tabindex="-1"></a>  <span class="at">border =</span> <span class="fu">rtf_border</span>(<span class="at">bottom =</span> <span class="fu">rtf_border_side</span>(<span class="st">&quot;single&quot;</span>))</span>
+<span id="cb10-16"><a href="#cb10-16" tabindex="-1"></a>)</span>
+<span id="cb10-17"><a href="#cb10-17" tabindex="-1"></a>ftr_blue <span class="ot">&lt;-</span> <span class="fu">rtf_footer</span>(</span>
+<span id="cb10-18"><a href="#cb10-18" tabindex="-1"></a>  <span class="at">rows   =</span> <span class="fu">list</span>(<span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Confidential&quot;</span>)),</span>
+<span id="cb10-19"><a href="#cb10-19" tabindex="-1"></a>  <span class="at">border =</span> <span class="fu">rtf_border_top</span>(<span class="at">style =</span> <span class="st">&quot;thick&quot;</span>, <span class="at">width =</span> <span class="dv">20</span><span class="dt">L</span>, <span class="at">color =</span> <span class="st">&quot;#003366&quot;</span>)</span>
+<span id="cb10-20"><a href="#cb10-20" tabindex="-1"></a>)</span></code></pre></div>
+<hr />
+</div>
+<div id="assembling-multiple-rtf-files" class="section level2">
+<h2>12 Assembling multiple RTF files</h2>
+<p><code>assemble_rtf()</code> joins independently generated RTF files
+into one document. Use dynamic tokens (<code>{AUTO_TOTAL_PAGES}</code>)
+so page numbers are correct across the assembled output.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>make_rtf <span class="ot">&lt;-</span> <span class="cf">function</span>(df, hdr_text, path) {</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>  r <span class="ot">&lt;-</span> rtfreport<span class="sc">$</span><span class="fu">new</span>()</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>  sec <span class="ot">&lt;-</span> r<span class="sc">$</span><span class="fu">add_section</span>(</span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a>    <span class="at">header =</span> <span class="fu">c</span>(<span class="at">l =</span> hdr_text, <span class="at">r =</span> <span class="st">&quot;Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}&quot;</span>),</span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a>    <span class="at">footer =</span> <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;CONFIDENTIAL&quot;</span>)</span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a>  )</span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a>  r<span class="sc">$</span><span class="fu">add_page</span>(sec, <span class="at">content =</span> <span class="fu">list</span>(<span class="fu">list</span>(<span class="at">type =</span> <span class="st">&quot;table&quot;</span>, <span class="at">data =</span> df)))</span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a>  <span class="fu">generate_rtfreport</span>(r, path, <span class="at">overwrite =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a>}</span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a></span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a>f1 <span class="ot">&lt;-</span> <span class="fu">tempfile</span>(<span class="at">fileext =</span> <span class="st">&quot;.rtf&quot;</span>); <span class="fu">make_rtf</span>(mtcars[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, ], <span class="st">&quot;Table 14.1 DM&quot;</span>, f1)</span>
+<span id="cb11-12"><a href="#cb11-12" tabindex="-1"></a>f2 <span class="ot">&lt;-</span> <span class="fu">tempfile</span>(<span class="at">fileext =</span> <span class="st">&quot;.rtf&quot;</span>); <span class="fu">make_rtf</span>(mtcars[<span class="dv">4</span><span class="sc">:</span><span class="dv">6</span>, ], <span class="st">&quot;Table 14.2 AE&quot;</span>, f2)</span>
+<span id="cb11-13"><a href="#cb11-13" tabindex="-1"></a></span>
+<span id="cb11-14"><a href="#cb11-14" tabindex="-1"></a>assembled <span class="ot">&lt;-</span> <span class="fu">tempfile</span>(<span class="at">fileext =</span> <span class="st">&quot;.rtf&quot;</span>)</span>
+<span id="cb11-15"><a href="#cb11-15" tabindex="-1"></a><span class="fu">assemble_rtf</span>(<span class="fu">c</span>(f1, f2), assembled, <span class="at">overwrite =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+<hr />
+</div>
+<div id="auto-column-widths" class="section level2">
+<h2>13 Auto column widths</h2>
+<p><code>auto_col_widths()</code> estimates widths from the actual
+content and scales them to a target table width.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>df_ae <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>  <span class="at">USUBJID  =</span> <span class="fu">c</span>(<span class="st">&quot;001-001&quot;</span>, <span class="st">&quot;001-002&quot;</span>),</span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a>  <span class="at">AETERM   =</span> <span class="fu">c</span>(<span class="st">&quot;Headache&quot;</span>, <span class="st">&quot;Nausea&quot;</span>),</span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>  <span class="at">AESTDTC  =</span> <span class="fu">c</span>(<span class="st">&quot;2024-01-15&quot;</span>, <span class="st">&quot;2024-02-03&quot;</span>),</span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>  <span class="at">AESER    =</span> <span class="fu">c</span>(<span class="st">&quot;N&quot;</span>, <span class="st">&quot;N&quot;</span>),</span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a>  <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
+<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a>)</span>
+<span id="cb12-8"><a href="#cb12-8" tabindex="-1"></a></span>
+<span id="cb12-9"><a href="#cb12-9" tabindex="-1"></a><span class="co"># Scale to full writable width (14400 twips = 10 in landscape letter)</span></span>
+<span id="cb12-10"><a href="#cb12-10" tabindex="-1"></a>w <span class="ot">&lt;-</span> <span class="fu">auto_col_widths</span>(df_ae,</span>
+<span id="cb12-11"><a href="#cb12-11" tabindex="-1"></a>  <span class="at">col_header        =</span> <span class="st">&quot;Subject ID | AE Term | Start Date | Serious&quot;</span>,</span>
+<span id="cb12-12"><a href="#cb12-12" tabindex="-1"></a>  <span class="at">table_width_twips =</span> <span class="dv">14400</span><span class="dt">L</span>)</span>
+<span id="cb12-13"><a href="#cb12-13" tabindex="-1"></a></span>
+<span id="cb12-14"><a href="#cb12-14" tabindex="-1"></a>tbl_ae <span class="ot">&lt;-</span> rtftable<span class="sc">$</span><span class="fu">new</span>(df_ae,</span>
+<span id="cb12-15"><a href="#cb12-15" tabindex="-1"></a>  <span class="at">col_header          =</span> <span class="fu">c</span>(<span class="st">&quot;Subject ID&quot;</span>, <span class="st">&quot;AE Term&quot;</span>, <span class="st">&quot;Start Date&quot;</span>, <span class="st">&quot;Serious&quot;</span>),</span>
+<span id="cb12-16"><a href="#cb12-16" tabindex="-1"></a>  <span class="at">column_widths_twips =</span> w,</span>
+<span id="cb12-17"><a href="#cb12-17" tabindex="-1"></a>  <span class="at">border              =</span> <span class="st">&quot;tfl&quot;</span>,</span>
+<span id="cb12-18"><a href="#cb12-18" tabindex="-1"></a>  <span class="at">row_height_twips    =</span> <span class="dv">280</span><span class="dt">L</span>)</span></code></pre></div>
+<hr />
+</div>
+<div id="quick-reference" class="section level2">
+<h2>Quick-reference</h2>
+<div id="rtftable-parameters" class="section level3">
+<h3>rtftable parameters</h3>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>data</code></td>
+<td>data.frame or list</td>
+<td>Content rows</td>
+</tr>
+<tr class="even">
+<td><code>col_header</code></td>
+<td>chr / list</td>
+<td>Column header text</td>
+</tr>
+<tr class="odd">
+<td><code>spanning_header</code></td>
+<td>list</td>
+<td>Spanning (grouped) header</td>
+</tr>
+<tr class="even">
+<td><code>col_spec</code></td>
+<td>list</td>
+<td>Per-column align / bold / italic / indent</td>
+</tr>
+<tr class="odd">
+<td><code>border</code></td>
+<td><code>&quot;tfl&quot;</code> / object</td>
+<td>Cell borders</td>
+</tr>
+<tr class="even">
+<td><code>col_rel_width</code></td>
+<td>numeric vector</td>
+<td>Proportional column widths</td>
+</tr>
+<tr class="odd">
+<td><code>column_widths_twips</code></td>
+<td>integer vector</td>
+<td>Absolute column widths</td>
+</tr>
+<tr class="even">
+<td><code>table_width_twips</code></td>
+<td>integer</td>
+<td>Table total width (twips)</td>
+</tr>
+<tr class="odd">
+<td><code>table_width_pct</code></td>
+<td>numeric 0–100</td>
+<td>Table width as % of page</td>
+</tr>
+<tr class="even">
+<td><code>table_align</code></td>
+<td><code>&quot;left&quot;</code> / <code>&quot;center&quot;</code> /
+<code>&quot;right&quot;</code></td>
+<td>Table position on page</td>
+</tr>
+<tr class="odd">
+<td><code>row_height_twips</code></td>
+<td>integer</td>
+<td>Data row height</td>
+</tr>
+<tr class="even">
+<td><code>blank_rows</code></td>
+<td>integer vector</td>
+<td>Insert blank separator rows</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="rtfplot-parameters" class="section level3">
+<h3>rtfplot parameters</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>path</code></td>
+<td>—</td>
+<td>PNG or JPEG file path</td>
+</tr>
+<tr class="even">
+<td><code>width_twips</code></td>
+<td><code>NULL</code> (full width)</td>
+<td>Display width</td>
+</tr>
+<tr class="odd">
+<td><code>height_twips</code></td>
+<td><code>NULL</code> (aspect ratio)</td>
+<td>Display height</td>
+</tr>
+<tr class="even">
+<td><code>align</code></td>
+<td><code>&quot;center&quot;</code></td>
+<td><code>&quot;left&quot;</code> / <code>&quot;center&quot;</code> /
+<code>&quot;right&quot;</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="header-footer-single-row-defaults" class="section level3">
+<h3>Header / footer single-row defaults</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Keys used</th>
+<th>Columns</th>
+<th>Alignments</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>l=</code> only</td>
+<td>1</td>
+<td>left</td>
+</tr>
+<tr class="even">
+<td><code>r=</code> only</td>
+<td>1</td>
+<td>right</td>
+</tr>
+<tr class="odd">
+<td><code>c=</code> only</td>
+<td>1</td>
+<td>center</td>
+</tr>
+<tr class="even">
+<td><code>l=</code> + <code>r=</code></td>
+<td>2</td>
+<td>left, right</td>
+</tr>
+<tr class="odd">
+<td>unnamed single value</td>
+<td>1</td>
+<td><strong>center</strong> (default)</td>
+</tr>
+<tr class="even">
+<td><code>l=</code> + <code>c=</code> + <code>r=</code></td>
+<td>3</td>
+<td>left, center, right</td>
+</tr>
+</tbody>
+</table>
+</div>
 </div>
 
 

@@ -166,7 +166,7 @@ header row 4 set to the analyte label.
 The default alignment is **center**; specify `width_twips` to control the
 display size.
 
-```{r figure, eval=requireNamespace("ggplot2", quietly = TRUE)}
+```{r figure}
 library(ggplot2)
 
 # --- build a ggplot and save to a temp PNG -----------------------------------
@@ -206,7 +206,7 @@ generate_rtfreport(report, tempfile(fileext = ".rtf"), overwrite = TRUE)
 
 Keep the figure width moderate so both elements fit on one page.
 
-```{r fig-plus-table, eval=requireNamespace("ggplot2", quietly = TRUE)}
+```{r fig-plus-table}
 tbl_summary <- rtftable$new(
   data.frame(
     Statistic = c("n", "Mean", "SD"),
@@ -507,9 +507,9 @@ tbl_ae <- rtftable$new(df_ae,
 
 | Keys used | Columns | Alignments |
 |---|---|---|
-| `l =` only | 1 | left |
-| `r =` only | 1 | right |
-| `c =` only | 1 | center |
-| `l =` + `r =` | 2 | left, right |
+| `l=` only | 1 | left |
+| `r=` only | 1 | right |
+| `c=` only | 1 | center |
+| `l=` + `r=` | 2 | left, right |
 | unnamed single value | 1 | **center** (default) |
-| `l =` + `c =` + `r =` | 3 | left, center, right |
+| `l=` + `c=` + `r=` | 3 | left, center, right |
