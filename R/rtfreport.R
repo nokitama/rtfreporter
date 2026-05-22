@@ -23,6 +23,31 @@
   as.integer(x)
 }
 
+# Internal utility: normalize a single content item to a complete block list.
+# Accepts: rtftable_r6, rtfplot_r6, data.frame, or file path (character).
+# Returns: list(type = ..., data = ..., path = ...) as appropriate.
+.normalize_content_item <- function(item) {
+  if (inherits(item, "rtftable_r6")) {
+    return(list(type = "table", data = item))
+  }
+  if (inherits(item, "rtfplot_r6")) {
+    return(list(type = "figure", data = item))
+  }
+  if (is.data.frame(item)) {
+    return(list(type = "table", data = item))
+  }
+  if (is.character(item) && length(item) == 1L) {
+    # Assume file path → figure
+    return(list(type = "figure", path = item))
+  }
+  # If it's a character vector (could be multi-line title/footer), return as-is
+  if (is.character(item) && length(item) > 1L) {
+    return(item)
+  }
+  stop("Content item must be an rtftable_r6, rtfplot_r6, data.frame, or file path (character).",
+       call. = FALSE)
+}
+
 #' Create a header or footer object for a section
 #'
 #' `rtf_header()` and `rtf_footer()` create structured header/footer objects
@@ -181,9 +206,10 @@ rtf_footer <- function(rows,
 #' )
 #' report$add_page(sec, title = "Table 1")
 #'
-#' @export
-rtfreport <- R6::R6Class(
-  classname = "rtfreport",
+#' Internal R6 class for report objects
+#' (S3 wrapper rtfreport() is the public API)
+rtfreport_r6 <- R6::R6Class(
+  classname = "rtfreport_r6",
   public = list(
     document = NULL,
     sections = NULL,
@@ -271,10 +297,29 @@ rtfreport <- R6::R6Class(
     add_page = function(section_index, title = NULL, content = list(), footer_notes = NULL, page_options = NULL) {
       sec_idx <- .assert_index(section_index, length(self$sections), "section_index")
 
+      # Normalize content list: auto-detect block types from object classes
+      normalized_content <- list()
+      for (item in content) {
+        if (is.list(item) && !is.null(item$type)) {
+          # Already a block with type field; use as-is (backward compatibility)
+          normalized_content[[length(normalized_content) + 1L]] <- item
+        } else {
+          # Auto-detect block type from object class
+          block <- .normalize_content_item(item)
+          if (is.list(block) && !is.null(block$type)) {
+            normalized_content[[length(normalized_content) + 1L]] <- block
+          } else {
+            # Not a block; invalid
+            stop("Invalid content item: must be an rtftable, rtfplot, data.frame, or file path.",
+                 call. = FALSE)
+          }
+        }
+      }
+
       page <- list(
-        title = title,
-        content = content,
-        footer_notes = footer_notes,
+        title = title,          # Can be NULL, character(1), or character vector
+        content = normalized_content,
+        footer_notes = footer_notes,  # Can be NULL, character(1), or character vector
         page_options = page_options
       )
       sec <- self$sections[[sec_idx]]
@@ -312,9 +357,17 @@ rtfreport <- R6::R6Class(
     },
 
     add_block = function(section_index, page_index, block) {
+      # Accept either explicit block (with type) OR auto-detect-able object
       if (!is.list(block) || is.null(block$type)) {
-        stop("`block` must be a list with `type`.", call. = FALSE)
+        # Try to auto-detect
+        normalized <- .normalize_content_item(block)
+        if (!is.list(normalized) || is.null(normalized$type)) {
+          stop("`block` must be an rtftable, rtfplot, data.frame, file path, or explicit list with `type`.",
+               call. = FALSE)
+        }
+        block <- normalized
       }
+
       sec_idx <- .assert_index(section_index, length(self$sections), "section_index")
       page_idx <- .assert_index(page_index, length(self$sections[[sec_idx]]$pages), "page_index")
       page <- self$sections[[sec_idx]]$pages[[page_idx]]
@@ -334,7 +387,7 @@ rtfreport <- R6::R6Class(
     },
 
     add_figure = function(section_index, page_index, path, footer = NULL, metadata = NULL) {
-      if (inherits(path, "rtfplot")) {
+      if (inherits(path, "rtfplot_r6")) {
         block <- list(type = "figure", data = path, footer = footer, metadata = metadata)
       } else {
         block <- list(type = "figure", path = path, footer = footer, metadata = metadata)

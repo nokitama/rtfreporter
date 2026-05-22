@@ -50,9 +50,10 @@
 #' @param align Horizontal alignment: `"center"` (default), `"left"`,
 #'   `"right"`.
 #'
-#' @export
-rtfplot <- R6::R6Class(
-  classname = "rtfplot",
+#' Internal R6 class for plot objects
+#' (S3 wrapper rtfplot() is the public API)
+rtfplot_r6 <- R6::R6Class(
+  classname = "rtfplot_r6",
   public = list(
     path         = NULL,
     width_twips  = NULL,

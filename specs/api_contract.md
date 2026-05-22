@@ -99,8 +99,8 @@ Defaults are resolved with this order (lowest to highest):
 - Unnamed elements: column count and alignment determined by count (1=center/left, 2=left/right, 3=left/center/right).
 
 **Border defaults:**
-- Header: no borders
-- Footer: top border on the first row only (default `top_border = TRUE`)
+- Header: no borders (`border = NULL`)
+- Footer: top border on the first row only (`border = rtf_border_top()`)
 
 **Row height:** One configurable value for all header/footer rows, set in
 `inst/resources/rtf_commands.R` under `defaults$header_footer_row_height_twips`.
@@ -151,18 +151,102 @@ named vector is accepted.
 ```r
 rtf_header(
   rows,                       # named vector (single row) or list of named vectors
-  width_twips    = NULL,      # NULL = full writable width
-  top_border     = FALSE,     # header default: no border
+  border           = NULL,    # rtf_border or NULL = no border
+  width_twips      = NULL,    # NULL = full writable width
   row_height_twips = NULL     # NULL = read from rtfreporter_defaults.R
 )
 
 rtf_footer(
   rows,
-  width_twips    = NULL,
-  top_border     = TRUE,      # footer default: top border on first row
+  border           = rtf_border_top(),  # footer default: top border on first row
+  width_twips      = NULL,
   row_height_twips = NULL
 )
 ```
+
+**Deprecated parameters (kept for backward compatibility, emit a warning):**
+- `top_border = TRUE/FALSE` in `rtf_header()`/`rtf_footer()` → use `border=` instead.
+
+#### Border class hierarchy
+
+Three constructor functions build border specifications.  All return plain
+lists with a class attribute (not R6).
+
+##### `rtf_border_side` — one edge
+
+```r
+rtf_border_side(
+  style = "single",   # "single" | "double" | "thick" | "dash" | "dot"
+  width = 15L,        # line width in twips (15 ≈ 0.5 pt)
+  color = NULL        # NULL = black, or "#RRGGBB" hex string
+)
+```
+
+##### `rtf_border` — four edges of one cell / row
+
+```r
+rtf_border(
+  top    = NULL,   # NULL = no border, or rtf_border_side(...)
+  bottom = NULL,
+  left   = NULL,
+  right  = NULL
+)
+```
+
+Convenience constructors (all return an `rtf_border`):
+
+| Function | Effect |
+|---|---|
+| `rtf_border_none()` | All four sides `NULL` (explicit "no border") |
+| `rtf_border_top(style, width, color)` | Top side only |
+| `rtf_border_bottom(style, width, color)` | Bottom side only |
+| `rtf_border_box(style, width, color)` | All four sides |
+
+##### `rtf_table_border` — per-zone border for a table
+
+```r
+rtf_table_border(
+  header    = NULL,  # rtf_border for column-header rows
+  spanning  = NULL,  # rtf_border for spanning-header rows
+  body      = NULL,  # rtf_border for data rows
+  first_row = NULL,  # rtf_border override for first data row (merged with body)
+  last_row  = NULL   # rtf_border override for last data row  (merged with body)
+)
+```
+
+Preset: `rtf_border_tfl()` returns the clinical-TFL standard border
+(`header` top+bottom, `last_row` bottom, all others `NULL`).
+
+##### Usage examples
+
+```r
+# Footer with a top dividing line (default)
+rtf_footer(rows = list(l = "Company", r = "{AUTO_PAGE}/{AUTO_TOTAL_PAGES}"))
+
+# Header with a thick-blue bottom line
+rtf_header(
+  rows   = list(c = "Study Title"),
+  border = rtf_border(bottom = rtf_border_side("thick", 20L, "#003366"))
+)
+
+# Table with TFL borders (default)
+rtftable(df)
+
+# Custom table borders
+rtftable(df, border = rtf_table_border(
+  header   = rtf_border(top = rtf_border_side(), bottom = rtf_border_side()),
+  last_row = rtf_border(bottom = rtf_border_side("double"))
+))
+```
+
+##### Backward compatibility
+
+| Old form | Behavior |
+|---|---|
+| `rtftable(border = "tfl")` | converted to `rtf_border_tfl()` |
+| `rtftable(border = list(header = ...))` | plain list normalized internally |
+| `rtf_footer(top_border = TRUE)` | deprecated warning + `border = rtf_border_top()` |
+| `rtf_footer(top_border = FALSE)` | deprecated warning + `border = NULL` |
 
 **Set/get methods on `rtfreport`:**
 - `set_section_header(section_index, header)` — set or replace after creation

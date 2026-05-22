@@ -465,7 +465,7 @@
 # Used for backward compatibility when add_table() receives a plain data.frame.
 .df_to_rtftable <- function(df, metadata = NULL) {
   meta <- if (is.list(metadata)) metadata else list()
-  rtftable$new(
+  rtftable_r6$new(
     data                       = df,
     border                     = "tfl",
     col_rel_width              = meta$col_rel_width,
@@ -853,12 +853,104 @@
 #' @param report An `rtfreport` object.
 #' @param file_path Output RTF file path.
 #' @param overwrite Logical; whether to overwrite an existing file.
+# ============================================================================
+# Pipe API Adapter: Convert rtf_document → rtfreport_r6
+# ============================================================================
+
+# Internal helper: convert S3 rtf_document (pipe API) to R6 rtfreport_r6
+# for rendering via existing RTF generation logic.
+.pipe_doc_to_r6_report <- function(pipe_doc) {
+  if (!inherits(pipe_doc, "rtf_document")) {
+    return(NULL) # Not a pipe document
+  }
+
+  # Create new R6 report with same document settings
+  r6_report <- rtfreport_r6$new()
+
+  # Copy document settings
+  if (!is.null(pipe_doc$document$font_table)) {
+    r6_report$set_document_defaults(
+      font_table = pipe_doc$document$font_table
+    )
+  }
+  if (!is.null(pipe_doc$document$color_table)) {
+    r6_report$set_document_defaults(
+      color_table = pipe_doc$document$color_table
+    )
+  }
+  if (!is.null(pipe_doc$document$page)) {
+    page_spec <- pipe_doc$document$page
+    if (!is.null(page_spec)) {
+      # Convert page dimensions and margins from inches to twips
+      r6_report$set_default_page(list(
+        orientation        = page_spec$orientation %||% "landscape",
+        width_twips        = .in_to_twips(page_spec$width_in %||% 11),
+        height_twips       = .in_to_twips(page_spec$height_in %||% 8.5),
+        margin_left_twips  = .in_to_twips(page_spec$margin_left_in %||% 0.5),
+        margin_right_twips = .in_to_twips(page_spec$margin_right_in %||% 0.5),
+        margin_top_twips   = .in_to_twips(page_spec$margin_top_in %||% 0.75),
+        margin_bottom_twips = .in_to_twips(page_spec$margin_bottom_in %||% 0.75)
+      ))
+    }
+  }
+
+  # Map sections and pages from pipe API structure
+  # In pipe API: sections is a list with page numbers as keys
+  # Example: sections$`1` = page 1 section, sections$`3` = page 3 section
+  # Pages between section starts inherit the previous section's header/footer
+
+  # First, determine section boundaries
+  section_page_breaks <- as.numeric(names(pipe_doc$sections))
+  section_page_breaks <- sort(section_page_breaks)
+
+  # Add sections to R6 report
+  section_idx_map <- list()  # Map: page_num -> section_idx
+  current_section_idx <- NA
+
+  for (page_num in 1:length(pipe_doc$contents)) {
+    # Check if a new section starts at this page
+    if (page_num %in% section_page_breaks) {
+      # Add new section
+      sec_info <- pipe_doc$sections[[as.character(page_num)]]
+      current_section_idx <- r6_report$add_section(
+        header = sec_info$header,
+        footer = sec_info$footer
+      )
+    } else if (is.na(current_section_idx)) {
+      # No sections defined, create default first section
+      current_section_idx <- r6_report$add_section()
+    }
+
+    # Map this page to its section
+    section_idx_map[[as.character(page_num)]] <- current_section_idx
+  }
+
+  # Add content as pages
+  for (page_num in 1:length(pipe_doc$contents)) {
+    content_item <- pipe_doc$contents[[page_num]]
+    sec_idx <- section_idx_map[[as.character(page_num)]]
+
+    # Add page with content
+    r6_report$add_page(section_index = sec_idx, content = list(content_item))
+  }
+
+  r6_report
+}
+
 #'
 #' @return Invisibly returns `file_path`.
 #' @export
 generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
-  if (!inherits(report, "rtfreport")) {
-    stop("`report` must be an rtfreport object.", call. = FALSE)
+  # Support both R6 rtfreport_r6 objects and S3 rtf_document pipe API objects
+  if (inherits(report, "rtf_document")) {
+    # Convert pipe API object to R6 object
+    report <- .pipe_doc_to_r6_report(report)
+    if (is.null(report)) {
+      stop("`report` must be an rtfreport or rtf_document object.", call. = FALSE)
+    }
+  } else if (!inherits(report, "rtfreport_r6")) {
+    stop("`report` must be an rtfreport object (from rtfreport()) or rtf_document (from rtf_document()).",
+         call. = FALSE)
   }
   if (file.exists(file_path) && !isTRUE(overwrite)) {
     stop("`file_path` already exists. Set overwrite = TRUE.", call. = FALSE)
@@ -944,7 +1036,7 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
 
       for (block in page$content) {
         if (block$type %in% c("table", "listing")) {
-          if (inherits(block$data, "rtftable")) {
+          if (inherits(block$data, "rtftable_r6")) {
             tbl <- block$data
           } else {
             block_meta <- .resolve_block_metadata(
@@ -960,7 +1052,7 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
           }
 
         } else if (block$type == "figure") {
-          if (inherits(block$data, "rtfplot")) {
+          if (inherits(block$data, "rtfplot_r6")) {
             lines <- c(lines, .render_rtfplot(block$data, writable_width))
           } else {
             # Legacy path: file-path placeholder.

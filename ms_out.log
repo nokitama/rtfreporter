@@ -1,0 +1,10 @@
+[1] 1
+[1] 2
+[1] 1
+[1] 1
+[1] 2
+OK: multisection_demo.rtf
+  - 3 Lab test sections, 5 pages total
+  - Header: common sponsor/page row + auto-spacer + section lab test name
+  - Page field: RTF \chpgn (dynamic, not static substitution)
+蜃ｺ蜉・ tests/output/multisection_demo.rtf

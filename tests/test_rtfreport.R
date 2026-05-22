@@ -1,3 +1,4 @@
+source(file.path("R", "rtf_border.R"))
 source(file.path("R", "rtfreport.R"))
 source(file.path("R", "rtftable.R"))
 source(file.path("R", "rtfplot.R"))
@@ -425,3 +426,117 @@ stopifnot(grepl("Column A", hdr_txt, fixed = TRUE))
 stopifnot(grepl("Column B", hdr_txt, fixed = TRUE))
 
 cat("All rtfreporter R tests passed.\n")
+
+# ============================================================================
+# rtf_border_side: constructor and validation
+# ============================================================================
+bs <- rtf_border_side()
+stopifnot(inherits(bs, "rtf_border_side"))
+stopifnot(bs$style == "single")
+stopifnot(bs$width == 15L)
+stopifnot(is.null(bs$color))
+
+bs2 <- rtf_border_side("thick", 20L, "#FF0000")
+stopifnot(bs2$style == "thick")
+stopifnot(bs2$width == 20L)
+stopifnot(bs2$color == "#FF0000")
+
+err_bs <- tryCatch(rtf_border_side("zigzag"), error = function(e) e)
+stopifnot(inherits(err_bs, "error"))
+
+# ============================================================================
+# rtf_border: constructor and convenience variants
+# ============================================================================
+b_none   <- rtf_border_none()
+stopifnot(inherits(b_none, "rtf_border"))
+stopifnot(is.null(b_none$top))
+
+b_top  <- rtf_border_top()
+stopifnot(!is.null(b_top$top))
+stopifnot(is.null(b_top$bottom))
+
+b_box <- rtf_border_box("double", 10L)
+stopifnot(!is.null(b_box$top))
+stopifnot(!is.null(b_box$bottom))
+stopifnot(!is.null(b_box$left))
+stopifnot(!is.null(b_box$right))
+stopifnot(b_box$top$style == "double")
+
+# ============================================================================
+# rtf_table_border and rtf_border_tfl
+# ============================================================================
+tfl <- rtf_border_tfl()
+stopifnot(inherits(tfl, "rtf_table_border"))
+stopifnot(!is.null(tfl$header$top))
+stopifnot(!is.null(tfl$header$bottom))
+stopifnot(!is.null(tfl$last_row$bottom))
+stopifnot(is.null(tfl$body))
+stopifnot(is.null(tfl$spanning))
+
+# ============================================================================
+# rtftable with rtf_table_border object
+# ============================================================================
+tbl_obj <- rtftable$new(small_df, border = rtf_border_tfl())
+stopifnot(inherits(tbl_obj$border, "rtf_table_border"))
+
+# plain-list backward compat still produces rtf_table_border
+tbl_lst <- rtftable$new(small_df, border = list(
+  header = list(top = "single", bottom = "single", width = 15L),
+  last_row = list(bottom = "single")
+))
+stopifnot(inherits(tbl_lst$border, "rtf_table_border"))
+
+# ============================================================================
+# rtf_header / rtf_footer with rtf_border
+# ============================================================================
+hdr_obj <- rtf_header(c(l = "Test"), border = NULL)
+stopifnot(is.null(hdr_obj$border))
+
+ftr_obj <- rtf_footer(c(l = "Test"))   # default border = rtf_border_top()
+stopifnot(inherits(ftr_obj$border, "rtf_border"))
+stopifnot(!is.null(ftr_obj$border$top))
+
+# Deprecated top_border= should still work with a warning
+ftr_dep <- withCallingHandlers(
+  rtf_footer(c(l = "X"), top_border = TRUE),
+  warning = function(w) { invokeRestart("muffleWarning") }
+)
+stopifnot(!is.null(ftr_dep$border$top))
+
+# ============================================================================
+# Render with rtf_border: footer top border renders as \clbrdrt\brdrs
+# ============================================================================
+report_br <- rtfreport$new()
+sec_br <- report_br$add_section(
+  header = c(l = "Header Test"),
+  footer = rtf_footer(c(l = "Footer Test"))  # default top border
+)
+report_br$add_page(
+  section_index = sec_br,
+  content = list(list(type = "table", data = small_df))
+)
+out_br <- file.path(tempdir(), "border_render.rtf")
+generate_rtfreport(report_br, out_br, overwrite = TRUE)
+br_txt <- paste(readLines(out_br, warn = FALSE), collapse = "\n")
+stopifnot(grepl("Footer Test", br_txt, fixed = TRUE))
+stopifnot(grepl("clbrdrt", br_txt, fixed = TRUE))   # top border rendered
+
+# ============================================================================
+# Render with colored border: color table must include the hex color
+# ============================================================================
+report_col <- rtfreport$new()
+sec_col <- report_col$add_section(
+  footer = rtf_footer(c(l = "Red Footer"),
+                      border = rtf_border_top("single", 15L, "#FF0000"))
+)
+report_col$add_page(
+  section_index = sec_col,
+  content = list(list(type = "table", data = small_df))
+)
+out_col <- file.path(tempdir(), "color_border.rtf")
+generate_rtfreport(report_col, out_col, overwrite = TRUE)
+col_txt <- paste(readLines(out_col, warn = FALSE), collapse = "\n")
+stopifnot(grepl("red255", col_txt, fixed = TRUE))   # #FF0000 in color table
+stopifnot(grepl("brdrcf2", col_txt, fixed = TRUE))  # color index 2
+
+cat("All border class tests passed.\n")

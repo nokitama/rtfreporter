@@ -1,3 +1,4 @@
+source(file.path("R", "rtf_border.R"))
 source(file.path("R", "rtfreport.R"))
 source(file.path("R", "rtftable.R"))
 source(file.path("R", "rtfplot.R"))

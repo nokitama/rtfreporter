@@ -1,7 +1,7 @@
 Package: rtfreporter
 Type: Package
 Title: Clinical RTF Reporting Toolkit
-Version: 0.0.5
+Version: 0.0.6
 Authors@R: person("ichirio", email = "ichirio@example.com", role = c("aut", "cre"))
 Description: RTF reporting toolkit specialized for clinical tables and listings. It is not a general-purpose RTF library.
 License: MIT + file LICENSE

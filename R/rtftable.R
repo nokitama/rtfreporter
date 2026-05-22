@@ -178,9 +178,10 @@
 #' @param cell_valign Vertical cell alignment: `"bottom"` (default), `"top"`,
 #'   or `"center"`.
 #'
-#' @export
-rtftable <- R6::R6Class(
-  classname = "rtftable",
+#' Internal R6 class for table objects
+#' (S3 wrapper rtftable() is the public API)
+rtftable_r6 <- R6::R6Class(
+  classname = "rtftable_r6",
   public = list(
     data = NULL,
     data_list = NULL,

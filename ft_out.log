@@ -1,0 +1,64 @@
+
+=== rtfreporter 讖溯・邯ｲ鄒・ユ繧ｹ繝・===
+
+[A-1] 謇句虚蛻励・繝・ム繝ｼ
+  A-1a: pipe蛹ｺ蛻・ｊ譁・ｭ怜・縺ｧ繝倥ャ繝繝ｼ謖・ｮ・     [PASS]
+  A-1b: 譁・ｭ励・繧ｯ繧ｿ縺ｧ繝倥ャ繝繝ｼ謖・ｮ・            [PASS]
+  A-1c: 隍・焚陦後・繝・ム繝ｼ (list)                     [PASS]
+[A-2] 繧ｹ繝代ル繝ｳ繧ｰ繝倥ャ繝繝ｼ
+  A-2a: 蝓ｺ譛ｬ繧ｹ繝代ル繝ｳ繧ｰ (underline=TRUE)           [PASS]
+  A-2b: 隍・焚繧ｹ繝代Φ                                  [PASS]
+[B-1] 鄂ｫ邱壼宛蠕｡
+  B-1a: border='tfl' 窶・繝倥ャ繝繝ｼ荳贋ｸ狗ｽｫ邱壹≠繧翫√・繝・ぅ縺ｪ縺励∵怙邨り｡御ｸ狗ｽｫ邱壹≠繧骸PASS]
+  B-1b: border=NULL 窶・蜈ｨ鄂ｫ邱壹↑縺・                 [PASS]
+  B-1c: border 繧ｫ繧ｹ繧ｿ繝 窶・蜈ｨ霎ｺ double            [PASS]
+[C-1] 繝・く繧ｹ繝郁｣・｣ｾ
+  C-1a: col_spec 窶・蛻励＃縺ｨ縺ｫ bold / italic / underline[PASS]
+  C-1b: 繝倥ャ繝繝ｼ bold / italic 縺ｮ蛟句挨蛻ｶ蠕｡       [PASS]
+[C-2] 繧ｻ繝ｫ蜀・う繝ｳ繝・Φ繝・
+  C-2a: indent_twips 縺ｧ髫主ｱ､逧・う繝ｳ繝・Φ繝・        [PASS]
+  C-2b: 豺ｱ縺・う繝ｳ繝・Φ繝・(360 twips = 0.25")        [PASS]
+[D-1] 陦碁ｫ・
+  D-1a: row_height_twips 蝗ｺ螳・(360 = 0.25")            [PASS]
+  D-1b: row_height_twips=0 (auto)                        [PASS]
+  D-1c: header_row_height_twips 縺ｧ繝倥ャ繝繝ｼ縺縺鷹ｫ倥￥縺吶ｋ[PASS]
+[E-1/E-2] Unicode繝ｻ迚ｹ谿願ｨ俶ｳ・
+  E-1a: 譌･譛ｬ隱槭ユ繧ｭ繧ｹ繝・竊・\uNNNN? 繧ｨ繧ｹ繧ｱ繝ｼ繝夕PASS]
+  E-2a: >= 縺ｨ <= 縺ｮ RTF Unicode 螟画鋤                 [PASS]
+  E-2b: ^{} 荳贋ｻ倥″ / _{} 荳倶ｻ倥″ 繝槭・繧ｯ繧｢繝・・ [PASS]
+  E-2c: \n 繧ｻ繝ｫ蜀・隼陦・                              [PASS]
+[G] 逶ｸ蟇ｾ蛻怜ｹ・
+  G-a: col_rel_width 窶・3:1:1:1 蛻・・                  [PASS]
+  G-b: table_width_pct_of_writable = 0.8                 [PASS]
+  G-c: column_widths_twips 邨ｶ蟇ｾ謖・ｮ・                 [PASS]
+[valign] 繧ｻ繝ｫ蝙ら峩繧｢繝ｩ繧､繝｡繝ｳ繝・
+  valign-a: cell_valign='top'                            [PASS]
+  valign-b: cell_valign='center'                         [PASS]
+[padding] 繧ｻ繝ｫ繝代ョ繧｣繝ｳ繧ｰ
+  PAD-a: cell_padding_left/right 繧ｫ繧ｹ繧ｿ繝蛟､         [PASS]
+[COMPOSITE] Clinical TFL 鬚ｨ邱丞粋繝・せ繝・
+  COMP-a: Clinical AE listing (蜈ｨ讖溯・邨・∩蜷医ｏ縺・ [PASS]
+  COMP-b: Demographics table with relative widths + unicode[PASS]
+[ERR] 繧ｨ繝ｩ繝ｼ繝上Φ繝峨Μ繝ｳ繧ｰ
+  ERR-a: 荳肴ｭ｣縺ｪ border 蝙・竊・繧ｨ繝ｩ繝ｼ              [PASS]
+  ERR-b: col_rel_width 髟ｷ縺穂ｸ堺ｸ閾ｴ 竊・繧ｨ繝ｩ繝ｼ     [PASS]
+  ERR-c: column_widths_twips 髟ｷ縺穂ｸ堺ｸ閾ｴ 竊・繧ｨ繝ｩ繝ｼ[PASS]
+  ERR-d: 蟄伜惠縺励↑縺・col_spec col 蜷・竊・繧ｨ繝ｩ繝ｼ  [PASS]
+  ERR-e: overwrite=FALSE 縺ｧ譌｢蟄倥ヵ繧｡繧､繝ｫ 竊・繧ｨ繝ｩ繝ｼ[PASS]
+[COMPAT] 蠕梧婿莠呈鋤
+  COMPAT-a: data.frame 逶ｴ貂｡縺・(譌ｧ API)               [PASS]
+  COMPAT-b: metadata list 貂｡縺・(譌ｧ API)               [PASS]
+[H-1] 遨ｺ逋ｽ陦梧諺蜈･ (blank_rows)
+  H-1a: blank_rows=0 窶・譛蛻昴・繝・・繧ｿ陦後・蜑阪↓遨ｺ逋ｽ陦啓PASS]
+  H-1b: blank_rows=c(2) 窶・2陦檎岼縺ｮ蠕後↓遨ｺ逋ｽ陦・   [PASS]
+  H-1c: blank_rows=c(0,3) 窶・蜈磯ｭ縺ｨ3陦檎岼縺ｮ蠕後↓遨ｺ逋ｽ陦啓PASS]
+  H-1d: blank_row_height_twips 繧ｫ繧ｹ繧ｿ繝謖・ｮ・       [PASS]
+[TFL-DEMO] Demographics TFL 繧ｹ繧ｿ繧､繝ｫ繝・Δ
+  TFL-DEMO: Demographics Summary Table (TFL style)       [PASS]
+
+--- 繝・せ繝育ｵ先棡繧ｵ繝槭Μ繝ｼ逕滓・荳ｭ ---
+[1] 1
+
+=== 邨先棡: PASS 39 / FAIL 0 / TOTAL 39 ===
+    繧ｵ繝槭Μ繝ｼ繝ｬ繝昴・繝・ tests/output/feature/00_summary.rtf
+

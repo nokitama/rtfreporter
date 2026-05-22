@@ -49,6 +49,7 @@ rtfreporter/                        ← repo root = R package root (CRAN-ready l
 │
 ├── R/                              ← R source files
 │   ├── rtfreport.R
+│   ├── rtf_border.R               ← Border class hierarchy (rtf_border_side, rtf_border, rtf_table_border)
 │   ├── generate_rtfreport.R
 │   ├── rtftable.R
 │   ├── rtfplot.R
@@ -56,6 +57,7 @@ rtfreporter/                        ← repo root = R package root (CRAN-ready l
 │
 ├── man/                            ← R help files (*.Rd) — update when API changes
 │   ├── rtfreport.Rd
+│   ├── rtf_border.Rd               ← Border class docs (rtf_border_side, rtf_border, etc.)
 │   ├── generate_rtfreport.Rd
 │   ├── rtftable.Rd
 │   ├── rtfplot.Rd
@@ -111,27 +113,72 @@ rtfreporter/                        ← repo root = R package root (CRAN-ready l
 
 ## Key API rules (summary — see specs for full detail)
 
+### Border class hierarchy
+
+Three constructor functions build border specs, shared across header/footer and tables.
+Always use these; never create raw border lists.
+
+```r
+# Single edge
+s <- rtf_border_side(style = "single", width = 15L, color = NULL)
+# style: "single" | "double" | "thick" | "dash" | "dot"
+# color: NULL (black) or "#RRGGBB"
+
+# Four edges for one cell/row
+b <- rtf_border(top = s, bottom = NULL, left = NULL, right = NULL)
+
+# Convenience shortcuts (all return rtf_border)
+rtf_border_none()             # all NULL
+rtf_border_top(style, width, color)   # top only
+rtf_border_bottom(style, width, color)
+rtf_border_box(style, width, color)   # all four sides
+
+# Per-zone table border
+tb <- rtf_table_border(
+  header    = rtf_border(top = rtf_border_side(), bottom = rtf_border_side()),
+  spanning  = NULL,
+  body      = NULL,
+  first_row = NULL,
+  last_row  = rtf_border(bottom = rtf_border_side())
+)
+
+# TFL clinical preset
+tb <- rtf_border_tfl()
+```
+
 ### Header/Footer constructors
 
-Use `rtf_header()` / `rtf_footer()` for multi-row or border-controlled headers:
 ```r
 hdr <- rtf_header(
   rows = list(
     c(l = "Protocol: RTF-101", r = "HOGE company"),
     c(l = "Study Title",       r = "Page {AUTO_PAGE} of {TOTAL_PAGES}")
   )
+  # border = NULL (default: no border)
 )
-ftr <- rtf_footer(c(l = "Confidential"))  # top_border = TRUE by default
+ftr <- rtf_footer(
+  c(l = "Confidential")
+  # border = rtf_border_top() (default: top dividing line)
+)
 report$add_section(header = hdr, footer = ftr)
 ```
 
-Shorthand (single row, no border/width control):
+Custom footer border:
+```r
+ftr <- rtf_footer(c(l = "Confidential"), border = rtf_border(top = rtf_border_side("thick", 20L, "#003366")))
+```
+
+Shorthand (single row, uses default border):
 ```r
 report$add_section(
   header = c(l = "Protocol: RTF-101", r = "Page {AUTO_PAGE} of {TOTAL_PAGES}"),
   footer = c(l = "Confidential")
 )
 ```
+
+**Deprecated**: `top_border = TRUE/FALSE` still works but emits a warning.
+Use `border = rtf_border_top()` / `border = NULL` instead.
+
 
 ### Header/Footer get/set methods
 

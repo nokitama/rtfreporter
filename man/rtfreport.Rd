@@ -12,8 +12,8 @@ objects with explicit control over borders, width, and row height.
 }
 \usage{
 rtfreport$new(font_table = NULL, color_table = NULL, default_page = NULL, default_format = NULL)
-rtf_header(rows, width_twips = NULL, top_border = FALSE, row_height_twips = NULL)
-rtf_footer(rows, width_twips = NULL, top_border = TRUE, row_height_twips = NULL)
+rtf_header(rows, border = NULL, width_twips = NULL, row_height_twips = NULL, top_border = NULL)
+rtf_footer(rows, border = rtf_border_top(), width_twips = NULL, row_height_twips = NULL, top_border = NULL)
 }
 \arguments{
 \item{font_table}{A list of font definitions. Each element is a list with at
@@ -31,12 +31,16 @@ rtf_footer(rows, width_twips = NULL, top_border = TRUE, row_height_twips = NULL)
 \item{rows}{A named character vector (single row) or a list of named character
   vectors (multi-row). Names \code{l}, \code{c}, \code{r} map to left, center,
   right columns. See \bold{Column-count rules} below.}
+\item{border}{An \code{\link{rtf_border}} object controlling the border applied
+  to all rows of the header/footer table. \code{NULL} = no border (default for
+  header). Use \code{\link{rtf_border_top}()} for a horizontal dividing line
+  (default for footer).}
 \item{width_twips}{Integer. Table width in twips. \code{NULL} (default) uses
   the full writable width (page width minus margins).}
-\item{top_border}{Logical. Draw a top border on the first row.
-  Default: \code{FALSE} for \code{rtf_header()}, \code{TRUE} for \code{rtf_footer()}.}
 \item{row_height_twips}{Integer row height in twips. \code{NULL} (default) reads
   \code{header_footer_row_height_twips} from \code{inst/resources/rtfreporter_defaults.R}.}
+\item{top_border}{\emph{Deprecated.} Use \code{border = rtf_border_top()} or
+  \code{border = NULL} instead. Emits a warning if supplied.}
 }
 \section{Header/Footer format}{
 

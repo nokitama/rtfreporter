@@ -1,0 +1,311 @@
+---
+title: "Tidyverse Pipe-Based API for rtfreporter"
+author: "ichirio"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Pipe-Based API}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Overview
+
+The rtfreporter package provides two complementary APIs for building RTF reports:
+
+1. **S3 Methods API** (v0.0.6): Mutable object manipulation with `add_section()`, `add_page()`, etc.
+2. **Tidyverse Pipe API** (v0.0.6+): Immutable functional composition with `%>%` pipes
+
+This vignette demonstrates the **Tidyverse Pipe API**, which is inspired by ggplot2 and dplyr, providing a clean, composable interface for building complex RTF reports.
+
+## Quick Start
+
+The basic workflow is:
+
+1. Initialize a document with `rtf_document()`
+2. Configure document settings with `rtf_config()` (optional)
+3. Add content (tables/figures) with `rtf_tables()` and `rtf_figures()`
+4. Define sections with `rtf_section()`
+5. Apply formatting with `rtf_table_format()`, `rtf_header_format()`, etc.
+6. Generate RTF with `generate_rtfreport()`
+
+```{r, eval = FALSE}
+library(rtfreporter)
+
+# Create a simple report
+doc <- rtf_document() %>%
+  rtf_tables(list(mtcars)) %>%
+  rtf_section(page = 1, secinfo = list(header = NULL, footer = NULL))
+
+# Generate RTF file
+generate_rtfreport(doc, "report.rtf")
+```
+
+## API Functions
+
+### Initialization and Configuration
+
+#### `rtf_document()`
+
+Creates a new RTF document object with clinical trial defaults.
+
+**Defaults:**
+- Page: Landscape letter (11" × 8.5")
+- Margins: 0.75" top/bottom, 0.5" left/right
+- Font: Courier
+- Colors: Black
+
+```{r, eval = FALSE}
+doc <- rtf_document()
+
+# With custom defaults
+doc <- rtf_document(
+  font_table = list(list(name = "Arial")),
+  page = list(
+    orientation = "portrait",
+    width_in = 8.5,
+    height_in = 11
+  )
+)
+```
+
+#### `rtf_config()`
+
+Update document-level settings. Typically called once after creating a document.
+
+**Parameters:**
+- `font_table`: Override font table
+- `color_table`: Override color table
+- `page`: Override page settings
+- `default_format`: Override default formatting
+
+All parameters are **optional** (NULL = no change), making it safe for repeated calls:
+
+```{r, eval = FALSE}
+doc <- rtf_document() %>%
+  rtf_config(page = list(orientation = "portrait"))
+```
+
+### Content Addition
+
+#### `rtf_tables()`
+
+Add one or more data.frames as content pages. Pages are auto-numbered.
+
+```{r, eval = FALSE}
+# Single table per page
+doc <- rtf_document() %>%
+  rtf_tables(list(df1, df2, df3))
+
+# Multiple tables on one page
+doc <- rtf_document() %>%
+  rtf_tables(list(df1, list(df2a, df2b), df3))
+# Results in: df1 on page 1, df2a+df2b on page 2, df3 on page 3
+```
+
+#### `rtf_figures()`
+
+Add image files as figure pages. Each image creates one new page.
+
+```{r, eval = FALSE}
+doc <- rtf_document() %>%
+  rtf_figures(list("plot1.png", "plot2.png"))
+```
+
+### Structure Definition
+
+#### `rtf_section()`
+
+Map page numbers to sections with headers and footers.
+
+```{r, eval = FALSE}
+# Single section starting at page 1
+doc <- rtf_document() %>%
+  rtf_tables(list(df1, df2, df3)) %>%
+  rtf_section(page = 1, secinfo = list(
+    header = rtf_header(rows = list(l = "Analysis", r = "Table 1")),
+    footer = rtf_footer(rows = list(c = "Page {CURRENT_PAGE}"))
+  ))
+
+# Multiple sections
+doc <- rtf_document() %>%
+  rtf_tables(list(df1, df2, df3)) %>%
+  rtf_section(
+    page = c(1, 3),
+    secinfo = list(
+      list(header = h1, footer = f1),  # Section 1 (pages 1-2)
+      list(header = h2, footer = f2)   # Section 2 (pages 3+)
+    )
+  )
+```
+
+### Formatting
+
+All format functions follow the same pattern:
+- Accept `pages` parameter: `"all"` or `c(1, 3, 5)` for specific pages
+- All other parameters are **optional** (NULL = no change)
+- Safe for multiple calls - later calls override only the specified parameters
+
+#### `rtf_table_format()`
+
+Format table content across pages.
+
+```{r, eval = FALSE}
+doc <- rtf_document() %>%
+  rtf_tables(list(df1, df2, df3)) %>%
+  rtf_table_format(pages = "all", border = "tfl", row_height_twips = 280L) %>%
+  rtf_table_format(pages = 1, border = "none")  # Override page 1
+```
+
+#### `rtf_header_format()` and `rtf_footer_format()`
+
+Format table headers and footers.
+
+```{r, eval = FALSE}
+doc <- doc %>%
+  rtf_header_format(pages = "all", border = "top", row_height_twips = 280L) %>%
+  rtf_footer_format(pages = c(1, 3), border = "top")
+```
+
+#### `rtf_figure_format()`
+
+Format figure content.
+
+```{r, eval = FALSE}
+doc <- doc %>%
+  rtf_figure_format(pages = "all", width_twips = 8000L, height_twips = 6000L)
+```
+
+## Complete Example
+
+```{r, eval = FALSE}
+library(rtfreporter)
+library(magrittr)  # For %>% pipe
+
+# Prepare data
+df_safety <- data.frame(
+  Event = c("Headache", "Nausea", "Dizziness"),
+  Mild = c(5, 3, 2),
+  Moderate = c(2, 1, 1),
+  Severe = c(0, 0, 1)
+)
+
+df_efficacy <- data.frame(
+  Response = c("Complete", "Partial", "No Response"),
+  Count = c(25, 15, 10),
+  Percent = c("50%", "30%", "20%")
+)
+
+# Create report
+report <- rtf_document() %>%
+  # Configure document (one-time)
+  rtf_config(page = list(
+    orientation = "landscape",
+    width_in = 11,
+    height_in = 8.5
+  )) %>%
+  # Add content
+  rtf_tables(list(df_safety, df_efficacy)) %>%
+  # Define sections with headers/footers
+  rtf_section(page = 1, secinfo = list(
+    header = rtf_header(rows = list(
+      l = "Clinical Study Report",
+      r = "Safety Analysis"
+    )),
+    footer = rtf_footer(rows = list(
+      c = "Page {CURRENT_PAGE} of {AUTO_TOTAL_PAGES}"
+    ))
+  )) %>%
+  rtf_section(page = 2, secinfo = list(
+    header = rtf_header(rows = list(
+      l = "Clinical Study Report",
+      r = "Efficacy Analysis"
+    )),
+    footer = rtf_footer(rows = list(
+      c = "Page {CURRENT_PAGE} of {AUTO_TOTAL_PAGES}"
+    ))
+  )) %>%
+  # Apply formatting (multiple calls safe, later ones override)
+  rtf_table_format(pages = "all", border = "tfl", row_height_twips = 280L) %>%
+  rtf_header_format(pages = "all", border = "top", row_height_twips = 300L)
+
+# Generate RTF file
+generate_rtfreport(report, "clinical_report.rtf", overwrite = TRUE)
+```
+
+## Pipe vs. Methods API
+
+### Using Pipes (Recommended)
+
+```{r, eval = FALSE}
+report <- rtf_document() %>%
+  rtf_tables(list(df1, df2)) %>%
+  rtf_section(page = 1, secinfo = sec_info) %>%
+  rtf_table_format(pages = "all", border = "tfl")
+```
+
+### Using Methods (v0.0.6)
+
+```{r, eval = FALSE}
+report <- rtfreport()
+sec <- report$add_section(header = h1, footer = f1)
+report$add_page(section_index = sec, content = list(rtftable(df1)))
+report$add_page(section_index = sec, content = list(rtftable(df2)))
+report$set_default_page(...)
+```
+
+Both APIs work and produce identical RTF output. Choose based on your preference:
+- **Pipes**: Functional style, easier to compose, modern R idiom
+- **Methods**: Direct object manipulation, more explicit control
+
+## Safe Parameter Defaults
+
+The pipe API uses **NULL-safe parameters** to prevent unintended overwrites:
+
+```{r, eval = FALSE}
+# This is safe - only updates page 1
+doc <- doc %>%
+  rtf_table_format(pages = 1, border = "none")
+
+# Later call doesn't overwrite - NULL means "no change"
+doc <- doc %>%
+  rtf_table_format(pages = "all", row_height_twips = 300L)
+# Result: page 1 has border="none", row_height=300L
+#         other pages have border="tfl", row_height=300L
+```
+
+## Object Structure
+
+The S3 `rtf_document` object contains:
+
+```r
+list(
+  document = list(
+    font_table = ...,
+    color_table = ...,
+    page = list(orientation, width_in, height_in, margins),
+    default_format = ...
+  ),
+  contents = list(...),          # Pages (data.frames or file paths)
+  sections = list(...),          # Page → section info mapping
+  table_formats = list(...),     # Format specs by page
+  header_formats = list(...),
+  footer_formats = list(...),
+  figure_formats = list(...)
+)
+```
+
+Each function returns a modified copy, enabling immutable composition.
+
+## See Also
+
+- `vignette("rtfreporter-quickstart")` - S3 Methods API (v0.0.6)
+- `help(rtf_document)` - Detailed function documentation
+- `generate_rtfreport()` - Render document to RTF file

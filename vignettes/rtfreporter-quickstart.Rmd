@@ -27,9 +27,9 @@ previous section's values are inherited automatically.
 ## 1  Minimal one-page report
 
 ```{r minimal}
-report <- rtfreport$new()
+report <- rtfreport()
 
-sec <- report$add_section(
+sec <- add_section(report,
   header = rtf_header(rows = list(
     c(l = "Protocol: RTF-101",          r = "ACME Pharma"),
     c(l = "Table 14.1.1 Demographics",  r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}")
@@ -47,13 +47,12 @@ df <- data.frame(
   stringsAsFactors = FALSE
 )
 
-report$add_page(
+add_page(report,
   section_index = sec,
   content = list(
-    list(type = "table",
-         data = rtftable$new(df,
-           col_rel_width    = c(2, 2, 1, 1),
-           row_height_twips = 280L))
+    rtftable(df,
+      col_rel_width    = c(2, 2, 1, 1),
+      row_height_twips = 280L)
   ),
   footer_notes = "Source: DM domain. One row per subject."
 )
@@ -109,7 +108,7 @@ col_spec_shift <- lapply(seq_len(7L), function(j)
   list(col = j, align = if (j == 1L) "left" else "center"))
 
 make_shift_table <- function(df) {
-  rtftable$new(
+  rtftable(
     data                = df,
     col_header          = col_hdr,
     spanning_header     = spanning_hdr,
@@ -131,7 +130,7 @@ common_footer <- rtf_footer(
 )
 
 # --- build report: one section per analyte -----------------------------------
-report <- rtfreport$new()
+report <- rtfreport()
 
 for (item in lab_data) {
   sec_header <- rtf_header(
@@ -143,10 +142,10 @@ for (item in lab_data) {
     )
   )
 
-  sec <- report$add_section(header = sec_header, footer = common_footer)
-  report$add_page(
+  sec <- add_section(report, header = sec_header, footer = common_footer)
+  add_page(report,
     section_index = sec,
-    content       = list(list(type = "table", data = make_shift_table(item$df))),
+    content       = list(make_shift_table(item$df)),
     footer_notes  = paste0("Source: LB domain.  ",
       "Subjects with both a baseline and at least one post-baseline assessment included.")
   )
@@ -182,20 +181,20 @@ png_path <- tempfile(fileext = ".png")
 ggsave(png_path, plot = p, width = 7, height = 4.5, dpi = 150)
 
 # --- embed in RTF ------------------------------------------------------------
-plot_obj <- rtfplot$new(
+plot_obj <- rtfplot(
   path        = png_path,
   width_twips = 9000L   # ~6.25 in; height computed from aspect ratio
 )
 
-report <- rtfreport$new()
-sec <- report$add_section(
+report <- rtfreport()
+sec <- add_section(report, 
   header = rtf_header(rows = list(
     c(l = "Protocol: FIG-001",           r = "ACME Pharma"),
     c(l = "Figure 14.1.1  Lab Value vs. Visit (Safety Population)")
   )),
   footer = rtf_footer(rows = list(c(l = "Source: LB domain.")))
 )
-report$add_page(sec, content = list(list(type = "figure", data = plot_obj)))
+add_page(report, sec, content = list(plot_obj))
 
 generate_rtfreport(report, tempfile(fileext = ".rtf"), overwrite = TRUE)
 ```
@@ -207,7 +206,7 @@ generate_rtfreport(report, tempfile(fileext = ".rtf"), overwrite = TRUE)
 Keep the figure width moderate so both elements fit on one page.
 
 ```{r fig-plus-table}
-tbl_summary <- rtftable$new(
+tbl_summary <- rtftable(
   data.frame(
     Statistic = c("n", "Mean", "SD"),
     Value     = c("30", "42.7", "8.4"),
@@ -218,19 +217,19 @@ tbl_summary <- rtftable$new(
   row_height_twips = 280L
 )
 
-report2 <- rtfreport$new()
-sec2 <- report2$add_section(
+report2 <- rtfreport()
+sec2 <- add_section(report2, 
   header = rtf_header(rows = list(
     c(l = "Protocol: FIG-001", r = "ACME Pharma"),
     c(l = "Figure + Summary Table")
   )),
   footer = rtf_footer(rows = list(c(l = "Source: LB domain.", r = "CONFIDENTIAL")))
 )
-report2$add_page(
+add_page(report2, 
   section_index = sec2,
   content = list(
-    list(type = "figure", data = rtfplot$new(png_path, width_twips = 7200L)),
-    list(type = "table",  data = tbl_summary)
+    rtfplot(png_path, width_twips = 7200L),
+    tbl_summary
   )
 )
 generate_rtfreport(report2, tempfile(fileext = ".rtf"), overwrite = TRUE)
@@ -251,21 +250,21 @@ generate_rtfreport(report2, tempfile(fileext = ".rtf"), overwrite = TRUE)
 df <- data.frame(A = 1:3, B = letters[1:3], C = c(1.1, 2.2, 3.3))
 
 # 70 % of writable width, left-aligned (default)
-tbl_left <- rtftable$new(df, table_width_pct = 70)
+tbl_left <- rtftable(df, table_width_pct = 70)
 
 # Absolute width, centered
-tbl_center <- rtftable$new(df,
+tbl_center <- rtftable(df,
   table_width_twips = 9000L,
   table_align       = "center")
 
 # Absolute width, right-aligned, with relative column widths 3:1:1
-tbl_right <- rtftable$new(df,
+tbl_right <- rtftable(df,
   table_width_twips = 7200L,
   table_align       = "right",
   col_rel_width     = c(3, 1, 1))
 
 # Full writable width (100 %)
-tbl_full  <- rtftable$new(df, table_width_pct = 100)
+tbl_full  <- rtftable(df, table_width_pct = 100)
 ```
 
 ---
@@ -282,17 +281,17 @@ Three ways to set column widths, in order of precedence:
 
 ```{r col-widths}
 # Absolute column widths (twips)
-tbl_abs <- rtftable$new(df,
+tbl_abs <- rtftable(df,
   column_widths_twips = c(4320L, 2160L, 2160L))
 
 # Relative widths 2:1:1 within a 7-inch table
-tbl_rel <- rtftable$new(df,
+tbl_rel <- rtftable(df,
   col_rel_width     = c(2, 1, 1),
   table_width_twips = 10080L)
 
 # Auto-sizing: widths computed from the widest cell in each column
 w <- auto_col_widths(df, table_width_twips = 14400L)
-tbl_auto <- rtftable$new(df, column_widths_twips = w)
+tbl_auto <- rtftable(df, column_widths_twips = w)
 ```
 
 ---
@@ -353,7 +352,7 @@ df_shift <- data.frame(
   B_Low = c(3L, 0L, 0L), B_Norm = c(1L, 14L, 0L), B_High = c(0L, 1L, 4L)
 )
 
-tbl_span <- rtftable$new(
+tbl_span <- rtftable(
   data = df_shift,
   col_header = c("Baseline", "Low", "Normal", "High", "Low", "Normal", "High"),
   spanning_header = list(
@@ -380,7 +379,7 @@ table without duplicating the spanning header.
 df_a <- data.frame(Label = c("Low", "Normal", "High"), n = c(4L, 13L, 3L))
 df_b <- data.frame(Label = c("Low", "Normal", "High"), n = c(3L, 14L, 4L))
 
-tbl_multi <- rtftable$new(
+tbl_multi <- rtftable(
   data       = list(df_a, df_b),
   col_header = list(
     c("Baseline", "Arm A"),   # header for df_a
@@ -398,10 +397,10 @@ tbl_multi <- rtftable$new(
 
 ```{r borders}
 # TFL clinical preset (default): header top+bottom, last-row bottom
-tbl_tfl <- rtftable$new(df, border = "tfl")
+tbl_tfl <- rtftable(df, border = "tfl")
 
 # Custom per-zone
-tbl_custom <- rtftable$new(df,
+tbl_custom <- rtftable(df,
   border = rtf_table_border(
     header   = rtf_border(top = rtf_border_side(), bottom = rtf_border_side()),
     last_row = rtf_border(bottom = rtf_border_side("double", 10L))
@@ -429,12 +428,12 @@ the assembled output.
 
 ```{r assemble}
 make_rtf <- function(df, hdr_text, path) {
-  r <- rtfreport$new()
-  sec <- r$add_section(
+  r <- rtfreport()
+  sec <- add_section(r,
     header = c(l = hdr_text, r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
     footer = c(l = "CONFIDENTIAL")
   )
-  r$add_page(sec, content = list(list(type = "table", data = df)))
+  add_page(r, section_index = sec, content = list(df))
   generate_rtfreport(r, path, overwrite = TRUE)
 }
 
@@ -466,7 +465,7 @@ w <- auto_col_widths(df_ae,
   col_header        = "Subject ID | AE Term | Start Date | Serious",
   table_width_twips = 14400L)
 
-tbl_ae <- rtftable$new(df_ae,
+tbl_ae <- rtftable(df_ae,
   col_header          = c("Subject ID", "AE Term", "Start Date", "Serious"),
   column_widths_twips = w,
   border              = "tfl",
