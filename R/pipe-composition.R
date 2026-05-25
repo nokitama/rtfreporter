@@ -159,8 +159,18 @@ rtf_config <- function(doc, font_table = NULL, color_table = NULL, page = NULL,
 #'
 #' @return Modified rtf_document with appended contents.
 #'
+#' @param auto_section Logical. When `TRUE` and `tables` is a **named** list,
+#'   each name is used as a per-section heading appended to the common header
+#'   defined by `rtf_section(secinfo = ...)` (called without a `page` argument).
+#'   The document is then automatically split into one RTF section per named
+#'   element. Unnamed items fall through to the previous section.
+#'   Default `FALSE` (preserves existing behaviour).
+#' @param section_label_align Alignment for the auto-appended section label row.
+#'   One of `"left"` (default), `"center"`, or `"right"`.
+#'
 #' @export
-rtf_tables <- function(doc, tables) {
+rtf_tables <- function(doc, tables, auto_section = FALSE,
+                        section_label_align = "left") {
   if (!inherits(doc, "rtf_document")) {
     stop("`doc` must be an rtf_document object", call. = FALSE)
   }
@@ -175,7 +185,7 @@ rtf_tables <- function(doc, tables) {
       inherits(x, "rtfplot_r6")
   }
 
-  # Validate each page-level item
+  # Validate each page-level item (before any wrapping)
   for (i in seq_along(tables)) {
     item <- tables[[i]]
 
@@ -194,6 +204,26 @@ rtf_tables <- function(doc, tables) {
 
     stop("Item ", i, " must be a data.frame, rtftable(), rtfplot(), or a list of those",
          call. = FALSE)
+  }
+
+  # When auto_section = TRUE, wrap each named item in an rtf_auto_section_item
+  # sentinel so that .pipe_doc_to_r6_report() can build per-section headers.
+  if (isTRUE(auto_section)) {
+    tbl_names <- names(tables)
+    if (!is.null(tbl_names) && any(nzchar(tbl_names))) {
+      tables <- lapply(seq_along(tables), function(i) {
+        nm <- tbl_names[[i]]
+        if (!is.null(nm) && nzchar(nm)) {
+          structure(
+            list(content = tables[[i]], label = nm,
+                 label_align = section_label_align),
+            class = "rtf_auto_section_item"
+          )
+        } else {
+          tables[[i]]
+        }
+      })
+    }
   }
 
   # Create copy and append
@@ -274,9 +304,16 @@ rtf_figures <- function(doc, figures) {
 #' }
 #'
 #' @export
-rtf_section <- function(doc, page, secinfo) {
+rtf_section <- function(doc, page = NULL, secinfo) {
   if (!inherits(doc, "rtf_document")) {
     stop("`doc` must be an rtf_document object", call. = FALSE)
+  }
+
+  # Handle page = NULL: store as "_default" template used by auto_section.
+  if (is.null(page)) {
+    doc_copy <- doc
+    doc_copy$sections[["_default"]] <- secinfo
+    return(doc_copy)
   }
 
   # Normalize page to character for list indexing

@@ -914,6 +914,62 @@
 # Pipe API Adapter: Convert rtf_document → rtfreport_r6
 # ============================================================================
 
+# ── auto_section helpers ───────────────────────────────────────────────────────
+
+# Build a per-section header by appending a label row to the base header
+# from the "_default" section.
+# default_sec : the "_default" entry from pipe_doc$sections (or NULL).
+# label       : character label to append as a new row.
+# label_align : "left" | "center" | "right"
+.build_auto_section_header <- function(default_sec, label, label_align = "left") {
+  base_hdr <- if (!is.null(default_sec)) default_sec$header else NULL
+  norm     <- .normalize_hf(base_hdr)
+
+  label_row <- switch(label_align,
+    right  = c(r = label),
+    center = c(c = label),
+    c(l = label)   # default: left
+  )
+
+  if (is.null(norm)) {
+    # No base header: create a single-row header with just the label.
+    return(list(rows = list(label_row)))
+  }
+
+  # Append label row to the existing rows list.
+  norm$rows <- c(norm$rows, list(label_row))
+  norm
+}
+
+# Unwrap an rtf_auto_section_item to its underlying content object.
+.unwrap_auto_section_item <- function(item) {
+  ct <- item$content
+  if (is.list(ct) && !inherits(ct, "rtftable_r6") &&
+      !inherits(ct, "rtfplot_r6") && !is.data.frame(ct)) {
+    if (length(ct) > 1L) {
+      warning("Only one content item per page is supported. Using first item.",
+              call. = FALSE)
+    }
+    ct[[1L]]
+  } else {
+    ct
+  }
+}
+
+# Internal helper: normalise a single content item (list → first element).
+.normalise_content_item <- function(content_item) {
+  if (is.list(content_item) && !inherits(content_item, "rtftable_r6") &&
+      !inherits(content_item, "rtfplot_r6") && !is.data.frame(content_item)) {
+    if (length(content_item) > 1L) {
+      warning("Only one content item per page is supported. Using first item.",
+              call. = FALSE)
+    }
+    content_item[[1L]]
+  } else {
+    content_item
+  }
+}
+
 # Internal helper: convert S3 rtf_document (pipe API) to R6 rtfreport_r6.
 .pipe_doc_to_r6_report <- function(pipe_doc) {
   if (!inherits(pipe_doc, "rtf_document")) return(NULL)
@@ -940,31 +996,82 @@
     ))
   }
 
-  # Add sections with from_page derived from pipe_doc$sections keys
-  section_keys  <- sort(as.integer(names(pipe_doc$sections)))
-  if (length(section_keys) == 0L) {
-    r6_report$add_section()  # default section covering all pages
-  } else {
-    for (key in section_keys) {
-      si <- pipe_doc$sections[[as.character(key)]]
-      r6_report$add_section(header = si$header, footer = si$footer, from_page = key)
-    }
-  }
+  # ── Detect auto-section items ─────────────────────────────────────────────
+  has_auto_section <- any(vapply(pipe_doc$contents,
+    function(x) inherits(x, "rtf_auto_section_item"), logical(1L)))
 
-  # Add pages from pipe_doc$contents (each element = one page)
-  for (content_item in pipe_doc$contents) {
-    # content_item may be: rtftable_r6, rtfplot_r6, data.frame, or list of those.
-    # "1 content per page" rule: use first item if list.
-    ct <- if (is.list(content_item) && !inherits(content_item, "rtftable_r6") &&
-              !inherits(content_item, "rtfplot_r6") && !is.data.frame(content_item)) {
-      if (length(content_item) > 1L) {
-        warning("Only one content item per page is supported. Using first item.", call. = FALSE)
-      }
-      content_item[[1L]]
-    } else {
-      content_item
+  if (has_auto_section) {
+    # ── Auto-section path ──────────────────────────────────────────────────
+    # "_default" section provides the base header/footer template.
+    default_sec <- pipe_doc$sections[["_default"]]
+
+    # Add any explicit page-number sections (not "_default") first.
+    all_keys     <- names(pipe_doc$sections)
+    explicit_keys <- sort(as.integer(all_keys[all_keys != "_default"]))
+    for (key in explicit_keys) {
+      si <- pipe_doc$sections[[as.character(key)]]
+      r6_report$add_section(header = si$header, footer = si$footer,
+                             from_page = key)
     }
-    r6_report$add_page(content = ct)
+
+    # Process contents one by one, creating one RTF section per named item.
+    page_counter <- 0L
+    for (ci in seq_along(pipe_doc$contents)) {
+      content_item <- pipe_doc$contents[[ci]]
+      page_counter <- page_counter + 1L
+
+      if (inherits(content_item, "rtf_auto_section_item")) {
+        label       <- content_item$label
+        label_align <- content_item$label_align %||% "left"
+        sec_header  <- .build_auto_section_header(default_sec, label, label_align)
+        sec_footer  <- if (!is.null(default_sec)) default_sec$footer else NULL
+        r6_report$add_section(header = sec_header, footer = sec_footer,
+                               from_page = page_counter)
+        ct <- .unwrap_auto_section_item(content_item)
+      } else {
+        ct <- .normalise_content_item(content_item)
+      }
+      r6_report$add_page(content = ct)
+    }
+
+    # Guard: if no section was added at all (e.g., all items were non-auto),
+    # fall back to the "_default" section or an empty one.
+    if (length(r6_report$sections) == 0L) {
+      if (!is.null(default_sec)) {
+        r6_report$add_section(header = default_sec$header,
+                               footer = default_sec$footer)
+      } else {
+        r6_report$add_section()
+      }
+    }
+
+  } else {
+    # ── Original path (no auto-section items) ─────────────────────────────
+    all_keys     <- names(pipe_doc$sections)
+    non_def_keys <- all_keys[all_keys != "_default"]
+    section_keys <- sort(as.integer(non_def_keys))
+
+    if (length(section_keys) == 0L) {
+      # No explicit page sections – use "_default" or an empty default.
+      default_sec <- pipe_doc$sections[["_default"]]
+      if (!is.null(default_sec)) {
+        r6_report$add_section(header = default_sec$header,
+                               footer = default_sec$footer)
+      } else {
+        r6_report$add_section()  # default section covering all pages
+      }
+    } else {
+      for (key in section_keys) {
+        si <- pipe_doc$sections[[as.character(key)]]
+        r6_report$add_section(header = si$header, footer = si$footer,
+                               from_page = key)
+      }
+    }
+
+    # Add pages from pipe_doc$contents (each element = one page)
+    for (content_item in pipe_doc$contents) {
+      r6_report$add_page(content = .normalise_content_item(content_item))
+    }
   }
 
   r6_report
