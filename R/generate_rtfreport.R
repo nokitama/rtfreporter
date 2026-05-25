@@ -1137,6 +1137,13 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
     ))
   )
 
+  # Font-size command used inside {\header} / {\footer} groups.
+  # RTF header/footer groups are independent scopes and do NOT inherit the
+  # document-level \fs, so the viewer falls back to its built-in default
+  # (typically \fs24 = 12 pt).  Prepending the same \fs here keeps the
+  # font size consistent with the body text.
+  fs_cmd <- paste0("\\fs", doc$default_format$font_size_half_points %||% 18L)
+
   # Resolve sections (sorted, with from_page / to_page assigned).
   resolved_sections <- .resolve_sections(report)
 
@@ -1195,11 +1202,13 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
 
     if (length(header_rtf) > 0L) {
       lines <- c(lines, .cmd_fmt(doc_cmd$header_wrapper,
-                                 list(content = paste(header_rtf, collapse = ""))))
+                                 list(content = paste0(fs_cmd,
+                                        paste(header_rtf, collapse = "")))))
     }
     if (length(footer_rtf) > 0L) {
       lines <- c(lines, .cmd_fmt(doc_cmd$footer_wrapper,
-                                 list(content = paste(footer_rtf, collapse = ""))))
+                                 list(content = paste0(fs_cmd,
+                                        paste(footer_rtf, collapse = "")))))
     }
 
     # Render pages belonging to this section.
