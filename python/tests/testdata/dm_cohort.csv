@@ -1,7 +1,0 @@
-USUBJID,COHORT,SEX,AGE,ARM
-SUBJ-001,Cohort 1,M,64,Placebo
-SUBJ-002,Cohort 1,F,52,Low Dose
-SUBJ-003,Cohort 2,M,71,High Dose
-SUBJ-004,Cohort 2,F,45,Placebo
-SUBJ-005,Cohort 1,M,59,Low Dose
-SUBJ-006,Cohort 2,F,62,High Dose

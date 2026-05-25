@@ -1,12 +1,3 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-.venv/
-venv/
-.env
-
 # R
 .Rproj.user/
 .Rhistory
@@ -24,11 +15,16 @@ Thumbs.db
 # LibreOffice / OpenOffice lock files
 .~lock.*
 
-# Build artifacts
-dist/
-build/
-*.egg-info/
+# R build artifacts
 /doc/
 /Meta/
-/doc/
-/Meta/
+
+# Quarto build artifacts
+vignettes/articles/.quarto/
+vignettes/articles/*_files/
+
+# Generated RTF output (binary, reproducible from scripts)
+output/*.rtf
+
+# Temporary / debug scripts
+output/debug_hdr.R

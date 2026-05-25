@@ -17,6 +17,8 @@ export(rtfplot)
 # Header / footer constructors
 export(rtf_header)
 export(rtf_footer)
+export(update_header_row)
+export(update_footer_row)
 
 # Border utilities
 export(rtf_border_side)

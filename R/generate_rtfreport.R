@@ -799,26 +799,88 @@
   }
 
   .tbl_colors <- function(tbl) {
-    if (!inherits(tbl, "rtftable")) return(character(0))
+    if (!inherits(tbl, "rtftable_r6")) return(character(0))
     tb <- tbl$border
     if (is.null(tb)) return(character(0))
-    if (inherits(tb, "rtf_table_border")) {
-      return(.collect_table_border_colors(tb))
-    }
-    # Old plain-list format — no color support.
+    if (inherits(tb, "rtf_table_border")) return(.collect_table_border_colors(tb))
     character(0)
   }
 
   for (sec in report$sections) {
     cols <- c(cols, .hf_colors(.normalize_hf(sec$header)))
     cols <- c(cols, .hf_colors(.normalize_hf(sec$footer)))
-    for (pg in sec$pages) {
-      for (blk in pg$content) {
-        if (inherits(blk$data, "rtftable")) cols <- c(cols, .tbl_colors(blk$data))
-      }
-    }
+  }
+  for (pg in report$pages) {
+    ct <- pg$content
+    if (inherits(ct, "rtftable_r6")) cols <- c(cols, .tbl_colors(ct))
   }
   unique(cols)
+}
+
+# Resolve sections to sorted list with from_page / to_page ranges.
+# Returns a list of list(header, footer, from_page, to_page).
+.resolve_sections <- function(report) {
+  n_pages <- length(report$pages)
+  if (n_pages == 0L) return(list())
+
+  sections <- report$sections
+  from_pages <- vapply(sections, function(s) {
+    fp <- s$from_page
+    if (is.null(fp) || is.na(fp)) NA_integer_ else as.integer(fp)
+  }, integer(1L))
+
+  # Single section with no from_page → covers all pages
+  if (length(sections) == 1L && is.na(from_pages[1L])) from_pages[1L] <- 1L
+
+  # Sort by from_page (NAs last, assigned sequentially)
+  ord        <- order(from_pages, na.last = TRUE)
+  sections   <- sections[ord]
+  from_pages <- from_pages[ord]
+  from_pages[1L] <- 1L  # first section always starts at page 1
+
+  n_sec    <- length(sections)
+  to_pages <- c(if (n_sec > 1L) from_pages[-1L] - 1L else integer(0L), n_pages)
+
+  lapply(seq_len(n_sec), function(i) {
+    list(
+      header    = sections[[i]]$header,
+      footer    = sections[[i]]$footer,
+      from_page = from_pages[i],
+      to_page   = to_pages[i]
+    )
+  })
+}
+
+# Compute the rendered width of a content block in twips.
+.compute_content_width <- function(content, writable_width) {
+  if (is.null(content)) return(writable_width)
+  if (inherits(content, "rtftable_r6")) {
+    if (!is.null(content$column_widths_twips)) return(sum(as.integer(content$column_widths_twips)))
+    if (!is.null(content$table_width_twips))   return(as.integer(content$table_width_twips))
+    if (!is.null(content$table_width_pct_of_writable)) {
+      return(as.integer(round(writable_width * content$table_width_pct_of_writable)))
+    }
+  }
+  if (inherits(content, "rtfplot_r6")) {
+    return(content$width_twips %||% writable_width)
+  }
+  writable_width
+}
+
+# Render footnote as a 1×1 RTF table directly below the content block.
+# footnote: character vector (multi-line joined with \line).
+# width_twips: table width matching the content block.
+.render_footnote_table <- function(footnote, width_twips) {
+  if (is.null(footnote) || length(footnote) == 0L || !any(nzchar(footnote))) return(character())
+  text_raw <- paste(footnote, collapse = "\n")
+  text_rtf <- .format_cell_text(text_raw)
+  border_cmd <- .build_border_commands(rtf_border_top())
+  paste0(
+    "\\trowd\\trgaph0",
+    border_cmd, "\\clvertalb\\cellx", width_twips,
+    "\\ql\\li72\\ri72 ", text_rtf, "\\cell",
+    "\\row"
+  )
 }
 
 # Build the RTF color table string from a character vector of hex colors.
@@ -848,108 +910,87 @@
 
 
 
-#' Generate an RTF file from an rtfreport object
-#'
-#' @param report An `rtfreport` object.
-#' @param file_path Output RTF file path.
-#' @param overwrite Logical; whether to overwrite an existing file.
 # ============================================================================
 # Pipe API Adapter: Convert rtf_document → rtfreport_r6
 # ============================================================================
 
-# Internal helper: convert S3 rtf_document (pipe API) to R6 rtfreport_r6
-# for rendering via existing RTF generation logic.
+# Internal helper: convert S3 rtf_document (pipe API) to R6 rtfreport_r6.
 .pipe_doc_to_r6_report <- function(pipe_doc) {
-  if (!inherits(pipe_doc, "rtf_document")) {
-    return(NULL) # Not a pipe document
-  }
+  if (!inherits(pipe_doc, "rtf_document")) return(NULL)
 
-  # Create new R6 report with same document settings
   r6_report <- rtfreport_r6$new()
 
-  # Copy document settings
+  # Copy document-level settings
   if (!is.null(pipe_doc$document$font_table)) {
-    r6_report$set_document_defaults(
-      font_table = pipe_doc$document$font_table
-    )
+    r6_report$set_document_defaults(font_table = pipe_doc$document$font_table)
   }
   if (!is.null(pipe_doc$document$color_table)) {
-    r6_report$set_document_defaults(
-      color_table = pipe_doc$document$color_table
-    )
+    r6_report$set_document_defaults(color_table = pipe_doc$document$color_table)
   }
   if (!is.null(pipe_doc$document$page)) {
-    page_spec <- pipe_doc$document$page
-    if (!is.null(page_spec)) {
-      # Convert page dimensions and margins from inches to twips
-      r6_report$set_default_page(list(
-        orientation        = page_spec$orientation %||% "landscape",
-        width_twips        = .in_to_twips(page_spec$width_in %||% 11),
-        height_twips       = .in_to_twips(page_spec$height_in %||% 8.5),
-        margin_left_twips  = .in_to_twips(page_spec$margin_left_in %||% 0.5),
-        margin_right_twips = .in_to_twips(page_spec$margin_right_in %||% 0.5),
-        margin_top_twips   = .in_to_twips(page_spec$margin_top_in %||% 0.75),
-        margin_bottom_twips = .in_to_twips(page_spec$margin_bottom_in %||% 0.75)
-      ))
+    ps <- pipe_doc$document$page
+    r6_report$set_default_page(list(
+      orientation         = ps$orientation        %||% "landscape",
+      width_twips         = .in_to_twips(ps$width_in        %||% 11),
+      height_twips        = .in_to_twips(ps$height_in       %||% 8.5),
+      margin_left_twips   = .in_to_twips(ps$margin_left_in  %||% 0.5),
+      margin_right_twips  = .in_to_twips(ps$margin_right_in %||% 0.5),
+      margin_top_twips    = .in_to_twips(ps$margin_top_in   %||% 0.75),
+      margin_bottom_twips = .in_to_twips(ps$margin_bottom_in %||% 0.75)
+    ))
+  }
+
+  # Add sections with from_page derived from pipe_doc$sections keys
+  section_keys  <- sort(as.integer(names(pipe_doc$sections)))
+  if (length(section_keys) == 0L) {
+    r6_report$add_section()  # default section covering all pages
+  } else {
+    for (key in section_keys) {
+      si <- pipe_doc$sections[[as.character(key)]]
+      r6_report$add_section(header = si$header, footer = si$footer, from_page = key)
     }
   }
 
-  # Map sections and pages from pipe API structure
-  # In pipe API: sections is a list with page numbers as keys
-  # Example: sections$`1` = page 1 section, sections$`3` = page 3 section
-  # Pages between section starts inherit the previous section's header/footer
-
-  # First, determine section boundaries
-  section_page_breaks <- as.numeric(names(pipe_doc$sections))
-  section_page_breaks <- sort(section_page_breaks)
-
-  # Add sections to R6 report
-  section_idx_map <- list()  # Map: page_num -> section_idx
-  current_section_idx <- NA
-
-  for (page_num in 1:length(pipe_doc$contents)) {
-    # Check if a new section starts at this page
-    if (page_num %in% section_page_breaks) {
-      # Add new section
-      sec_info <- pipe_doc$sections[[as.character(page_num)]]
-      current_section_idx <- r6_report$add_section(
-        header = sec_info$header,
-        footer = sec_info$footer
-      )
-    } else if (is.na(current_section_idx)) {
-      # No sections defined, create default first section
-      current_section_idx <- r6_report$add_section()
+  # Add pages from pipe_doc$contents (each element = one page)
+  for (content_item in pipe_doc$contents) {
+    # content_item may be: rtftable_r6, rtfplot_r6, data.frame, or list of those.
+    # "1 content per page" rule: use first item if list.
+    ct <- if (is.list(content_item) && !inherits(content_item, "rtftable_r6") &&
+              !inherits(content_item, "rtfplot_r6") && !is.data.frame(content_item)) {
+      if (length(content_item) > 1L) {
+        warning("Only one content item per page is supported. Using first item.", call. = FALSE)
+      }
+      content_item[[1L]]
+    } else {
+      content_item
     }
-
-    # Map this page to its section
-    section_idx_map[[as.character(page_num)]] <- current_section_idx
-  }
-
-  # Add content as pages
-  for (page_num in 1:length(pipe_doc$contents)) {
-    content_item <- pipe_doc$contents[[page_num]]
-    sec_idx <- section_idx_map[[as.character(page_num)]]
-
-    # Add page with content
-    r6_report$add_page(section_index = sec_idx, content = list(content_item))
+    r6_report$add_page(content = ct)
   }
 
   r6_report
 }
 
+#' Generate an RTF file from a report object
+#'
+#' Renders an `rtf_document` (from the pipe API) or `rtfreport_r6` object
+#' to an RTF file.
+#'
+#' @param report An `rtf_document` object (from `rtf_document()`) or an
+#'   internal `rtfreport_r6` object.
+#' @param file_path Output RTF file path.
+#' @param overwrite Logical; whether to overwrite an existing file.
+#'   Default `FALSE`.
 #'
 #' @return Invisibly returns `file_path`.
 #' @export
 generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
-  # Support both R6 rtfreport_r6 objects and S3 rtf_document pipe API objects
   if (inherits(report, "rtf_document")) {
-    # Convert pipe API object to R6 object
     report <- .pipe_doc_to_r6_report(report)
     if (is.null(report)) {
-      stop("`report` must be an rtfreport or rtf_document object.", call. = FALSE)
+      stop("`report` must be an rtf_document or rtfreport_r6 object.", call. = FALSE)
     }
   } else if (!inherits(report, "rtfreport_r6")) {
-    stop("`report` must be an rtfreport object (from rtfreport()) or rtf_document (from rtf_document()).",
+    stop("`report` must be an rtf_document (from rtf_document()) or rtfreport_r6 object.",
          call. = FALSE)
   }
   if (file.exists(file_path) && !isTRUE(overwrite)) {
@@ -958,23 +999,21 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
 
   report$validate()
 
-  doc            <- report$document
-  page_defaults  <- doc$default_page
-  primary_font   <- doc$font_table[[1]]$name %||% "Courier"
-  writable_width <- page_defaults$width_twips -
-                    page_defaults$margin_left_twips -
-                    page_defaults$margin_right_twips
+  doc           <- report$document
+  page_defaults <- doc$default_page
+  primary_font  <- doc$font_table[[1]]$name %||% "Courier"
+  writable_w    <- page_defaults$width_twips -
+                   page_defaults$margin_left_twips -
+                   page_defaults$margin_right_twips
+
   cmds     <- .load_rtf_commands()
   doc_cmd  <- cmds$document
   para_cmd <- cmds$paragraph
 
-  # Count total pages.
-  total_pages <- sum(vapply(report$sections, function(s) length(s$pages), integer(1L)))
-
-  # Build dynamic color table from all border colors in the report.
-  doc_colors       <- .collect_report_colors(report)
-  color_table_str  <- .build_color_table_rtf(doc_colors)
-  color_index_map  <- .build_color_index_map(doc_colors)
+  total_pages     <- length(report$pages)
+  doc_colors      <- .collect_report_colors(report)
+  color_table_str <- .build_color_table_rtf(doc_colors)
+  color_index_map <- .build_color_index_map(doc_colors)
 
   lines <- c(
     doc_cmd$rtf_header_open,
@@ -991,99 +1030,109 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
     ))
   )
 
-  global_page_num <- 1L
-  prev_header_hf  <- NULL
-  prev_footer_hf  <- NULL
+  # Resolve sections (sorted, with from_page / to_page assigned).
+  resolved_sections <- .resolve_sections(report)
 
-  for (s_idx in seq_along(report$sections)) {
-    sec <- report$sections[[s_idx]]
+  prev_header_hf <- NULL
+  prev_footer_hf <- NULL
 
-    # Resolve header: normalize current section's header, or inherit from previous.
-    cur_header_hf <- .normalize_hf(sec$header)
+  for (rs_idx in seq_along(resolved_sections)) {
+    rs      <- resolved_sections[[rs_idx]]
+    pg_from <- rs$from_page
+    pg_to   <- rs$to_page
+
+    # Resolve header/footer with inheritance from previous section.
+    cur_header_hf <- .normalize_hf(rs$header)
     if (is.null(cur_header_hf)) cur_header_hf <- prev_header_hf
     prev_header_hf <- cur_header_hf
 
-    # Resolve footer: normalize current section's footer, or inherit from previous.
-    cur_footer_hf <- .normalize_hf(sec$footer)
+    cur_footer_hf <- .normalize_hf(rs$footer)
     if (is.null(cur_footer_hf)) cur_footer_hf <- prev_footer_hf
     prev_footer_hf <- cur_footer_hf
 
     lines <- c(lines, doc_cmd$section_defaults)
 
-    # Emit {\header} and {\footer} ONCE per section (RTF spec: header/footer
-    # applies to all pages in the section; re-emitting per page is incorrect).
-    sec_first_page <- global_page_num
-    header_rtf <- .render_header_footer(cur_header_hf, writable_width, is_footer = FALSE,
-                                        current_page = sec_first_page, total_pages = total_pages,
+    # Re-emit section-level page properties after \sectd.
+    #
+    # \sectd resets all section formatting to RTF built-in defaults, so we must
+    # explicitly re-specify:
+    #   \sbkpage      – force each section to start on a new page (required for
+    #                   per-section headers to work; without it sections are
+    #                   "continuous" and share the first section's header).
+    #   \lndscpsxn    – landscape orientation (document-level \landscape only
+    #                   applies to the first section in many RTF viewers).
+    #   \pgwsxn / \pghsxn         – section page dimensions.
+    #   \marglsxn / \margrsxn ... – section margins.
+    {
+      pg     <- page_defaults
+      is_lnd <- isTRUE(pg$orientation == "landscape")
+      lnd_cmd <- if (is_lnd) "\\lndscpsxn" else ""
+      lines <- c(lines, paste0(
+        "\\sbkpage", lnd_cmd,
+        "\\pgwsxn",   pg$width_twips,
+        "\\pghsxn",   pg$height_twips,
+        "\\marglsxn", pg$margin_left_twips,
+        "\\margrsxn", pg$margin_right_twips,
+        "\\margtsxn", pg$margin_top_twips,
+        "\\margbsxn", pg$margin_bottom_twips
+      ))
+    }
+
+    # Emit {\header} and {\footer} once per RTF section.
+    header_rtf <- .render_header_footer(cur_header_hf, writable_w, is_footer = FALSE,
+                                        current_page = pg_from, total_pages = total_pages,
                                         color_index_map = color_index_map)
-    footer_rtf <- .render_header_footer(cur_footer_hf, writable_width, is_footer = TRUE,
-                                        current_page = sec_first_page, total_pages = total_pages,
+    footer_rtf <- .render_header_footer(cur_footer_hf, writable_w, is_footer = TRUE,
+                                        current_page = pg_from, total_pages = total_pages,
                                         color_index_map = color_index_map)
 
     if (length(header_rtf) > 0L) {
-      lines <- c(lines, .cmd_fmt(doc_cmd$header_wrapper, list(content = paste(header_rtf, collapse = ""))))
+      lines <- c(lines, .cmd_fmt(doc_cmd$header_wrapper,
+                                 list(content = paste(header_rtf, collapse = ""))))
     }
     if (length(footer_rtf) > 0L) {
-      lines <- c(lines, .cmd_fmt(doc_cmd$footer_wrapper, list(content = paste(footer_rtf, collapse = ""))))
+      lines <- c(lines, .cmd_fmt(doc_cmd$footer_wrapper,
+                                 list(content = paste(footer_rtf, collapse = ""))))
     }
 
-    for (p_idx in seq_along(sec$pages)) {
-      page <- sec$pages[[p_idx]]
+    # Render pages belonging to this section.
+    sec_pages <- seq(pg_from, pg_to)
+    for (sp_idx in seq_along(sec_pages)) {
+      p_idx <- sec_pages[sp_idx]
+      page  <- report$pages[[p_idx]]
 
-      if (!is.null(page$title) && nzchar(page$title)) {
-        lines <- c(lines, .cmd_fmt(para_cmd$center_bold_template, list(text = .rtf_escape(page$title))))
+      # ── Title ────────────────────────────────────────────────────────────
+      if (!is.null(page$title) && length(page$title) > 0L && any(nzchar(page$title))) {
+        title_text <- paste(page$title, collapse = "\n")
+        lines <- c(lines, .cmd_fmt(para_cmd$center_bold_template,
+                                   list(text = .rtf_escape(title_text))))
       }
 
-      for (block in page$content) {
-        if (block$type %in% c("table", "listing")) {
-          if (inherits(block$data, "rtftable_r6")) {
-            tbl <- block$data
-          } else {
-            block_meta <- .resolve_block_metadata(
-              default_format = doc$default_format,
-              page_options   = page$page_options,
-              block          = block
-            )
-            tbl <- .df_to_rtftable(block$data, block_meta)
-          }
-          lines <- c(lines, .render_rtftable(tbl, writable_width))
-          if (!is.null(block$footer) && nzchar(block$footer)) {
-            lines <- c(lines, .cmd_fmt(para_cmd$left_template, list(text = .rtf_escape(block$footer))))
-          }
-
-        } else if (block$type == "figure") {
-          if (inherits(block$data, "rtfplot_r6")) {
-            lines <- c(lines, .render_rtfplot(block$data, writable_width))
-          } else {
-            # Legacy path: file-path placeholder.
-            fig_path <- block$path
-            if (!is.null(fig_path) && !file.exists(fig_path)) {
-              stop(sprintf("Figure file not found: %s", fig_path), call. = FALSE)
-            }
-            lines <- c(lines, .cmd_fmt(
-              para_cmd$figure_placeholder_center_template,
-              list(filename = .rtf_escape(basename(fig_path)))
-            ))
-          }
-          if (!is.null(block$footer) && nzchar(block$footer)) {
-            lines <- c(lines, .cmd_fmt(para_cmd$left_template, list(text = .rtf_escape(block$footer))))
-          }
+      # ── Content (single rtftable_r6 or rtfplot_r6) ───────────────────────
+      ct <- page$content
+      if (!is.null(ct)) {
+        if (inherits(ct, "rtftable_r6")) {
+          lines <- c(lines, .render_rtftable(ct, writable_w))
+        } else if (inherits(ct, "rtfplot_r6")) {
+          lines <- c(lines, .render_rtfplot(ct, writable_w))
         }
       }
 
-      if (!is.null(page$footer_notes) && nzchar(page$footer_notes)) {
-        lines <- c(lines, .cmd_fmt(para_cmd$left_template, list(text = .rtf_escape(page$footer_notes))))
+      # ── Footnote (1×1 table, same width as content) ──────────────────────
+      if (!is.null(page$footnote) && length(page$footnote) > 0L &&
+          any(nzchar(page$footnote))) {
+        fn_width <- .compute_content_width(ct, writable_w)
+        lines <- c(lines, .render_footnote_table(page$footnote, fn_width))
       }
 
-      if (p_idx < length(sec$pages)) {
+      # Page break between pages; section break between sections.
+      is_last_in_section <- (sp_idx == length(sec_pages))
+      is_last_section    <- (rs_idx == length(resolved_sections))
+      if (!is_last_in_section) {
         lines <- c(lines, doc_cmd$page_break)
+      } else if (!is_last_section) {
+        lines <- c(lines, doc_cmd$section_break)
       }
-
-      global_page_num <- global_page_num + 1L
-    }
-
-    if (s_idx < length(report$sections)) {
-      lines <- c(lines, doc_cmd$section_break)
     }
   }
 

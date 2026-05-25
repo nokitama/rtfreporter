@@ -1,0 +1,704 @@
+---
+title: "rtfreporter 内部クラス設計書"
+subtitle: "rtfreport_r6 / rtftable_r6 / rtfplot_r6"
+author: "rtfreporter development team"
+date: last-modified
+date-format: "YYYY-MM-DD"
+lang: ja
+format:
+  html:
+    toc: true
+    toc-depth: 4
+    toc-title: "目次"
+    number-sections: true
+    theme: cosmo
+    highlight-style: github
+    code-block-bg: true
+    embed-resources: true
+---
+
+::: {.callout-note}
+このドキュメントは **内部設計書** です。外部公開 API（S3ラッパー関数）の仕様は
+[外部インターフェース仕様書](external-api.qmd) を参照してください。
+:::
+
+# 概要
+
+`rtfreporter` パッケージは、臨床試験用の RTF レポートを生成するパッケージです。
+内部では R6 クラスを使用し、外部には S3 関数 API のみを公開します。
+
+## クラス構成
+
+| 内部クラス | 役割 | 公開 S3 ラッパー |
+|---|---|---|
+| `rtfreport_r6` | RTF 文書全体を管理 | `rtf_document()` （パイプ API） |
+| `rtftable_r6` | テーブルデータと書式を管理 | `rtftable()` |
+| `rtfplot_r6` | 図（PNG/JPEG）を管理 | `rtfplot()` |
+
+ヘッダー/フッターと罫線は R6 ではなく **S3 plain list** として実装されています。
+
+## クラス・オブジェクトの使い分け方針
+
+パッケージ内では 3 種類のオブジェクト形式を使い分けています。
+
+| 形式 | 使う場面 | 具体例 |
+|---|---|---|
+| **内部 R6 クラス** (`_r6`) | 状態を持ち、メソッドで操作する主役オブジェクト | `rtfreport_r6`, `rtftable_r6`, `rtfplot_r6` |
+| **内部 S3 typed list** | R6 の中に格納されるデータ容器（メソッド不要） | `rtf_page`, `rtf_sect` |
+| **外部 S3 関数の戻り値** | ユーザーが直接渡す設定オブジェクト（NAMESPACE に export） | `rtf_header()`, `rtf_footer()`, `rtf_border()` |
+
+**なぜ `rtf_page` / `rtf_sect` を R6 にしないのか:**
+
+- これらは **純粋なデータ容器** であり、自分からは何もしない（メソッド不要）
+- R6 は環境ベースの **参照セマンティクス** を持つが、リスト要素として格納されるデータ構造には **値コピー** が自然
+- `class` タグを付けることで `inherits()` による型チェックとデバッグ表示のみを得る
+
+**"内部 R6、外部 S3" 原則との整合:**
+
+原則は保たれています。`rtf_page` / `rtf_sect` は「内部 R6 の中に住むデータ構造」であり、独立した公開オブジェクトではありません。R6 クラスが `integer` や `character` を内部に保持するのと同じ感覚で、少しだけ型安全にした named list です。
+
+## `_r6` サフィックスについて
+
+内部 R6 クラスには `_r6` サフィックスを付けています。理由：
+
+- コード中で R6 オブジェクトと S3 オブジェクトを一目で区別できる
+- `rtftable_r6$new(...)` と公開関数 `rtftable(...)` の混同を防ぐ
+- 将来 S3 公開ラッパー関数と同名の概念が存在しても衝突しない
+
+R6 クラスは NAMESPACE から除外されており、ユーザーが直接触れることはありません。
+
+## 設計原則
+
+1. **外部公開は S3 のみ** — R6 の `$new()` を公開しない
+2. **twips 統一** — 寸法はすべて twips（フォントサイズ依存計算なし）
+3. **RTF コマンドはリソースファイルに集約** — レンダラーにコマンドを埋め込まない
+4. **"none" = コマンドなし** — 罫線なしは該当 RTF コマンドを出力しない
+5. **r2rtf / reporter 依存なし** — 完全独立実装
+
+---
+
+# `rtfreport_r6` — RTF 文書クラス
+
+## データ構造概念図
+
+```
+rtfreport_r6
+├── document              # 文書レベル設定（named list）
+│   ├── font_table
+│   ├── color_table
+│   ├── default_page      # 用紙・余白デフォルト
+│   └── default_format    # フォント・行高デフォルト
+│
+├── pages[]               # rtf_page オブジェクトのリスト（文書レベルで管理）
+│   └── rtf_page
+│       ├── title         # character vector（複数行可、デフォルト: center）
+│       ├── content       # rtftable_r6 | rtfplot_r6 | NULL（1ページ1つのみ）
+│       └── footnote      # character vector（複数行可、1×1テーブル表示）
+│
+└── sections[]            # rtf_sect オブジェクトのリスト
+    └── rtf_sect
+        ├── header        # rtf_header() オブジェクト | named vector | NULL
+        ├── footer        # rtf_footer() オブジェクト | named vector | NULL
+        └── from_page     # integer：このセクションが始まるページ番号
+```
+
+## ページとセクションの関係
+
+```
+pages:    [P1]  [P2]  [P3]  [P4]  [P5]
+           |_____|     |___________|
+sections: [sect A  ]  [sect B       ]
+          from_page=1  from_page=3
+```
+
+- **ページ (`pages`)** は文書レベルのフラットなリスト
+- **セクション (`sections`)** は `from_page` でページ範囲を指定
+- セクションは **最低 1 つ必須**。指定がない場合、`validate()` 時に空のデフォルトセクション（ヘッダー/フッターなし）が自動生成される
+- セクションの `to_page` はレンダラーが「次のセクションの `from_page - 1`」として自動計算する
+
+## セクション継承ルール
+
+| ケース | 動作 |
+|---|---|
+| ヘッダーのみ指定 | フッターは直前セクションのフッターを継承 |
+| フッターのみ指定 | ヘッダーは直前セクションのヘッダーを継承 |
+| どちらも指定なし | 直前のヘッダー/フッターを両方継承 |
+| セクション境界（RTF `\sect`） | 継承結果のヘッダー/フッターを両方出力 |
+
+::: {.callout-important}
+RTF では `\sect` でセクションが切り替わるたびに `{\header}` と `{\footer}` を出力する必要があります。
+ヘッダーまたはフッターが `NULL`（継承）の場合でも、レンダラーは直前の値を用いて必ず両方を出力します。
+:::
+
+## `rtf_page` オブジェクト（内部 S3 クラス）
+
+```r
+# コンストラクタ（内部専用）
+.new_page <- function(title = NULL, content = NULL, footnote = NULL) {
+  structure(
+    list(title = title, content = content, footnote = footnote),
+    class = "rtf_page"
+  )
+}
+```
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `title` | `character vector` \| `NULL` | ページタイトル（複数行 = 複数要素）。デフォルト配置: center |
+| `content` | `rtftable_r6` \| `rtfplot_r6` \| `NULL` | コンテンツ（1ページ1つのみ）。デフォルト配置: center |
+| `footnote` | `character vector` \| `NULL` | フットノート（複数行 = 複数要素）。コンテンツ直下に同幅1×1テーブルで表示。デフォルト: left |
+
+### フットノートのレンダリング
+
+```
+┌──────────────────────────────┐  ← コンテンツ (rtftable / rtfplot)
+│  ... table or figure ...     │     width = content_width_twips
+└──────────────────────────────┘
+┌──────────────────────────────┐  ← フットノートテーブル（1行1列）
+│ Note: Values are mean (SD)   │     width = content_width_twips（同幅）
+│ Source: ADSL                 │     複数要素は \line で結合
+└──────────────────────────────┘  ← デフォルト罫線: 上辺 single
+```
+
+## `rtf_sect` オブジェクト（内部 S3 クラス）
+
+```r
+# コンストラクタ（内部専用）
+.new_sect <- function(header = NULL, footer = NULL, from_page = NULL) {
+  structure(
+    list(header = header, footer = footer, from_page = from_page),
+    class = "rtf_sect"
+  )
+}
+```
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `header` | `rtf_header()` \| named vector \| `NULL` | セクションヘッダー（NULL = 前セクションから継承） |
+| `footer` | `rtf_footer()` \| named vector \| `NULL` | セクションフッター（NULL = 前セクションから継承） |
+| `from_page` | `integer` \| `NULL` | このセクションが開始するページ番号。NULL は最初のセクション（= 1）として扱う |
+
+## メソッド定義
+
+### コンストラクタ
+
+```r
+initialize(
+  font_table     = NULL,   # NULL = list(list(name = "Courier"))
+  color_table    = NULL,   # NULL = c("#000000")
+  default_page   = NULL,   # NULL = letter landscape 0.75/0.5インチ余白
+  default_format = NULL    # NULL = Courier 9pt single spacing
+)
+```
+
+### ページ操作
+
+```r
+# ページ追加（rtf_page オブジェクトとして格納）
+add_page(title = NULL, content = NULL, footnote = NULL)
+# → invisible(page_index)
+
+# 取得・更新
+get_page(page_index)
+set_page_title(page_index, title)
+set_page_content(page_index, content)
+set_page_footnote(page_index, footnote)
+```
+
+### セクション操作
+
+```r
+# セクション追加（rtf_sect オブジェクトとして格納）
+add_section(header = NULL, footer = NULL, from_page = NULL)
+# → invisible(section_index)
+# from_page = NULL → 最初のセクションとして from_page = 1 に解決
+
+# 取得・更新
+get_section(section_index)
+get_section_header(section_index)
+get_section_footer(section_index)
+set_section_header(section_index, header)
+set_section_footer(section_index, footer)
+set_section_from_page(section_index, from_page)
+```
+
+### バリデーション
+
+```r
+validate()
+# 1. sections が空の場合は空のデフォルトセクションを自動生成して警告
+# 2. pages が最低 1 つあること（なければ stop）
+# 3. 各ページの content が rtftable_r6 | rtfplot_r6 | NULL であること
+# → invisible(TRUE)
+```
+
+---
+
+# ヘッダー/フッター操作関数
+
+## 作成（全行置き換え）
+
+```r
+rtf_header(
+  rows,                      # named vector (1行) または list(named vecs) (複数行)
+  border           = NULL,   # rtf_border | NULL
+  width_twips      = NULL,
+  row_height_twips = NULL
+)
+
+rtf_footer(
+  rows,
+  border           = rtf_border_top(),  # デフォルト: 上辺に横線
+  width_twips      = NULL,
+  row_height_twips = NULL
+)
+```
+
+## 特定行の追加・置き換え
+
+```r
+update_header_row(header, row, content)
+update_footer_row(footer, row, content)
+```
+
+| 引数 | 型 | 説明 |
+|---|---|---|
+| `header` / `footer` | `rtf_header()` / `rtf_footer()` の戻り値 | 操作対象 |
+| `row` | `integer` | 対象行番号（1始まり） |
+| `content` | named character vector | 行内容（`c(l = ..., r = ...)` 形式） |
+
+**動作ルール:**
+
+| 条件 | 動作 |
+|---|---|
+| `row <= 現在行数` | 指定行を `content` で置き換え |
+| `row == 現在行数 + 1` | 末尾に `content` を追加 |
+| `row > 現在行数 + 1` | ギャップ行を空のセンター行 `c(c = "")` で自動補填して追加 |
+
+```r
+# 例: 2行ヘッダーの3行目を追加
+hdr <- rtf_header(rows = list(
+  c(l = "Protocol: XXX-001", r = "Company"),
+  c(l = "Table 14.1.1",     r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}")
+))
+
+# 3行目を追加
+hdr <- update_header_row(hdr, row = 3, content = c(c = "Subtitle"))
+
+# 2行目だけを置き換え
+hdr <- update_header_row(hdr, row = 2, content = c(l = "Table 14.2.1", r = "Page {AUTO_PAGE}"))
+
+# 5行目を追加（4行目は空行 c(c="") が自動補填される）
+hdr <- update_header_row(hdr, row = 5, content = c(c = "Draft"))
+```
+
+`update_header_row()` と `update_footer_row()` は内部実装を共有し、
+`rtf_header()` / `rtf_footer()` どちらの戻り値にも適用できます。
+
+---
+
+# `rtftable_r6` — テーブルクラス
+
+## コンストラクタ引数
+
+```r
+rtftable_r6$new(
+  data,                        # data.frame | list(df1, df2, ...) (multi-DF)
+  col_header          = NULL,  # NULL | chr vec | list | "A | B | C"
+  spanning_header     = NULL,  # list(list(from=2,to=3,label="Arm A",underline=TRUE))
+  col_spec            = NULL,  # 列書式リスト（下表参照）
+  border              = "tfl", # "tfl" | NULL | rtf_table_border()
+  blank_rows          = NULL,
+  col_rel_width       = NULL,
+  column_widths_twips = NULL,
+  table_width_twips   = NULL,
+  table_width_pct_of_writable = NULL,
+  table_width_pct     = NULL,
+  table_align         = "left",
+  row_height_twips    = 0L,
+  row_height_exact    = FALSE,
+  header_row_height_twips = NULL,
+  blank_row_height_twips  = NULL,
+  cell_padding_left_twips  = 72L,
+  cell_padding_right_twips = 72L,
+  cell_valign         = "bottom"
+)
+```
+
+## `col_spec` 属性一覧
+
+| 属性 | 型 | デフォルト |
+|---|---|---|
+| `col` | int \| chr | (必須) |
+| `align` | chr | `"left"` |
+| `bold` | logical | `FALSE` |
+| `italic` | logical | `FALSE` |
+| `underline` | logical | `FALSE` |
+| `indent_twips` | int | `0` |
+| `header_align` | chr | `"center"` |
+| `header_bold` | logical | `TRUE` |
+| `header_italic` | logical | `FALSE` |
+
+## 列幅の解決優先順位
+
+1. `column_widths_twips`（絶対幅、最高優先）
+2. `col_rel_width` × テーブル幅
+3. `table_width_twips`（均等分割）
+4. `table_width_pct_of_writable` × 書き込み可能幅
+5. 書き込み可能幅（フォールバック）
+
+---
+
+# `rtfplot_r6` — フィギュアクラス
+
+```r
+rtfplot_r6$new(
+  path,                  # PNG | JPEG ファイルパス
+  width_twips  = NULL,   # NULL = 書き込み可能幅
+  height_twips = NULL,   # NULL = アスペクト比維持
+  align        = "center"
+)
+```
+
+---
+
+# 罫線クラス階層
+
+```
+rtf_border_side   — 1辺の罫線（style / width / color）
+rtf_border        — セル4辺（top / bottom / left / right）
+rtf_table_border  — テーブルゾーン別（header / spanning / body / first_row / last_row）
+```
+
+## RTF スタイルマッピング
+
+| `style` 値 | RTF コマンド |
+|---|---|
+| `"single"` | `\brdrs` |
+| `"double"` | `\brdrdb` |
+| `"thick"` | `\brdrth` |
+| `"dash"` | `\brdrdash` |
+| `"dot"` | `\brdrdot` |
+
+## 臨床 TFL プリセット (`rtf_border_tfl()`)
+
+```
+header:    top = single + bottom = single
+spanning:  NULL
+body:      NULL
+first_row: NULL
+last_row:  bottom = single
+```
+
+---
+
+# ヘッダー/フッター仕様
+
+## 列数と配置ルール
+
+| キー | 列数 | 配置 |
+|---|---|---|
+| `l` のみ | 1列 | left |
+| `c` のみ | 1列 | center |
+| `r` のみ | 1列 | right |
+| `l` + `r` | 2列 | left / right |
+| `c` + `l` or `r` | 3列 | left / center / right |
+| `l` + `c` + `r` | 3列 | left / center / right |
+
+## ページトークン
+
+| トークン | RTF | 説明 |
+|---|---|---|
+| `{AUTO_PAGE}` | `\chpgn` | ビューワーが描画するページ番号 |
+| `{AUTO_TOTAL_PAGES}` | `NUMPAGES` フィールド | ビューワーが描画する総ページ数 |
+| `{SECTION_PAGES}` | `SECTIONPAGES` フィールド | セクション内ページ数 |
+| `{PAGE}` | `\chpgn` | `{AUTO_PAGE}` と同一 |
+| `{TOTAL_PAGES}` | 整数 | レンダリング時に静的解決 |
+
+---
+
+# テキスト処理パイプライン
+
+| 順序 | 入力 | RTF 出力 |
+|---|---|---|
+| 1 | `^{text}` | `{\super text}` |
+| 2 | `_{text}` | `{\sub text}` |
+| 3 | `\n` | `\line ` |
+| 4 | `>=` | `蠅?` |
+| 5 | `<=` | `蠄?` |
+| 6 | `\`, `{`, `}` | RTF エスケープ |
+| 7 | 非 ASCII | `\uNNNN?` |
+
+---
+
+# レンダリングアーキテクチャ
+
+## 公開関数・内部ヘルパー一覧
+
+### 公開関数（NAMESPACE に export）
+
+| 関数 | 役割 |
+|---|---|
+| `generate_rtfreport(report, file_path, overwrite)` | 主エントリポイント。`rtf_document` または `rtfreport_r6` を RTF ファイルに書き出す |
+| `assemble_rtf(...)` | 複数の RTF ファイルを結合する |
+
+### 内部ヘルパー関数（`generate_rtfreport.R`）
+
+**リソース読み込み・テンプレート**
+
+| 関数 | 役割 |
+|---|---|
+| `.load_rtf_commands()` | `rtf_commands.R` を遅延読み込み（初回のみ実行、キャッシュ保持） |
+| `.load_rtfreporter_defaults()` | `rtfreporter_defaults.R` を遅延読み込み |
+| `.cmd_fmt(template, values)` | `{key}` → 値 の文字列テンプレート置換 |
+
+**テキスト処理パイプライン**
+
+| 関数 | 役割 |
+|---|---|
+| `.rtf_escape_unicode_raw(x)` | 文字単位の RTF エスケープ（`\`, `{`, `}`, `\n`, 非 ASCII→`\uN?`） |
+| `.process_markup(x)` | `^{}/_{}`  上付き/下付きマークアップを再帰的に処理 |
+| `.format_cell_text(x)` | セルテキストの完全パイプライン（マークアップ＋`>=`/`<=`＋エスケープ） |
+| `.rtf_escape(x)` | ヘッダー/フッター用（マークアップ処理なし、トークン保持） |
+| `.render_tokens(x, current_page, total_pages)` | ページトークン（`{AUTO_PAGE}` 等）を RTF フィールドに置換 |
+
+**罫線ヘルパー**
+
+| 関数 | 役割 |
+|---|---|
+| `.build_border_commands(border_spec, color_index_map)` | セル4辺の RTF 罫線コマンド文字列を生成 |
+| `.effective_row_border(base_border, override)` | `first_row`/`last_row` の罫線上書きをマージ |
+
+**列幅・セル・行ビルダー**
+
+| 関数 | 役割 |
+|---|---|
+| `.compute_cellx(ncols, writable_width_twips, tbl)` | `\cellx` 累積位置を計算（絶対幅 > 相対幅 > 均等分割） |
+| `.build_cell_content(text, align, ...)` | 1セル分のテキスト＋装飾＋`\cell` 文字列を生成 |
+| `.build_cell_defs(cellx, border_spec, valign_cmd)` | 全列の 罫線＋縦配置＋`\cellx` 定義文字列を生成 |
+| `.build_row(cell_defs, cell_contents, ...)` | `\trowd...\row` 1行分の完全な RTF 文字列を生成 |
+
+**行レンダラー（テーブル専用）**
+
+| 関数 | 役割 |
+|---|---|
+| `.render_spanning_rows(...)` | 結合ヘッダー行（`spanning_header`）を RTF 行として出力 |
+| `.render_header_row(...)` | 列ヘッダー行 1 行を RTF 行として出力 |
+| `.render_data_row(...)` | データ行 1 行を RTF 行として出力 |
+| `.render_rtftable_section(df, ...)` | 1 DF 分（結合ヘッダー＋列ヘッダー＋データ行）を出力 |
+
+**コンテンツレンダラー**
+
+| 関数 | 役割 |
+|---|---|
+| `.render_rtftable(tbl, writable_width_twips)` | `rtftable_r6` → RTF 行文字列ベクトル（単一 DF・複数 DF 両対応） |
+| `.render_rtfplot(plot_obj, writable_width_twips)` | `rtfplot_r6` → RTF `\pict` ブロック（PNG/JPEG hex 埋め込み） |
+| `.render_header_footer(hf, writable_width_twips, ...)` | `rtf_header()`/`rtf_footer()` オブジェクト → ヘッダー/フッターの RTF テーブル行 |
+| `.render_footnote_table(footnote, width_twips)` | フットノート → 1×1 RTF テーブル（上辺罫線、コンテンツ同幅） |
+
+**文書レベルヘルパー**
+
+| 関数 | 役割 |
+|---|---|
+| `.resolve_sections(report)` | `rtf_sect[]` を `(from_page, to_page)` 範囲付きリストに変換 |
+| `.compute_content_width(content, writable_width)` | コンテンツの描画幅（twips）を取得 |
+| `.collect_report_colors(report)` | 文書全体から使用中の hex カラーを収集 |
+| `.build_color_table_rtf(hex_colors)` | `{\colortbl ...}` RTF 文字列を生成 |
+| `.build_color_index_map(hex_colors)` | `"#RRGGBB"` → カラーテーブルインデックス の対応表を生成 |
+| `.normalize_hf(hf)` | 様々な形式のヘッダー/フッター入力を `list(rows=list(...))` に正規化 |
+
+**パイプ API アダプター**
+
+| 関数 | 役割 |
+|---|---|
+| `.pipe_doc_to_r6_report(pipe_doc)` | `rtf_document`（パイプ API）→ `rtfreport_r6` に変換 |
+
+---
+
+## `generate_rtfreport()` の処理フロー
+
+```
+generate_rtfreport(report, file_path)
+  │
+  ├─ rtf_document の場合 → .pipe_doc_to_r6_report() で rtfreport_r6 に変換
+  │
+  ▼ report$validate()
+  │   sections が空 → デフォルトセクション自動生成
+  │
+  ▼ .collect_report_colors() → .build_color_table_rtf() → .build_color_index_map()
+  │   文書全体の使用色を収集し、{\colortbl} を構築
+  │
+  ▼ RTF 文書ヘッダー出力
+  │   {\rtf1\ansi...} / {\fonttbl} / {\colortbl} / \paperw...\margl...
+  │
+  ▼ .resolve_sections(report)
+  │   from_page でソート → (from_page, to_page) 範囲リストを生成
+  │
+  ▼ セクションループ
+  │   ├─ ヘッダー/フッターの継承解決（NULL → 前セクションの値を引き継ぐ）
+  │   ├─ \sectd（セクション設定リセット）
+  │   ├─ .render_header_footer() → {\\header {content}}
+  │   ├─ .render_header_footer() → {\\footer {content}}
+  │   └─ ページループ (from_page..to_page)
+  │       ├─ タイトル: .cmd_fmt(center_bold_template, ...)
+  │       ├─ テーブル: .render_rtftable(ct, writable_w)
+  │       │   └─ .render_rtftable_section() × DF数
+  │       │       ├─ .render_spanning_rows()
+  │       │       ├─ .render_header_row() × ヘッダー行数
+  │       │       └─ .render_data_row()   × データ行数
+  │       ├─ 図:    .render_rtfplot(ct, writable_w)
+  │       ├─ 注釈: .render_footnote_table(footnote, fn_width)
+  │       └─ \page（セクション内）or \sect（セクション間）
+  │
+  ▼ } → writeLines(lines, file_path, useBytes = TRUE)
+```
+
+## RTF コマンドリソースファイル（`inst/resources/rtf_commands.R`）
+
+すべての RTF コマンド文字列はコード中に直接書かず、このファイルの `rtf_commands` リストに集約しています。`.load_rtf_commands()` が初回のみファイルを読み込み、以降はキャッシュから返します。
+
+### コマンド粒度：セクション別
+
+**`document` — 文書レベル制御**
+
+| キー | RTF 出力 | 説明 |
+|---|---|---|
+| `rtf_header_open` | `{\rtf1\ansi\deff0` | 文書開始 |
+| `font_table_template` | `{\fonttbl{\f0 {font_name};}}` | フォントテーブル（`{font_name}` を置換） |
+| `color_table_default` | `{\colortbl;\red0\green0\blue0;}` | デフォルトカラーテーブル |
+| `page_settings_template` | `\paperw{w}\paperh{h}\landscape\margl...\fs{fs}` | 用紙・余白・フォントサイズ |
+| `section_defaults` | `\sectd` | セクション設定リセット |
+| `page_break` | `\page` | ページ区切り |
+| `section_break` | `\sect` | セクション区切り |
+| `header_wrapper` | `{\header {content}}` | ヘッダーブロック（`{content}` を置換） |
+| `footer_wrapper` | `{\footer {content}}` | フッターブロック（`{content}` を置換） |
+| `document_close` | `}` | 文書終了 |
+
+**`paragraph` — 段落テンプレート**
+
+| キー | RTF 出力 | 説明 |
+|---|---|---|
+| `center_bold_template` | `\pard\qc\b {text}\b0\par` | 中央揃え太字（タイトル用） |
+| `left_template` | `\pard\ql {text}\par` | 左揃え段落 |
+| `figure_placeholder_center_template` | `\pard\qc [Figure: {filename}]\par` | 図プレースホルダー |
+| `empty_table` | `\par [empty table]\par` | 空テーブルフォールバック |
+
+**`table` — テーブル行・セル制御**
+
+| キー | RTF 出力 | 説明 |
+|---|---|---|
+| `row_start` | `\trowd` | 行定義開始 |
+| `row_end` | `\row` | 行定義終了 |
+| `row_height_template` | `\trrh{row_height_twips}` | 行高さ（twips） |
+| `cell_boundary_template` | `\cellx{cx}` | セル右端位置 |
+| `cell_text_aligned_template` | `{align} {text}\cell` | セルテキスト（配置付き） |
+
+**`alignment` — 水平配置コマンド**
+
+| キー | RTF | 説明 |
+|---|---|---|
+| `left` | `\ql` | 左揃え |
+| `right` | `\qr` | 右揃え |
+| `center` | `\qc` | 中央揃え |
+
+**`border` — 罫線コマンド**
+
+| キー | 内容 | RTF 例 |
+|---|---|---|
+| `side_prefix.top` | `\clbrdrt` | 上辺プレフィックス |
+| `side_prefix.bottom` | `\clbrdrb` | 下辺プレフィックス |
+| `side_prefix.left` | `\clbrdrl` | 左辺プレフィックス |
+| `side_prefix.right` | `\clbrdrr` | 右辺プレフィックス |
+| `style.single` | `\brdrs` | 実線 |
+| `style.double` | `\brdrdb` | 二重線 |
+| `style.thick` | `\brdrth` | 太線 |
+| `style.dash` | `\brdrdash` | 破線 |
+| `style.dot` | `\brdrdot` | 点線 |
+
+完全な罫線コマンドは `side_prefix + style + \brdrwNN` の連結で構成されます（例: `\clbrdrt\brdrs\brdrw15`）。
+
+**`cell_valign` — セル縦配置**
+
+| キー | RTF |
+|---|---|
+| `top` | `\clvertalt` |
+| `center` | `\clvertalc` |
+| `bottom` | `\clvertalb` |
+
+**`text_decor` — インラインテキスト装飾**
+
+| キー | on | off |
+|---|---|---|
+| `bold` | `\b ` | `\b0 ` |
+| `italic` | `\i ` | `\i0 ` |
+| `underline` | `\ul ` | `\ulnone ` |
+| `super` | `\super ` | `\nosupersub ` |
+| `sub` | `\sub ` | `\nosupersub ` |
+
+**`picture` — 図埋め込みテンプレート**
+
+```
+\pard{align}{\pict\pngblip\picw{picw}\pich{pich}\picwgoal{picwgoal}\pichgoal{pichgoal}
+{hex}
+}\par
+```
+
+`{picw}/{pich}` = 元画像の実寸（px）、`{picwgoal}/{pichgoal}` = 表示寸法（twips）、`{hex}` = バイナリを 126 文字ごとに改行した hex 文字列。
+
+**`fields` — 動的ページ番号フィールド**
+
+| キー | RTF | タイミング |
+|---|---|---|
+| `auto_page` | `\chpgn ` | ビューワーがページごとに描画 |
+| `auto_total_pages` | `{\field{\*\fldinst NUMPAGES}{\fldrslt N}}` | ビューワーが総ページ数を描画 |
+| `section_pages` | `{\field{\*\fldinst SECTIONPAGES}{\fldrslt 1}}` | ビューワーがセクション内ページ数を描画 |
+
+**`defaults` — 調整可能なデフォルト値**
+
+| キー | デフォルト | 説明 |
+|---|---|---|
+| `header_footer_row_height_twips` | `288L` | ヘッダー/フッター行高さ（≈ 0.2 inch） |
+
+### コマンド利用の仕組み
+
+```r
+# 1. 遅延読み込み（初回のみファイル I/O）
+cmds <- .load_rtf_commands()
+
+# 2. テンプレート置換
+.cmd_fmt(cmds$document$page_settings_template, list(
+  width_twips  = 15840,
+  height_twips = 12240,
+  ...
+))
+
+# 3. 直接参照（テンプレートでないもの）
+lines <- c(lines, cmds$document$page_break)   # → "\page"
+lines <- c(lines, cmds$document$section_break) # → "\sect"
+```
+
+## セクション解決アルゴリズム（`.resolve_sections()`）
+
+```r
+# 入力: report$sections（rtf_sect オブジェクトのリスト）
+# 出力: list(list(header, footer, from_page, to_page), ...)
+
+1. from_page を抽出（NULL の場合は NA として扱う）
+2. セクションが 1 つかつ from_page = NULL → from_page = 1 に設定
+3. from_page でソート（NA は末尾）
+4. 最初のセクションの from_page を強制的に 1 に設定
+5. to_page = 次セクションの from_page - 1（最後のセクションは n_pages）
+```
+
+---
+
+# 変更履歴
+
+| バージョン | 変更内容 |
+|---|---|
+| v0.0.1 | 初期設計: Document → Section → Page → Block 階層 |
+| v0.0.6 | R6 を `_r6` サフィックスに変更、S3 ラッパー追加 |
+| v0.1.0（予定） | 階層簡素化: `pages` を文書レベルに移動、`sections` は `from_page` で管理 |
+| v0.1.0（予定） | `rtf_page` / `rtf_sect` S3 タグ付きオブジェクト導入 |
+| v0.1.0（予定） | `update_header_row()` / `update_footer_row()` 追加 |
+| v0.1.0（予定） | `sections` 未設定時のデフォルトセクション自動生成 |

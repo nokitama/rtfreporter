@@ -7,13 +7,20 @@
 ## リポジトリ構成
 
 ```
-rtfreporter/
-├── r/rtfreporter/   ← Rパッケージ（DESCRIPTION, NAMESPACE, R/, man/ など）
-├── python/          ← Pythonパッケージ（pyproject.toml, src/ など）
+rtfreporter/             ← Git リポジトリルート = R パッケージルート
+├── DESCRIPTION
+├── NAMESPACE
+├── r/                   ← R ソースファイル
+├── inst/resources/      ← RTF コマンドリソース
+├── tests/               ← テストスクリプト
+├── vignettes/
+│   ├── *.Rmd            ← ユーザー向けビニェット
+│   └── articles/
+│       ├── internal-design.qmd   ← 内部クラス設計書
+│       └── external-api.qmd      ← 外部 API 仕様書
 └── specs/
+    └── release_guidelines.md     ← このファイル
 ```
-
-RとPythonは**同一リポジトリ内に共存**しており、それぞれ独立したパッケージとして管理する。
 
 ---
 
@@ -23,86 +30,72 @@ RとPythonは**同一リポジトリ内に共存**しており、それぞれ独
 
 | 対象 | 形式 | 例 |
 |------|------|----|
-| GitHub タグ / Release 名 | `vX.Y.Z-alpha` などサフィックスOK | `v0.0.2-alpha` |
-| R の `DESCRIPTION` の `Version` | **数字とピリオドのみ**（サフィックス不可） | `0.0.2` |
-| Python の `pyproject.toml` の `version` | PEP 440 準拠（`0.0.2a1` など） | `0.0.2a1` |
+| GitHub タグ / Release 名 | `vX.Y.Z` | `v0.1.0` |
+| R の `DESCRIPTION` の `Version` | **数字とピリオドのみ**（サフィックス不可） | `0.1.0` |
 
-> ⚠️ **重要**: R の `DESCRIPTION` に `Version: 0.0.2-alpha` のようにサフィックスを付けると
-> `Malformed package version` エラーになる。GitHub タグと R バージョンは別管理。
+> ⚠️ **重要**: R の `DESCRIPTION` に `Version: 0.1.0-alpha` のようにサフィックスを付けると
+> `Malformed package version` エラーになる。
 
-### 2. インストール用アセットの作成
-
-GitHub Release には**RとPython個別のtar.gzをアセットとして添付**する。
-リポジトリ全体の自動生成tar.gz（`Source code`）は使わない（サブディレクトリにパッケージがあるため）。
-
-#### Rパッケージ
+### 2. ビニェットの事前ビルド
 
 ```powershell
-# r/rtfreporter ディレクトリのみをパッケージング
-tar -czf rtfreporter_X.Y.Z.tar.gz -C "r" "rtfreporter"
+# from repo root
+cd C:\Yrepo\rtfreporter
+
+# 1. ビルド
+Rscript -e "devtools::build_vignettes()"
+
+# 2. inst/doc/ にコピー
+Copy-Item "doc\*" "inst\doc\" -Recurse -Force
+
+# 3. 確認
+Rscript -e "devtools::install(); vignette(package='rtfreporter')"
 ```
 
-命名規則: `rtfreporter_X.Y.Z.tar.gz`（例: `rtfreporter_0.0.2.tar.gz`）
-
-#### Pythonパッケージ
+### 3. インストール用 tar.gz の作成
 
 ```powershell
-# python ディレクトリをパッケージング
-tar -czf rtfreporter_python_X.Y.Z.tar.gz -C "." "python"
+# リポジトリルートの親ディレクトリから実行
+cd C:\Yrepo
+tar -czf rtfreporter_X.Y.Z.tar.gz rtfreporter
 ```
 
-命名規則: `rtfreporter_python_X.Y.Z.tar.gz`（例: `rtfreporter_python_0.0.2.tar.gz`）
-
-### 3. アップロード
+### 4. GitHub Release へのアップロード
 
 ```powershell
-gh release upload vX.Y.Z-alpha rtfreporter_X.Y.Z.tar.gz rtfreporter_python_X.Y.Z.tar.gz
+cd C:\Yrepo\rtfreporter
+gh release create vX.Y.Z rtfreporter_X.Y.Z.tar.gz --title "vX.Y.Z" --notes "See CHANGELOG.md"
 ```
 
 ---
 
 ## ユーザー向けインストール方法
 
-### R
-
 ```r
-url <- "https://github.com/ichirio/rtfreporter/releases/download/vX.Y.Z-alpha/rtfreporter_X.Y.Z.tar.gz"
-download.file(url, "rtfreporter_X.Y.Z.tar.gz")
-devtools::install_local("rtfreporter_X.Y.Z.tar.gz")
-```
+# GitHub からのインストール
+remotes::install_github("ichirio/rtfreporter")
 
-### Python
-
-```bash
-pip install https://github.com/ichirio/rtfreporter/releases/download/vX.Y.Z-alpha/rtfreporter_python_X.Y.Z.tar.gz
+# または Release tar.gz から
+url <- "https://github.com/ichirio/rtfreporter/releases/download/vX.Y.Z/rtfreporter_X.Y.Z.tar.gz"
+install.packages(url, repos = NULL, type = "source")
 ```
 
 ---
 
-## Vignette の管理
+## リリース前チェックリスト
 
-`vignette()` コマンドで参照できるようにするには、**ビルド済みHTMLを `r/rtfreporter/inst/doc/` に含める**必要がある。
-`install_local()` はデフォルトでRmdをビルドしないため、事前ビルドが必須。
-
-```r
-# vignette を手動ビルドして inst/doc/ に配置
-rmarkdown::render(
-  'r/rtfreporter/vignettes/rtfreporter-quickstart.Rmd',
-  output_dir = 'r/rtfreporter/inst/doc',
-  output_format = 'rmarkdown::html_vignette'
-)
-# Rmd のコピーも inst/doc/ に置く（R の規約）
-file.copy('r/rtfreporter/vignettes/rtfreporter-quickstart.Rmd',
-          'r/rtfreporter/inst/doc/')
-```
+- [ ] `DESCRIPTION` の `Version` が数字のみか確認
+- [ ] `CHANGELOG.md` を更新したか確認
+- [ ] ビニェットを `inst/doc/` にビルド済みHTMLとして配置したか確認
+- [ ] テストがすべてパスするか確認（`Rscript tests/test-rtf-generation.R`）
+- [ ] `NAMESPACE` が最新か確認（`roxygen2::roxygenise()` 実行済み）
+- [ ] `man/` ドキュメントが最新か確認
 
 ---
 
-## チェックリスト（リリース前確認）
+## バージョン管理ポリシー
 
-- [ ] `r/rtfreporter/DESCRIPTION` の `Version` が数字のみか確認
-- [ ] vignette を `inst/doc/` にビルド済みHTMLとして配置したか確認
-- [ ] R用 tar.gz を `r/` ディレクトリのみで作成したか確認
-- [ ] Python用 tar.gz を `python/` ディレクトリのみで作成したか確認
-- [ ] 両アセットを Release にアップロードしたか確認
-- [ ] 作業用の一時 tar.gz ファイルを削除したか確認
+- バージョン形式: `major.minor.patch`（例: 0.1.0、0.1.1、0.2.0）
+- CHANGELOG: **v0.1.0 以降のみ記録**、開発版変更は不記録
+- 破壊的変更: minor バージョンを上げる（0.1.x → 0.2.0）
+- バグ修正: patch バージョンを上げる（0.1.0 → 0.1.1）

@@ -1,0 +1,415 @@
+---
+title: "rtfreporter 外部インターフェース仕様書"
+subtitle: "S3 公開 API — rtfreport / rtftable / rtfplot"
+author: "rtfreporter development team"
+date: last-modified
+date-format: "YYYY-MM-DD"
+lang: ja
+format:
+  html:
+    toc: true
+    toc-depth: 4
+    toc-title: "目次"
+    number-sections: true
+    theme: cosmo
+    highlight-style: github
+    code-block-bg: true
+    embed-resources: true
+---
+
+::: {.callout-note}
+このドキュメントは **外部インターフェース仕様書** です。内部 R6 クラスの詳細は
+[内部クラス設計書](internal-design.qmd) を参照してください。
+:::
+
+# 概要
+
+`rtfreporter` は臨床試験向け RTF レポート（テーブル・リスティング・フィギュア、TFL）を
+生成する R パッケージです。公開 API は **S3 関数のみ** です。内部実装に使用する R6
+クラスは NAMESPACE から公開されません。
+
+## 基本方針
+
+| 方針 | 内容 |
+|---|---|
+| **公開 API は S3 のみ** | `$new()` は公開しない |
+| **twips 統一** | 寸法はすべて twips（フォントサイズ依存計算なし） |
+| **依存なし** | r2rtf / reporter に依存しない完全独立実装 |
+| **R6 は内部のみ** | 可変参照セマンティクスは内部で利用、外部には不変 S3 を提示 |
+
+---
+
+# 公開 S3 関数一覧
+
+| カテゴリ | 関数 |
+|---|---|
+| ドキュメント | `rtf_document()`, `rtf_config()` |
+| コンテンツ追加 | `rtf_tables()`, `rtf_figures()` |
+| セクション定義 | `rtf_section()` |
+| 書式設定 | `rtf_table_format()`, `rtf_header_format()`, `rtf_footer_format()`, `rtf_figure_format()` |
+| コンテンツ構築 | `rtftable()`, `rtfplot()` |
+| ヘッダー/フッター | `rtf_header()`, `rtf_footer()` |
+| 罫線 | `rtf_border_side()`, `rtf_border()`, `rtf_border_none()`, `rtf_border_top()`, `rtf_border_bottom()`, `rtf_border_box()`, `rtf_table_border()`, `rtf_border_tfl()` |
+| 出力 | `generate_rtfreport()`, `assemble_rtf()` |
+| ユーティリティ | `text_width_in()`, `auto_col_widths()` |
+
+---
+
+# 基本ワークフロー
+
+```r
+library(rtfreporter)
+library(magrittr)
+
+df1 <- data.frame(
+  Parameter = c("Age (years)", "Sex: Male"),
+  N = c("50", "28"),
+  Mean_SD = c("45.2 (12.1)", "56.0%")
+)
+
+report <- rtf_document() %>%
+  rtf_section(page = 1, secinfo = list(
+    header = rtf_header(rows = list(
+      c(l = "Protocol: XXX-001", r = "ACME Pharma"),
+      c(l = "Table 14.1.1",     r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}")
+    )),
+    footer = rtf_footer(c(l = "Confidential - For Clinical Study Use Only"))
+  )) %>%
+  rtf_tables(list(rtftable(df1, col_header = c("Parameter", "N", "Mean (SD)"))))
+
+generate_rtfreport(report, "output/t14_1_1.rtf", overwrite = TRUE)
+```
+
+---
+
+# `rtf_document()` — 文書オブジェクト作成
+
+```r
+rtf_document(
+  font_table    = NULL,   # NULL = list(list(name = "Courier"))
+  color_table   = NULL,   # NULL = c("#000000")
+  page          = NULL,   # NULL = landscape Letter, 0.75"/0.5" margins
+  default_format = NULL   # NULL = 9pt, single spacing
+)
+```
+
+**戻り値**: `rtf_document` S3 オブジェクト。
+
+**デフォルトページ設定（臨床試験向け）:**
+
+| 設定 | デフォルト値 |
+|---|---|
+| 向き | landscape |
+| サイズ | Letter (11" × 8.5") |
+| 余白（上下） | 0.75 インチ |
+| 余白（左右） | 0.50 インチ |
+
+---
+
+# `rtf_config()` — 文書設定変更
+
+```r
+rtf_config(doc, font_table=NULL, color_table=NULL, page=NULL, default_format=NULL)
+```
+
+`NULL` を渡したパラメータは変更されません。新しいコピーを返します（元のオブジェクトは不変）。
+
+---
+
+# `rtf_tables()` — コンテンツページ追加
+
+```r
+rtf_tables(doc, tables)
+```
+
+**`tables` 引数の形式:**
+
+```r
+# 各要素が1ページ
+rtf_tables(doc, list(
+  df1,                         # data.frame → デフォルト書式
+  rtftable(df2, border="tfl"), # rtftable オブジェクト
+  rtfplot("fig.png")           # rtfplot オブジェクト（図）
+))
+```
+
+---
+
+# `rtf_section()` — セクション定義
+
+セクションはヘッダー/フッターを制御します。`page` 引数で「このページからこのセクションを開始」を指定します。
+
+```r
+rtf_section(doc, page, secinfo)
+```
+
+| 引数 | 説明 |
+|---|---|
+| `doc` | `rtf_document` オブジェクト |
+| `page` | セクション開始ページ番号（1始まり整数） |
+| `secinfo` | `list(header = rtf_header(...), footer = rtf_footer(...))` |
+
+**典型的なパターン:**
+
+```r
+doc %>%
+  rtf_tables(list(df1, df2, df3)) %>%
+  rtf_section(page = 1, secinfo = list(header = hdr1, footer = ftr1)) %>%
+  rtf_section(page = 3, secinfo = list(header = hdr2, footer = ftr2))
+# → ページ1-2はセクション1のヘッダー/フッター
+# → ページ3はセクション2のヘッダー/フッター
+```
+
+---
+
+# `rtftable()` — テーブル構築
+
+```r
+rtftable(
+  data,                          # data.frame または list(df1, df2, ...) (multi-DF)
+  col_header              = NULL, # NULL | chr vec | list | "A | B | C"
+  spanning_header         = NULL, # list(list(from=2,to=3,label="Arm A",underline=TRUE))
+  col_spec                = NULL, # 列書式仕様リスト（§参照）
+  border                  = "tfl", # "tfl" | "none" | rtf_table_border()
+  blank_rows              = NULL,  # blank行挿入位置 integer vector
+  col_rel_width           = NULL,  # 相対列幅 c(3,1,1,2)
+  column_widths_twips     = NULL,  # 絶対列幅（最優先）
+  table_width_twips       = NULL,
+  table_width_pct_of_writable = NULL,
+  table_width_pct         = NULL,  # 0-100 (pct_of_writable のエイリアス /100)
+  table_align             = "left", # "left" | "center" | "right"
+  row_height_twips        = 0L,    # 0=自動
+  row_height_exact        = FALSE,
+  header_row_height_twips = NULL,
+  blank_row_height_twips  = NULL,
+  cell_padding_left_twips  = 72L,
+  cell_padding_right_twips = 72L,
+  cell_valign             = "bottom"  # "top" | "center" | "bottom"
+)
+```
+
+## `col_header` 指定形式
+
+```r
+# 単一行 — 文字ベクタ
+rtftable(df, col_header = c("Treatment", "N", "Mean (SD)"))
+
+# 単一行 — パイプ区切り文字列
+rtftable(df, col_header = "Treatment | N | Mean (SD)")
+
+# 複数行
+rtftable(df, col_header = list(
+  c("", "Arm A", "Arm B"),
+  c("Item", "N", "Mean", "N", "Mean")
+))
+```
+
+## `spanning_header` 指定形式
+
+```r
+rtftable(df,
+  col_header = c("Item", "N", "Mean", "N", "Mean"),
+  spanning_header = list(
+    list(from = 2, to = 3, label = "Arm A", underline = TRUE),
+    list(from = 4, to = 5, label = "Arm B", underline = TRUE)
+  )
+)
+```
+
+## `col_spec` 属性
+
+| 属性 | 型 | デフォルト | 説明 |
+|---|---|---|---|
+| `col` | int \| chr | (必須) | 列番号または列名 |
+| `align` | chr | `"left"` | ボディ配置 |
+| `bold` | logical | `FALSE` | ボディ太字 |
+| `italic` | logical | `FALSE` | ボディ斜体 |
+| `underline` | logical | `FALSE` | ボディ下線 |
+| `indent_twips` | int | `0` | ボディ左インデント |
+| `header_align` | chr | `"center"` | ヘッダー配置 |
+| `header_bold` | logical | `TRUE` | ヘッダー太字 |
+| `header_italic` | logical | `FALSE` | ヘッダー斜体 |
+
+## 列幅の優先順位
+
+1. `column_widths_twips` — 絶対幅（最高優先）
+2. `col_rel_width` × テーブル幅 — 相対幅
+3. `table_width_twips` — テーブル幅（均等分割）
+4. `table_width_pct_of_writable` × 書き込み可能幅
+5. 書き込み可能幅（フォールバック）
+
+---
+
+# `rtfplot()` — 図オブジェクト構築
+
+```r
+rtfplot(
+  path,                  # PNG または JPEG ファイルパス
+  width_twips  = NULL,   # NULL = 書き込み可能幅
+  height_twips = NULL,   # NULL = アスペクト比維持
+  align        = "center"  # "left" | "center" | "right"
+)
+```
+
+---
+
+# `rtf_header()` / `rtf_footer()` — ヘッダー/フッター
+
+```r
+rtf_header(
+  rows,                       # named chr vector (1行) または list(vecs) (複数行)
+  border           = NULL,    # rtf_border | NULL（デフォルト: 罫線なし）
+  width_twips      = NULL,    # NULL = 書き込み可能幅
+  row_height_twips = NULL     # NULL = デフォルト値
+)
+
+rtf_footer(
+  rows,
+  border           = rtf_border_top(),  # デフォルト: フッター上辺に横線
+  width_twips      = NULL,
+  row_height_twips = NULL
+)
+```
+
+## 列数と配置ルール
+
+named vector のキーで列数と配置が決まります。
+
+| キー | 列数 | 配置 |
+|---|---|---|
+| `l` のみ | 1列 | left |
+| `c` のみ | 1列 | center |
+| `r` のみ | 1列 | right |
+| `l` + `r` | 2列 | left / right |
+| `c` + `l` or `r` | 3列 | left / center / right |
+| `l` + `c` + `r` | 3列 | left / center / right |
+
+```r
+# 2列 (left / right)
+rtf_header(rows = list(
+  c(l = "Protocol: XXX-001",  r = "ACME Pharma"),
+  c(l = "Table 14.1.1",       r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}")
+))
+
+# 3列
+rtf_header(rows = list(
+  c(l = "Left text", c = "Center text", r = "Right text")
+))
+```
+
+## ページトークン
+
+| トークン | 説明 |
+|---|---|
+| `{AUTO_PAGE}` | ビューワーが描画するページ番号（推奨） |
+| `{AUTO_TOTAL_PAGES}` | ビューワーが描画する総ページ数（推奨） |
+| `{SECTION_PAGES}` | セクション内ページ数 |
+| `{PAGE}` | `{AUTO_PAGE}` と同一（後方互換） |
+| `{TOTAL_PAGES}` | レンダリング時に静的解決される総ページ数 |
+
+推奨: `"Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"`
+
+---
+
+# 罫線 API
+
+## クラス階層
+
+```
+rtf_border_side   — 1辺の罫線（style / width / color）
+rtf_border        — セル4辺（top / bottom / left / right）
+rtf_table_border  — テーブルゾーン別（header / spanning / body / first_row / last_row）
+```
+
+## コンストラクタ
+
+```r
+# 1辺
+rtf_border_side(style = "single", width = 15L, color = NULL)
+# style: "single" | "double" | "thick" | "dash" | "dot"
+
+# 4辺
+rtf_border(top = NULL, bottom = NULL, left = NULL, right = NULL)
+
+# コンビニエンス
+rtf_border_none()                           # 全辺 NULL
+rtf_border_top(style, width, color)         # 上辺のみ
+rtf_border_bottom(style, width, color)      # 下辺のみ
+rtf_border_box(style, width, color)         # 全辺
+
+# テーブル全体
+rtf_table_border(header, spanning, body, first_row, last_row)
+rtf_border_tfl()  # 臨床 TFL 標準プリセット
+```
+
+## 臨床 TFL プリセット (`rtf_border_tfl()`)
+
+```
+header:    上辺 single + 下辺 single
+spanning:  なし
+body:      なし
+first_row: なし
+last_row:  下辺 single
+```
+
+---
+
+# `generate_rtfreport()` — RTF ファイル出力
+
+```r
+generate_rtfreport(report, file_path, overwrite = FALSE)
+```
+
+| 引数 | 説明 |
+|---|---|
+| `report` | `rtf_document` オブジェクト（`rtf_document()` で作成） |
+| `file_path` | 出力 RTF ファイルパス |
+| `overwrite` | `TRUE` で上書き許可（デフォルト `FALSE`） |
+
+**戻り値**: `file_path` を invisibly 返す。
+
+---
+
+# `assemble_rtf()` — 複数 RTF の結合
+
+```r
+assemble_rtf(input_files, output_file, overwrite = FALSE)
+```
+
+複数の独立した RTF ファイルを `\sect` で繋いで一つの RTF に結合します。
+
+---
+
+# テキスト記法
+
+テーブルセル内で使用できる記法：
+
+| 記法 | RTF 変換 | 表示 |
+|---|---|---|
+| `^{text}` | `{\super text}` | 上付き文字 |
+| `_{text}` | `{\sub text}` | 下付き文字 |
+| `>=` | `蠅?` | ≥ |
+| `<=` | `蠄?` | ≤ |
+| `\n` | `\line ` | セル内改行 |
+| 非 ASCII 文字 | `\uNNNN?` | Unicode エスケープ |
+
+---
+
+# 設計上の決定事項
+
+| 決定事項 | 日付 | 内容 |
+|---|---|---|
+| 公開 API: S3 のみ | 2026-05-22 | R6 は NAMESPACE から除外 |
+| 可変性: R6 可変、S3 不変 | 2026-05-22 | コピーコストを避けつつ安全な API を提供 |
+| `add_section()` 廃止 | 2026-05-22 | セクションは `rtf_section(page=N)` で指定 |
+| r2rtf / reporter 非依存 | 設計時 | 完全独立実装（既存 RTF パッケージのコードを流用しない） |
+| フォントサイズ依存計算なし | 設計時 | すべての寸法は twips で明示指定 |
+
+---
+
+# スコープ外（初期リリース）
+
+- 表の自動ページ分割（Advanced table pagination）
+- `pageby` グループ変数によるページ分割（Listing 向け）
+- セル背景色
+- Python 実装（別パッケージとして将来提供予定）
