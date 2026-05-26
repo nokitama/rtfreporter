@@ -22,6 +22,10 @@ export(rtf_footer)
 export(update_header_row)
 export(update_footer_row)
 
+# Blank-row spec constructors
+export(blank_rows_by_change)
+export(blank_rows_by_rule)
+
 # Border utilities
 export(rtf_border_side)
 export(rtf_border)

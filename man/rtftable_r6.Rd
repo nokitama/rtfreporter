@@ -23,10 +23,12 @@ rich formatting.
 \if{html}{\out{<div class="r">}}\preformatted{rtftable_r6$new(
   data,
   col_header = NULL,
+  col_header_align = NULL,
   spanning_header = NULL,
   col_spec = NULL,
   border = "tfl",
   blank_rows = NULL,
+  read_attributes = TRUE,
   col_rel_width = NULL,
   column_widths_twips = NULL,
   table_width_twips = NULL,

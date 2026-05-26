@@ -6,7 +6,90 @@ All notable changes to rtfreporter are documented in this file. Changes are reco
 
 ## v0.1.0 (TBD - when ready for public release)
 
-> **Status**: Currently in development as v0.0.11. Will be released as v0.1.0 when complete.
+> **Status**: Currently in development as v0.0.12. Will be released as v0.1.0 when complete.
+
+### ✨ Features (v0.0.12 — Step B of the style/spec refactor)
+
+#### `blank_rows`: three combinable specification modes
+
+The `blank_rows` argument now accepts three orthogonal specification
+modes that can be freely combined inside a list (positions are unioned,
+deduplicated, and sorted):
+
+1. **Integer positions** — `c(0, 5, -1)`. `0` is before the first data
+   row, `k` is after row `k`, and `-1` means "after the last data row".
+   Out-of-range integers warn and are dropped.
+
+2. **By variable change** — `blank_rows_by_change(cols, ...)`. Inserts
+   a blank separator whenever the value of any listed column differs
+   from the previous row. `include_before_first` and
+   `include_after_last` (both `TRUE` by default) add rows at the start
+   and end.
+
+3. **By rule** — `blank_rows_by_rule(col, pattern, where)`. Inserts a
+   blank row before or after every data row whose value in `col`
+   matches the regular expression `pattern`.
+
+```r
+rtftable(df, blank_rows = list(
+  c(-1),                                            # after the last row
+  blank_rows_by_change("Visit",
+    include_before_first = FALSE,
+    include_after_last   = FALSE),                  # at every Visit change
+  blank_rows_by_rule("Parameter", "^Total", "before")
+))
+```
+
+#### `read_attributes = TRUE`: data-frame attribute fallback
+
+`rtftable()` (and the same path inside `rtf_tables()`) now reads
+recognised attributes off the input data frame as fallback defaults.
+The first attribute consumed is `attr(data, "rtf_blank_rows")` —
+its numeric value seeds `blank_rows` when the argument is left `NULL`.
+Set `read_attributes = FALSE` to suppress.
+
+This is intentionally an extensible mechanism: future attributes
+(`rtf_col_header_align`, `rtf_col_spec`, ...) can be added without
+changing call sites.
+
+#### `col_header_align`: cascade rule for column-header alignment
+
+`rtftable()` gains a `col_header_align` argument. The default
+`header_align` for column headers now **inherits the data alignment**
+(`col_spec[[j]]$align`) instead of the previous hard-coded `"center"`.
+
+Resolution precedence (highest first):
+
+1. `col_spec[[j]]$header_align`   (per-column override)
+2. `col_header_align[j]`          (table-wide; scalar or length-ncol)
+3. `col_spec[[j]]$align`          (inherit data alignment)
+
+#### `col_header`: spanning rows mixed with label rows
+
+`col_header` can now be a list whose elements are either:
+
+* character vectors — regular label rows, one entry per data column;
+* spanning rows — `list(list(from, to, label, underline), ...)`, with
+  the same structure that has always been accepted by
+  `spanning_header`.
+
+This makes multi-row column headers with spanning groups expressible
+inline:
+
+```r
+rtftable(df, col_header = list(
+  # Row 1: spanning header
+  list(
+    list(from = 2, to = 3, label = "Drug A (N=30)", underline = TRUE),
+    list(from = 4, to = 5, label = "Drug B (N=30)", underline = TRUE)
+  ),
+  # Row 2: regular labels
+  c("Item", "N", "Mean", "N", "Mean")
+))
+```
+
+The standalone `spanning_header` argument is retained for backward
+compatibility.
 
 ### 🔴 Breaking Changes (v0.0.11)
 

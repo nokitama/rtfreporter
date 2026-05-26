@@ -270,29 +270,33 @@ doc %>%
 
 ```r
 rtftable(
-  data,                          # data.frame または list(df1, df2, ...) (multi-DF)
-  col_header              = NULL, # NULL | chr vec | list | "A | B | C"
-  spanning_header         = NULL, # list(list(from=2,to=3,label="Arm A",underline=TRUE))
-  col_spec                = NULL, # 列書式仕様リスト（§参照）
-  border                  = "tfl", # "tfl" | "none" | rtf_table_border()
-  blank_rows              = NULL,  # blank行挿入位置 integer vector
-  col_rel_width           = NULL,  # 相対列幅 c(3,1,1,2)
-  column_widths_twips     = NULL,  # 絶対列幅（最優先）
+  data,                              # data.frame または list(df1, df2, ...) (multi-DF)
+  col_header              = NULL,    # NULL | chr vec | list(label/spanning row 混在)
+  col_header_align        = NULL,    # NULL（align継承）| scalar | length-ncol
+  spanning_header         = NULL,    # 後方互換: col_header の上に置く単一spanning行
+  col_spec                = NULL,    # 列書式仕様リスト（§参照）
+  border                  = "tfl",   # "tfl" | "none" | rtf_table_border()
+  blank_rows              = NULL,    # integer / by_change / by_rule / list of mixed
+  read_attributes         = TRUE,    # data.frame attr の取り込み (rtf_blank_rows ほか)
+  col_rel_width           = NULL,    # 相対列幅 c(3,1,1,2)
+  column_widths_twips     = NULL,    # 絶対列幅（最優先）
   table_width_twips       = NULL,
   table_width_pct_of_writable = NULL,
-  table_width_pct         = NULL,  # 0-100 (pct_of_writable のエイリアス /100)
-  table_align             = "left", # "left" | "center" | "right"
-  row_height_twips        = NULL,  # NULL=リソースファイルのデフォルトを使う（フォントサイズ依存）
+  table_width_pct         = NULL,    # 0-100
+  table_align             = "left",
+  row_height_twips        = NULL,    # NULL=リソース既定（フォント依存）
   row_height_exact        = FALSE,
   header_row_height_twips = NULL,
   blank_row_height_twips  = NULL,
   cell_padding_left_twips  = 72L,
   cell_padding_right_twips = 72L,
-  cell_valign             = "bottom"  # "top" | "center" | "bottom"
+  cell_valign             = "bottom"
 )
 ```
 
 ## `col_header` 指定形式
+
+各要素はラベル行（文字ベクタ）または **spanning 行**（`list(from, to, label, underline)` の list）。両者を混在可能。
 
 ```r
 # 単一行 — 文字ベクタ
@@ -301,14 +305,35 @@ rtftable(df, col_header = c("Treatment", "N", "Mean (SD)"))
 # 単一行 — パイプ区切り文字列
 rtftable(df, col_header = "Treatment | N | Mean (SD)")
 
-# 複数行
+# 複数行（ラベル行のみ）
 rtftable(df, col_header = list(
   c("", "Arm A", "Arm B"),
   c("Item", "N", "Mean", "N", "Mean")
 ))
+
+# 複数行：spanning 行 + ラベル行
+rtftable(df, col_header = list(
+  # 1 行目: spanning
+  list(
+    list(from = 2, to = 3, label = "Arm A (N=30)", underline = TRUE),
+    list(from = 4, to = 5, label = "Arm B (N=30)", underline = TRUE)
+  ),
+  # 2 行目: 列ラベル
+  c("Item", "N", "Mean", "N", "Mean")
+))
 ```
 
-## `spanning_header` 指定形式
+## `col_header_align` — 列ヘッダの配置
+
+- `NULL`（既定）: 各列の **データ配置**（`col_spec` の `align`）を継承
+- スカラ `"center"` 等: 全列共通
+- 長さ ncol の character vector: 列ごとに上書き
+
+優先順位は `col_spec[[j]]$header_align`（個別指定）> `col_header_align` > `col_spec[[j]]$align`（継承）。
+
+## `spanning_header`（後方互換）
+
+`col_header` の上に置く単一の spanning 行を別引数で指定する旧 API。`col_header` 内に spanning 行を直接書ける現代的な記法を推奨。
 
 ```r
 rtftable(df,
@@ -319,6 +344,29 @@ rtftable(df,
   )
 )
 ```
+
+## `blank_rows` — 空行の挿入（3 モード組み合わせ）
+
+| モード | 構文 | 内容 |
+|---|---|---|
+| 1. 位置指定 | `c(0, 5, -1)` | `0` = 先頭の前、`k` = `k` 行目の後、`-1` = 最終行の後 |
+| 2. 変数変化 | `blank_rows_by_change(cols, include_before_first=, include_after_last=)` | 指定列の値が変わるたびに挿入 |
+| 3. ルール | `blank_rows_by_rule(col, pattern, where="before"\|"after")` | 正規表現マッチ行の前/後に挿入 |
+
+任意の組み合わせを list で渡せます（位置は和集合）:
+
+```r
+rtftable(df, blank_rows = list(
+  c(-1),
+  blank_rows_by_change("Visit",
+    include_before_first = FALSE, include_after_last = FALSE),
+  blank_rows_by_rule("Param", "^Total", "before")
+))
+```
+
+## `read_attributes` — data.frame 属性からの取り込み
+
+既定 `TRUE`。`attr(data, "rtf_blank_rows")` が数値ベクタなら、`blank_rows` 引数が `NULL` のときに既定値として取り込みます。将来、他の属性も同様に取り込み予定（`.read_data_attributes()` を拡張）。
 
 ## `col_spec` 属性
 

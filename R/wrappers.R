@@ -13,11 +13,19 @@
 #' @param col_header Column header specification.
 #'   - `NULL`: use column names of `data`.
 #'   - Character vector: one label per column (single header row).
-#'   - List of character vectors: multiple header rows.
+#'   - List whose elements are either character vectors (label rows) or
+#'     spanning rows (`list(list(from, to, label, underline), ...)`); rows
+#'     are rendered top-to-bottom.
 #'   - In multi-DF mode: a `list` of per-DF specs (same length as `data`).
-#' @param spanning_header List of spanning-header groups. Each element is a
-#'   `list(from, to, label, underline)` where `from`/`to` are 1-based column
-#'   indices.
+#' @param col_header_align Column-header text alignment, applied across
+#'   header rows. `NULL` (default) inherits each column's `align` value
+#'   from `col_spec` (i.e. column headers follow the data alignment).
+#'   `"center"` / `"left"` / `"right"` applies a single value to every
+#'   column; a character vector of length `ncol` overrides per-column.
+#' @param spanning_header A standalone spanning row placed **above** the
+#'   `col_header` rows.  Each element: `list(from, to, label, underline)`.
+#'   Kept for backward compatibility — new code should put spanning rows
+#'   directly inside `col_header`.
 #' @param col_spec List of per-column formatting specs. Each element may
 #'   contain: `col` (integer), `align` (`"left"`/`"center"`/`"right"`),
 #'   `bold`, `italic`, `underline` (logical), `indent_twips` (integer),
@@ -26,8 +34,19 @@
 #'   - `"tfl"`: clinical TFL preset (header top+bottom, last-row bottom).
 #'   - `"none"`: no borders.
 #'   - An `rtf_table_border` object from `rtf_table_border()`.
-#' @param blank_rows Integer vector of row positions after which a blank
-#'   separator row is inserted. Use `0` to insert before the first row.
+#' @param blank_rows Specification of blank separator rows. Accepts:
+#'   - Integer vector of positions (`0` = before first row, `k` = after
+#'     data row `k`, `-1` = after the last data row).
+#'   - A [blank_rows_by_change()] spec — insert when a column value
+#'     changes.
+#'   - A [blank_rows_by_rule()] spec — insert before/after rows matching
+#'     a regex.
+#'   - A `list` containing any combination of the above (positions are
+#'     unioned).
+#' @param read_attributes Logical. When `TRUE` (default), read recognised
+#'   attributes off `data` for use as fallback defaults — currently
+#'   `attr(data, "rtf_blank_rows")` is folded into `blank_rows` when the
+#'   argument is `NULL`. Set `FALSE` to ignore attributes.
 #' @param col_rel_width Numeric vector of relative column widths (e.g.
 #'   `c(2, 1, 1)` makes the first column twice as wide as the others).
 #' @param column_widths_twips Integer vector of absolute column widths in
@@ -70,8 +89,10 @@
 #' }
 #'
 #' @export
-rtftable <- function(data, col_header = NULL, spanning_header = NULL,
+rtftable <- function(data, col_header = NULL, col_header_align = NULL,
+                     spanning_header = NULL,
                      col_spec = NULL, border = "tfl", blank_rows = NULL,
+                     read_attributes = TRUE,
                      col_rel_width = NULL, column_widths_twips = NULL,
                      table_width_twips = NULL, table_width_pct_of_writable = NULL,
                      table_width_pct = NULL, table_align = "left",
@@ -82,10 +103,12 @@ rtftable <- function(data, col_header = NULL, spanning_header = NULL,
   rtftable_r6$new(
     data                        = data,
     col_header                  = col_header,
+    col_header_align            = col_header_align,
     spanning_header             = spanning_header,
     col_spec                    = col_spec,
     border                      = border,
     blank_rows                  = blank_rows,
+    read_attributes             = read_attributes,
     col_rel_width               = col_rel_width,
     column_widths_twips         = column_widths_twips,
     table_width_twips           = table_width_twips,

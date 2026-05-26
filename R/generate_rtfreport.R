@@ -517,12 +517,25 @@
     ))
   }
 
-  # Column-header rows.
+  # Column-header rows.  Each entry of `col_headers` is either:
+  #   * character vector → regular header row (one label per data column)
+  #   * list of list(from, to, label, underline) → spanning row
   hdr_border <- border$header
+  span_border <- border$spanning %||% border$header
   for (hdr_row in col_headers) {
-    lines <- c(lines, .render_header_row(
-      hdr_row, cellx, hdr_border, hdr_h, pad_l, pad_r, valign_cmd, col_spec, table_align
-    ))
+    is_spanning <- is.list(hdr_row) && length(hdr_row) > 0L &&
+                   is.list(hdr_row[[1L]]) && !is.null(hdr_row[[1L]]$from)
+    if (is_spanning) {
+      lines <- c(lines, .render_spanning_rows(
+        hdr_row, cellx,
+        span_border, hdr_h, pad_l, pad_r, valign_cmd, table_align
+      ))
+    } else {
+      lines <- c(lines, .render_header_row(
+        hdr_row, cellx, hdr_border, hdr_h, pad_l, pad_r, valign_cmd,
+        col_spec, table_align
+      ))
+    }
   }
 
   align_cmd <- switch(table_align, center = "\\trqc", right = "\\trqr", "")

@@ -16,11 +16,22 @@
 }
 
 # Normalize col_spec: list of per-column lists → internal indexed form.
-# Each element: list(col=..., align=..., bold=..., italic=..., underline=...,
-#                    indent_twips=..., header_bold=..., header_align=..., header_italic=...)
-# Returns a list of length ncol, each element is a list of attributes.
-.normalize_col_spec <- function(col_spec, ncol_df, col_names) {
-  # Start with per-column defaults.
+#
+# Each output element:
+#   list(align, bold, italic, underline, indent_twips,
+#        header_bold, header_align, header_italic)
+#
+# Header-align resolution precedence (highest first):
+#   1. col_spec entry's header_align (per-column override from user)
+#   2. col_header_align argument     (table-wide, scalar or length-ncol)
+#   3. col_spec entry's align        (inherit data alignment)
+#
+# col_header_align: NULL | character(1) | character(ncol).
+#
+.normalize_col_spec <- function(col_spec, ncol_df, col_names,
+                                 col_header_align = NULL) {
+  # Per-column defaults.  `header_align = NULL` means "unresolved" so the
+  # cascade above can fill it in afterwards.
   result <- lapply(seq_len(ncol_df), function(j) {
     list(
       align         = "left",
@@ -29,67 +40,128 @@
       underline     = FALSE,
       indent_twips  = 0L,
       header_bold   = FALSE,   # column headers default to normal weight
-      header_align  = "center",
+      header_align  = NULL,    # resolved later (cascade)
       header_italic = FALSE
     )
   })
 
-  if (is.null(col_spec)) return(result)
-  if (!is.list(col_spec)) stop("`col_spec` must be a list.", call. = FALSE)
-
-  for (spec in col_spec) {
-    if (!is.list(spec) || is.null(spec$col)) {
-      stop("Each element of `col_spec` must be a list with a `col` key.", call. = FALSE)
-    }
-    # Resolve column index.
-    col_ref <- spec$col
-    if (is.character(col_ref)) {
-      idx <- match(col_ref, col_names)
-      if (is.na(idx)) stop(sprintf("col_spec col '%s' not found in data.", col_ref), call. = FALSE)
-    } else {
-      idx <- as.integer(col_ref)
-      if (is.na(idx) || idx < 1L || idx > ncol_df) {
-        stop(sprintf("col_spec col index %d out of range (1..%d).", idx, ncol_df), call. = FALSE)
+  if (!is.null(col_spec)) {
+    if (!is.list(col_spec)) stop("`col_spec` must be a list.", call. = FALSE)
+    for (spec in col_spec) {
+      if (!is.list(spec) || is.null(spec$col)) {
+        stop("Each element of `col_spec` must be a list with a `col` key.",
+             call. = FALSE)
+      }
+      col_ref <- spec$col
+      if (is.character(col_ref)) {
+        idx <- match(col_ref, col_names)
+        if (is.na(idx)) stop(sprintf("col_spec col '%s' not found in data.",
+                                       col_ref), call. = FALSE)
+      } else {
+        idx <- as.integer(col_ref)
+        if (is.na(idx) || idx < 1L || idx > ncol_df) {
+          stop(sprintf("col_spec col index %d out of range (1..%d).",
+                       idx, ncol_df), call. = FALSE)
+        }
+      }
+      for (key in setdiff(names(spec), "col")) {
+        result[[idx]][[key]] <- spec[[key]]
       }
     }
-    # Merge spec into the column's defaults (skip 'col' key itself).
-    for (attr in setdiff(names(spec), "col")) {
-      result[[idx]][[attr]] <- spec[[attr]]
+  }
+
+  # Expand col_header_align to a per-column vector (or NULL).
+  cha <- col_header_align
+  if (!is.null(cha)) {
+    if (length(cha) == 1L) {
+      cha <- rep(as.character(cha), ncol_df)
+    } else if (length(cha) != ncol_df) {
+      stop(sprintf("`col_header_align` must have length 1 or %d.", ncol_df),
+           call. = FALSE)
+    } else {
+      cha <- as.character(cha)
+    }
+    if (!all(cha %in% c("left", "center", "right"))) {
+      stop("`col_header_align` values must be \"left\", \"center\", or \"right\".",
+           call. = FALSE)
+    }
+  }
+
+  # Cascade fill: header_align ← col_header_align[j] ← align
+  for (j in seq_len(ncol_df)) {
+    if (is.null(result[[j]]$header_align)) {
+      result[[j]]$header_align <- if (!is.null(cha)) cha[[j]] else result[[j]]$align
     }
   }
 
   result
 }
 
-# Normalize a single col_header spec to a list of character vectors (one per row).
-# Accepts: NULL | pipe string | char vector | list of char vectors.
-.normalize_single_col_header <- function(col_header) {
+# Normalize the col_header argument into a list whose elements are either:
+#   * character vector — a regular label row (one entry per data column)
+#   * list of list(from, to, label, underline) — a spanning row
+#
+# Backward-compatible inputs accepted:
+#   NULL                       → NULL (renderer uses names(df))
+#   character(n)               → list of one label row
+#   "A | B | C"  (single str)  → split on '|', wrapped as one label row
+#   list of mixed              → already in canonical form; pass through
+.normalize_col_header_rows <- function(col_header) {
   if (is.null(col_header)) return(NULL)
+
+  # Pipe-delimited string shorthand.
   if (is.character(col_header) && length(col_header) == 1L &&
       grepl("|", col_header, fixed = TRUE)) {
-    col_header <- trimws(strsplit(col_header, "|", fixed = TRUE)[[1]])
+    col_header <- trimws(strsplit(col_header, "|", fixed = TRUE)[[1L]])
   }
-  if (is.character(col_header)) return(list(col_header))
-  if (is.list(col_header)) return(col_header)
-  stop("Invalid col_header specification.", call. = FALSE)
+  if (is.character(col_header)) {
+    return(list(col_header))
+  }
+  if (is.list(col_header)) {
+    # Validate each element is a label-row (character) or spanning row
+    # (list of list(from, to, label, ...)).
+    out <- lapply(col_header, function(row) {
+      if (is.character(row)) return(row)
+      if (is.list(row) && length(row) > 0L &&
+          is.list(row[[1L]]) && !is.null(row[[1L]]$from)) {
+        return(row)   # spanning row, leave as-is
+      }
+      stop("Each col_header element must be a character vector or a list of ",
+           "spanning specs (list(from, to, label, underline)).", call. = FALSE)
+    })
+    return(out)
+  }
+  stop("`col_header` must be NULL, character, or a list.", call. = FALSE)
+}
+
+# Predicate: is `x` a canonical "header rows list" — every element being
+# either a character vector (label row) or a spanning row
+# (list of list(from, to, label, ...))?
+.is_header_rows_list <- function(x) {
+  if (!is.list(x) || length(x) == 0L) return(FALSE)
+  all(vapply(x, function(row) {
+    is.character(row) ||
+      (is.list(row) && length(row) > 0L &&
+         is.list(row[[1L]]) && !is.null(row[[1L]]$from))
+  }, logical(1L)))
 }
 
 # Normalize col_header for multi-DF mode.
 # Returns a list of length n_dfs, each element is a normalized col_header
-# (NULL or list of char vectors).
+# (NULL or a list whose elements are label rows / spanning rows).
 #
 # Detection rule:
-#   - NULL                                 → replicate NULL n_dfs times
-#   - char scalar / char vector            → shared header, replicate n_dfs times
-#   - list of length n_dfs whose elements
-#     are each NULL / char / list-of-char  → per-DF headers (one per DF)
-#   - other list                           → shared multi-row header, replicate n_dfs times
+#   - NULL                                       → replicate NULL n_dfs times
+#   - char scalar / char vector                  → shared single label row
+#   - list of length n_dfs whose elements look
+#     like per-DF header specs (NULL/char/list)  → per-DF
+#   - otherwise (list)                            → shared header rows
 .normalize_multi_col_header <- function(col_header, n_dfs) {
   if (is.null(col_header)) return(rep(list(NULL), n_dfs))
 
-  # Plain character (scalar or vector) → shared single header for all DFs.
+  # Plain character → shared single label row for all DFs.
   if (is.character(col_header)) {
-    h <- .normalize_single_col_header(col_header)
+    h <- .normalize_col_header_rows(col_header)
     return(rep(list(h), n_dfs))
   }
 
@@ -97,20 +169,22 @@
     stop("`col_header` must be NULL, a character vector, or a list.", call. = FALSE)
   }
 
-  # List: check if it qualifies as N per-DF specs.
-  .is_header_spec <- function(x) {
-    is.null(x) || is.character(x) || (is.list(x) && all(vapply(x, is.character, logical(1L))))
-  }
-  if (length(col_header) == n_dfs && all(vapply(col_header, .is_header_spec, logical(1L)))) {
-    # Treat as N per-DF header specs.
-    return(lapply(col_header, .normalize_single_col_header))
+  .is_per_df_spec <- function(x) {
+    is.null(x) || is.character(x) || .is_header_rows_list(x)
   }
 
-  # Otherwise treat as shared multi-row header, replicate n_dfs times.
-  h <- lapply(col_header, function(row) {
-    if (!is.character(row)) stop("Each row in a multi-row col_header must be a character vector.", call. = FALSE)
-    row
-  })
+  if (length(col_header) == n_dfs &&
+      all(vapply(col_header, .is_per_df_spec, logical(1L)))) {
+    # Per-DF specs.
+    return(lapply(col_header, .normalize_col_header_rows))
+  }
+
+  # Otherwise treat as shared multi-row header.
+  if (!.is_header_rows_list(col_header)) {
+    stop("Multi-row col_header must contain only character vectors and ",
+         "spanning specs (list of list(from, to, label, ...)).", call. = FALSE)
+  }
+  h <- .normalize_col_header_rows(col_header)
   rep(list(h), n_dfs)
 }
 
@@ -209,10 +283,12 @@ rtftable_r6 <- R6::R6Class(
     initialize = function(
       data,
       col_header = NULL,
+      col_header_align = NULL,
       spanning_header = NULL,
       col_spec = NULL,
       border = "tfl",
       blank_rows = NULL,
+      read_attributes = TRUE,
       col_rel_width = NULL,
       column_widths_twips = NULL,
       table_width_twips = NULL,
@@ -232,18 +308,23 @@ rtftable_r6 <- R6::R6Class(
         self$data      <- data
         self$data_list <- NULL
 
-        # Normalize col_header to a list of character vectors.
-        if (!is.null(col_header)) {
-          if (is.character(col_header) && length(col_header) == 1L &&
-              grepl("|", col_header, fixed = TRUE)) {
-            col_header <- trimws(strsplit(col_header, "|", fixed = TRUE)[[1]])
-          }
-          if (is.character(col_header)) col_header <- list(col_header)
-          self$col_header <- col_header
-        }
+        # Normalize col_header to a list whose elements are either:
+        #   - character vector  (regular label row)
+        #   - list of list(from, to, label, underline)  (spanning row)
+        self$col_header <- .normalize_col_header_rows(col_header)
         self$col_header_list <- NULL
 
-        self$col_spec <- .normalize_col_spec(col_spec, ncol(data), names(data))
+        self$col_spec <- .normalize_col_spec(
+          col_spec, ncol(data), names(data),
+          col_header_align = col_header_align)
+
+        # Read recognised attributes off the data.frame as fallback defaults.
+        if (isTRUE(read_attributes)) {
+          attr_data <- .read_data_attributes(data)
+          if (is.null(blank_rows) && !is.null(attr_data$blank_rows)) {
+            blank_rows <- attr_data$blank_rows
+          }
+        }
 
       } else if (is.list(data) && length(data) > 0L) {
         # ── Multi data.frame mode ─────────────────────────────────────────────
@@ -267,7 +348,9 @@ rtftable_r6 <- R6::R6Class(
         # col_spec uses first DF's column structure (ncol and names).
         ref_ncol  <- ncols_all[1L]
         ref_names <- names(data[[1L]])
-        self$col_spec <- .normalize_col_spec(col_spec, ref_ncol, ref_names)
+        self$col_spec <- .normalize_col_spec(
+          col_spec, ref_ncol, ref_names,
+          col_header_align = col_header_align)
 
       } else {
         stop("`data` must be a data.frame or a non-empty list of data.frames.",
@@ -279,13 +362,25 @@ rtftable_r6 <- R6::R6Class(
       # Border: normalize to rtf_table_border (or NULL for no borders).
       self$border <- .normalize_table_border(border)
 
-      # Validate blank_rows.
+      # Resolve blank_rows spec (modes 1/2/3 or list-of-mixed) into a sorted
+      # integer vector of positions.  In multi-DF mode only mode-1 integer
+      # positions are accepted (other modes need a single data frame).
       if (!is.null(blank_rows)) {
-        blank_rows <- as.integer(blank_rows)
-        if (any(is.na(blank_rows)) || any(blank_rows < 0L)) {
-          stop("`blank_rows` must be non-negative integers.", call. = FALSE)
+        if (is.data.frame(data)) {
+          self$blank_rows <- .resolve_blank_rows(blank_rows, data)
+        } else {
+          # Multi-DF: only integer positions supported here (applied per-DF).
+          if (!is.numeric(blank_rows) || is.list(blank_rows)) {
+            stop("In multi-DF mode, `blank_rows` must be an integer vector ",
+                 "of positions; by_change / by_rule specs are not supported.",
+                 call. = FALSE)
+          }
+          v <- as.integer(blank_rows)
+          if (any(is.na(v)) || any(v < -1L)) {
+            stop("`blank_rows` integers must be -1, 0, or positive.", call. = FALSE)
+          }
+          self$blank_rows <- sort(unique(v))
         }
-        self$blank_rows <- sort(unique(blank_rows))
       }
 
       self$col_rel_width <- col_rel_width
