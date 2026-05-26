@@ -39,7 +39,9 @@
 #'   page width (convenience alias for `table_width_pct_of_writable * 100`).
 #' @param table_align Horizontal placement: `"left"` (default), `"center"`,
 #'   or `"right"`.
-#' @param row_height_twips Row height for data rows in twips. `0` = automatic.
+#' @param row_height_twips Row height for data rows in twips. `NULL` (default)
+#'   uses the document-wide default from `rtfreporter_defaults.R`
+#'   (font-size-aware). A positive integer specifies an explicit value.
 #' @param row_height_exact Logical. `TRUE` = exact (clipped); `FALSE` = minimum.
 #' @param header_row_height_twips Row height for column-header rows.
 #' @param blank_row_height_twips Row height for blank separator rows.
@@ -73,7 +75,7 @@ rtftable <- function(data, col_header = NULL, spanning_header = NULL,
                      col_rel_width = NULL, column_widths_twips = NULL,
                      table_width_twips = NULL, table_width_pct_of_writable = NULL,
                      table_width_pct = NULL, table_align = "left",
-                     row_height_twips = 0L, row_height_exact = FALSE,
+                     row_height_twips = NULL, row_height_exact = FALSE,
                      header_row_height_twips = NULL, blank_row_height_twips = NULL,
                      cell_padding_left_twips = 72L, cell_padding_right_twips = 72L,
                      cell_valign = "bottom") {

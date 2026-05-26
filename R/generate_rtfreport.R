@@ -57,7 +57,14 @@
 
     resource_path <- resource_candidates[file.exists(resource_candidates)][1]
     if (is.na(resource_path)) {
-      cache <<- list(header_footer_row_height_twips = 360L)
+      # Built-in fallback: hard-coded approximation of the resource file.
+      cache <<- list(
+        default_row_height_twips_by_font_half_points = list("18" = 230L),
+        default_row_height_twips_per_half_point      = 12.8,
+        default_row_height_twips_min                 = 180L,
+        default_cell_padding_left_twips              = 72L,
+        default_cell_padding_right_twips             = 72L
+      )
       return(cache)
     }
 
@@ -70,6 +77,35 @@
     cache
   }
 })
+
+# Resolve the default row (cell) height for a given font size.
+#
+# Looked up from `rtfreporter_defaults.R`:
+#   1. If the font size (in half-points) appears in the lookup table, that
+#      value is returned.
+#   2. Otherwise a linear fallback `font_half_points * per_half_point` is
+#      used.
+#   3. The result is clamped to `default_row_height_twips_min`.
+#
+# Used by all table-shaped renderers (header / footer / table body /
+# footnote) so a single resource-file entry controls the package-wide
+# default visual density.
+.default_row_height_twips <- function(font_half_points = 18L) {
+  defaults <- .load_rtfreporter_defaults()
+  fhp <- as.integer(font_half_points %||% 18L)
+
+  tbl <- defaults$default_row_height_twips_by_font_half_points
+  key <- as.character(fhp)
+  h <- if (!is.null(tbl) && key %in% names(tbl)) {
+    as.integer(tbl[[key]])
+  } else {
+    rate <- defaults$default_row_height_twips_per_half_point %||% 12.8
+    as.integer(round(fhp * as.numeric(rate)))
+  }
+
+  lo <- as.integer(defaults$default_row_height_twips_min %||% 0L)
+  if (h < lo) lo else h
+}
 
 .cmd_fmt <- function(template, values = list()) {
   out <- template
@@ -461,21 +497,6 @@
 
 # ── rtftable renderer ──────────────────────────────────────────────────────────
 
-# Convert a data.frame + old-style metadata list to an rtftable.
-# Used for backward compatibility when add_table() receives a plain data.frame.
-.df_to_rtftable <- function(df, metadata = NULL) {
-  meta <- if (is.list(metadata)) metadata else list()
-  rtftable_r6$new(
-    data                       = df,
-    border                     = "tfl",
-    col_rel_width              = meta$col_rel_width,
-    column_widths_twips        = meta$column_widths_twips,
-    table_width_twips          = meta$table_width_twips,
-    table_width_pct_of_writable = meta$table_width_pct_of_writable,
-    row_height_twips           = as.integer(meta$row_height_twips %||% 0L)
-  )
-}
-
 # Render one data.frame section of an rtftable (headers + data rows).
 # Used by both single-DF and multi-DF render paths.
 .render_rtftable_section <- function(
@@ -532,7 +553,9 @@
 
 # Render an rtftable object to a character vector of RTF row strings.
 # Handles both single-DF and multi-DF modes transparently.
-.render_rtftable <- function(tbl, writable_width_twips) {
+# font_half_points drives the default row-height lookup when the table does
+# not specify an explicit row_height_twips.
+.render_rtftable <- function(tbl, writable_width_twips, font_half_points = 18L) {
   border   <- tbl$border
   col_spec <- tbl$col_spec
   pad_l    <- tbl$cell_padding_left_twips
@@ -549,6 +572,17 @@
 
   cellx <- .compute_cellx(ncols, writable_width_twips, tbl)
 
+  # Resolve the effective body row height:
+  #   • explicit positive integer  → use as given
+  #   • 0L                          → legacy "automatic" (no \trrh emitted)
+  #   • NULL                        → apply the document-wide default
+  base_rh   <- tbl$row_height_twips
+  effective <- if (is.null(base_rh)) {
+    .default_row_height_twips(font_half_points)
+  } else {
+    as.integer(base_rh)
+  }
+
   # Apply row_height_exact flag: negate twips value to signal \trrh exact height.
   .apply_exact <- function(h) {
     if (isTRUE(tbl$row_height_exact) && !is.null(h) && as.integer(h) > 0L)
@@ -556,9 +590,9 @@
     else
       h
   }
-  hdr_h   <- .apply_exact(tbl$header_row_height_twips %||% tbl$row_height_twips)
-  data_h  <- .apply_exact(tbl$row_height_twips)
-  blank_h <- .apply_exact(tbl$blank_row_height_twips %||% tbl$row_height_twips)
+  hdr_h   <- .apply_exact(tbl$header_row_height_twips %||% effective)
+  data_h  <- .apply_exact(effective)
+  blank_h <- .apply_exact(tbl$blank_row_height_twips %||% effective)
 
   blank_set <- if (!is.null(tbl$blank_rows)) tbl$blank_rows else integer(0)
 
@@ -674,7 +708,8 @@
 
 .render_header_footer <- function(hf, writable_width_twips, is_footer = FALSE,
                                    current_page = NULL, total_pages = NULL,
-                                   color_index_map = NULL) {
+                                   color_index_map = NULL,
+                                   font_half_points = 18L) {
   if (is.null(hf) || length(hf$rows) == 0L) {
     return(character())
   }
@@ -686,8 +721,7 @@
   table_cmd <- cmds$table
   align_cmd <- cmds$alignment
 
-  defaults <- .load_rtfreporter_defaults()
-  rh_value <- hf$row_height_twips %||% defaults$header_footer_row_height_twips
+  rh_value <- hf$row_height_twips %||% .default_row_height_twips(font_half_points)
   rh_str   <- .cmd_fmt(table_cmd$row_height_template,
                         list(row_height_twips = rh_value))
 
@@ -766,22 +800,6 @@
   }
 
   out_rows
-}
-
-# ── Metadata resolver (kept for backward compat) ──────────────────────────────
-
-.resolve_block_metadata <- function(default_format, page_options = NULL, block = NULL) {
-  out <- list()
-  if (!is.null(default_format$table_cell_height_twips)) {
-    out$row_height_twips <- as.integer(default_format$table_cell_height_twips)
-  }
-  if (is.list(page_options) && is.list(page_options$table_metadata_defaults)) {
-    out <- .merge_list(out, page_options$table_metadata_defaults)
-  }
-  if (is.list(block) && is.list(block$metadata)) {
-    out <- .merge_list(out, block$metadata)
-  }
-  out
 }
 
 # ── Color table helpers ────────────────────────────────────────────────────────
@@ -870,15 +888,20 @@
 # Render footnote as a 1×1 RTF table directly below the content block.
 # footnote: character vector (multi-line joined with \line).
 # width_twips: table width matching the content block.
-.render_footnote_table <- function(footnote, width_twips) {
+# font_half_points: drives the default cell-height lookup.
+.render_footnote_table <- function(footnote, width_twips, font_half_points = 18L) {
   if (is.null(footnote) || length(footnote) == 0L || !any(nzchar(footnote))) return(character())
-  text_raw <- paste(footnote, collapse = "\n")
-  text_rtf <- .format_cell_text(text_raw)
+  text_raw   <- paste(footnote, collapse = "\n")
+  text_rtf   <- .format_cell_text(text_raw)
   border_cmd <- .build_border_commands(rtf_border_top())
+  rh         <- .default_row_height_twips(font_half_points)
+  defaults   <- .load_rtfreporter_defaults()
+  pad_l      <- as.integer(defaults$default_cell_padding_left_twips  %||% 72L)
+  pad_r      <- as.integer(defaults$default_cell_padding_right_twips %||% 72L)
   paste0(
-    "\\trowd\\trgaph0",
+    "\\trowd\\trgaph0\\trrh", rh,
     border_cmd, "\\clvertalb\\cellx", width_twips,
-    "\\ql\\li72\\ri72 ", text_rtf, "\\cell",
+    "\\ql\\li", pad_l, "\\ri", pad_r, " ", text_rtf, "\\cell",
     "\\row"
   )
 }
@@ -979,6 +1002,9 @@
       margin_top_twips    = .in_to_twips(ps$margin_top_in   %||% 0.75),
       margin_bottom_twips = .in_to_twips(ps$margin_bottom_in %||% 0.75)
     ))
+  }
+  if (!is.null(pipe_doc$document$default_format)) {
+    r6_report$set_default_format(pipe_doc$document$default_format)
   }
 
   # ── Detect auto-section items ─────────────────────────────────────────────
@@ -1127,7 +1153,8 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
   # document-level \fs, so the viewer falls back to its built-in default
   # (typically \fs24 = 12 pt).  Prepending the same \fs here keeps the
   # font size consistent with the body text.
-  fs_cmd <- paste0("\\fs", doc$default_format$font_size_half_points %||% 18L)
+  font_half_points <- as.integer(doc$default_format$font_size_half_points %||% 18L)
+  fs_cmd           <- paste0("\\fs", font_half_points)
 
   # Resolve sections (sorted, with from_page / to_page assigned).
   resolved_sections <- .resolve_sections(report)
@@ -1180,10 +1207,12 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
     # Emit {\header} and {\footer} once per RTF section.
     header_rtf <- .render_header_footer(cur_header_hf, writable_w, is_footer = FALSE,
                                         current_page = pg_from, total_pages = total_pages,
-                                        color_index_map = color_index_map)
+                                        color_index_map = color_index_map,
+                                        font_half_points = font_half_points)
     footer_rtf <- .render_header_footer(cur_footer_hf, writable_w, is_footer = TRUE,
                                         current_page = pg_from, total_pages = total_pages,
-                                        color_index_map = color_index_map)
+                                        color_index_map = color_index_map,
+                                        font_half_points = font_half_points)
 
     if (length(header_rtf) > 0L) {
       lines <- c(lines, .cmd_fmt(doc_cmd$header_wrapper,
@@ -1213,7 +1242,7 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
       ct <- page$content
       if (!is.null(ct)) {
         if (inherits(ct, "rtftable_r6")) {
-          lines <- c(lines, .render_rtftable(ct, writable_w))
+          lines <- c(lines, .render_rtftable(ct, writable_w, font_half_points))
         } else if (inherits(ct, "rtfplot_r6")) {
           lines <- c(lines, .render_rtfplot(ct, writable_w))
         }
@@ -1223,7 +1252,7 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
       if (!is.null(page$footnote) && length(page$footnote) > 0L &&
           any(nzchar(page$footnote))) {
         fn_width <- .compute_content_width(ct, writable_w)
-        lines <- c(lines, .render_footnote_table(page$footnote, fn_width))
+        lines <- c(lines, .render_footnote_table(page$footnote, fn_width, font_half_points))
       }
 
       # Page break between pages; section break between sections.

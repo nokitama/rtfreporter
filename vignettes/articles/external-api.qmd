@@ -139,7 +139,7 @@ rtf_tables(
   table_width_pct_of_writable = NULL,
   table_width_pct         = NULL,
   table_align             = "left",
-  row_height_twips        = 0L,
+  row_height_twips        = NULL,     # NULL→文書フォント由来のデフォルト
   row_height_exact        = FALSE,
   header_row_height_twips = NULL,
   blank_row_height_twips  = NULL,
@@ -239,7 +239,7 @@ rtftable(
   table_width_pct_of_writable = NULL,
   table_width_pct         = NULL,  # 0-100 (pct_of_writable のエイリアス /100)
   table_align             = "left", # "left" | "center" | "right"
-  row_height_twips        = 0L,    # 0=自動
+  row_height_twips        = NULL,  # NULL=リソースファイルのデフォルトを使う（フォントサイズ依存）
   row_height_exact        = FALSE,
   header_row_height_twips = NULL,
   blank_row_height_twips  = NULL,
@@ -369,6 +369,44 @@ rtf_header(rows = list(
 | `{TOTAL_PAGES}` | レンダリング時に静的解決される総ページ数 |
 
 推奨: `"Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"`
+
+---
+
+# デフォルトのセル高さ（行高さ）
+
+すべての「テーブル形式の要素」── RTF ページのヘッダー/フッター、表の列ヘッダ行、データ行、空白セパレータ行、フットノート ── は共通のデフォルト行高さを使います。値は **文書のフォントサイズに依存**し、`inst/resources/rtfreporter_defaults.R` のルックアップから解決されます。
+
+```r
+rtfreporter_defaults <- list(
+  default_row_height_twips_by_font_half_points = list(
+    "16" = 210L,   #  8pt
+    "18" = 230L,   #  9pt  ← package default
+    "20" = 250L,   # 10pt
+    "22" = 270L,   # 11pt
+    "24" = 290L,   # 12pt
+    ...
+  ),
+  default_row_height_twips_per_half_point = 12.8,   # ルックアップにない場合の線形式
+  default_row_height_twips_min            = 180L    # 下限値
+)
+```
+
+**個別指定の優先順位**:
+
+| パラメータ | 適用先 |
+|---|---|
+| `rtf_header(row_height_twips = ...)` / `rtf_footer(...)` | ページヘッダー/フッターの行高 |
+| `rtftable(row_height_twips = ...)` | 表データ行（および空白行・ヘッダ行のフォールバック） |
+| `rtftable(header_row_height_twips = ...)` | 表の列ヘッダ行のみ |
+| `rtftable(blank_row_height_twips = ...)` | 空白セパレータ行のみ |
+
+これら個別指定が `NULL`（既定）の場合、上記リソースから引いたデフォルトが適用されます。フットノートは現状個別指定 API なし。
+
+**特殊値**:
+
+- `NULL`（既定）: 文書フォントサイズに対応するリソースのデフォルトを使用
+- 正の整数: 明示的な高さ（twips）。`row_height_exact = TRUE` で固定高、`FALSE`（既定）で最小高
+- `0L`: 旧来の「自動」（`\trrh` を出力しない）。後方互換のため残存
 
 ---
 

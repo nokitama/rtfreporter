@@ -653,11 +653,16 @@ generate_rtfreport(report, file_path)
 | `auto_total_pages` | `{\field{\*\fldinst NUMPAGES}{\fldrslt N}}` | ビューワーが総ページ数を描画 |
 | `section_pages` | `{\field{\*\fldinst SECTIONPAGES}{\fldrslt 1}}` | ビューワーがセクション内ページ数を描画 |
 
-**`defaults` — 調整可能なデフォルト値**
+**`defaults` — 調整可能なデフォルト値（`inst/resources/rtfreporter_defaults.R`）**
 
 | キー | デフォルト | 説明 |
 |---|---|---|
-| `header_footer_row_height_twips` | `288L` | ヘッダー/フッター行高さ（≈ 0.2 inch） |
+| `default_row_height_twips_by_font_half_points` | `list("18" = 230L, ...)` | フォントサイズ別の行高（テーブル形式の全要素で共有） |
+| `default_row_height_twips_per_half_point` | `12.8` | ルックアップに無いフォントサイズに対する線形フォールバック |
+| `default_row_height_twips_min` | `180L` | 行高の下限値 |
+| `default_cell_padding_left_twips` / `_right_twips` | `72L` / `72L` | セル左右パディング |
+
+これらは管理者が必要に応じて調整できる。ヘルパー `.default_row_height_twips(font_half_points)` がルックアップ→線形フォールバック→下限クランプを行い、ヘッダ・フッタ・表・フットノートのレンダラから共通で利用される。
 
 ### コマンド利用の仕組み
 

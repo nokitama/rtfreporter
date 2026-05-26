@@ -253,10 +253,9 @@ rtfreport_r6 <- R6::R6Class(
       }
       if (is.null(default_format)) {
         default_format <- list(
-          font_index              = 0L,
-          font_size_half_points   = 18L,
-          line_spacing            = 1L,
-          table_cell_height_twips = 240L
+          font_index            = 0L,
+          font_size_half_points = 18L,
+          line_spacing          = 1L
         )
       }
       self$document <- list(

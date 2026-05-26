@@ -162,9 +162,11 @@
 #'   `col_rel_width` when `column_widths_twips` is not set.
 #' @param table_width_pct_of_writable Table width as a fraction of the
 #'   writable page width (0–1).
-#' @param row_height_twips Row height in twips for data rows.  `0` (default) =
-#'   automatic.  Always specify a positive value; use `row_height_exact = TRUE`
-#'   to make it an exact (fixed) height instead of a minimum height.
+#' @param row_height_twips Row height in twips for data rows.  `NULL` (default)
+#'   uses the package-wide default looked up from the document's font size in
+#'   `inst/resources/rtfreporter_defaults.R`.  A positive integer specifies an
+#'   explicit minimum height (or exact height when `row_height_exact = TRUE`).
+#'   `0L` is accepted as a legacy "automatic" value (emits no `\trrh`).
 #' @param row_height_exact Logical.  `FALSE` (default) = `row_height_twips` is
 #'   a **minimum** height (`\trrh` positive; rows expand if content is taller).
 #'   `TRUE` = **exact** height (`\trrh` negative; content is clipped if taller).
@@ -217,7 +219,7 @@ rtftable_r6 <- R6::R6Class(
       table_width_pct_of_writable = NULL,
       table_width_pct = NULL,
       table_align = "left",
-      row_height_twips = 0L,
+      row_height_twips = NULL,
       row_height_exact = FALSE,
       header_row_height_twips = NULL,
       blank_row_height_twips = NULL,
@@ -305,7 +307,9 @@ rtftable_r6 <- R6::R6Class(
         stop("`table_align` must be 'left', 'center', or 'right'.", call. = FALSE)
       }
       self$table_align <- table_align
-      self$row_height_twips <- as.integer(row_height_twips)
+      # NULL → keep NULL (renderer applies document-wide default).
+      # Otherwise coerce to integer.
+      self$row_height_twips <- if (is.null(row_height_twips)) NULL else as.integer(row_height_twips)
       if (!is.logical(row_height_exact) || length(row_height_exact) != 1L) {
         stop("`row_height_exact` must be TRUE or FALSE.", call. = FALSE)
       }

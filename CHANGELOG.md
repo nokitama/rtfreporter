@@ -6,7 +6,56 @@ All notable changes to rtfreporter are documented in this file. Changes are reco
 
 ## v0.1.0 (TBD - when ready for public release)
 
-> **Status**: Currently in development as v0.0.7. Will be released as v0.1.0 when complete.
+> **Status**: Currently in development as v0.0.8. Will be released as v0.1.0 when complete.
+
+### 🔴 Breaking Changes
+
+#### Default row height is now font-size-aware and unified across elements
+
+Previously the package shipped two unrelated default row heights:
+the RTF page header / footer used `360` twips (from
+`rtfreporter_defaults.R`), while table bodies emitted **no** `\trrh` at all
+when `row_height_twips` was left at its `0L` default. Footnotes had no row
+height either. As a result, raising the document font size left the visual
+layout out of sync.
+
+In v0.0.8 every table-shaped element (RTF header, RTF footer, table column
+header rows, table data rows, blank separator rows, footnote rows) shares a
+single, font-size-aware default looked up from
+`inst/resources/rtfreporter_defaults.R`:
+
+```r
+default_row_height_twips_by_font_half_points = list(
+  "16" = 210L,   #  8pt
+  "18" = 230L,   #  9pt  ← package default
+  "20" = 250L,   # 10pt
+  "22" = 270L,   # 11pt
+  "24" = 290L,   # 12pt
+  ...
+)
+```
+
+Admins can edit the table (or the linear fallback below it) without
+touching package code. Explicit per-element values still take precedence.
+
+**Migration:** Existing code that explicitly sets `row_height_twips = 280L`
+(etc.) is unaffected. Code relying on `row_height_twips = 0L` to mean
+"automatic / no `\trrh`" continues to work — `0L` is still accepted as the
+legacy value. The new default behaviour applies whenever
+`row_height_twips` is `NULL` (the new default in `rtftable()` /
+`rtf_tables()`).
+
+---
+
+#### `default_format` now propagates from `rtf_document()` to the renderer
+
+Previously, `default_format = list(font_size_half_points = 24L, ...)` passed
+to `rtf_document()` was stored on the S3 object but the pipe-to-R6 adapter
+dropped it, so the renderer always used the built-in 9pt default. v0.0.8
+wires `default_format` through to the R6 report so font size, line spacing,
+etc. actually take effect (and feed the new row-height lookup above).
+
+---
 
 ### 🔴 Breaking Changes
 
