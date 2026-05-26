@@ -65,7 +65,19 @@ print.rtf_border_side <- function(x, ...) {
 }
 
 
-# ── rtf_border ─────────────────────────────────────────────────────────────────
+# ── rtf_border (R6) ────────────────────────────────────────────────────────────
+#
+# Why R6 here?
+#
+#   This is the one place where rtfreporter deliberately uses R6 instead of
+#   S3 — to demonstrate the *one* feature S3 cannot offer cleanly: a
+#   chained builder pattern + shared mutable references.  Users who want to
+#   tune a single template and have many tables pick it up automatically
+#   benefit from R6 reference semantics.  S3 lists would force a copy.
+#
+#   Backward compatibility: the R6 object also carries the S3 class name
+#   "rtf_border", so existing code using `inherits(x, "rtf_border")` and
+#   field access via `x$top` / `x[["top"]]` continues to work unchanged.
 
 #' Four-edge border specification for a cell or row
 #'
@@ -74,34 +86,80 @@ print.rtf_border_side <- function(x, ...) {
 #'
 #' @param top,bottom,left,right `NULL` or an [rtf_border_side()] object.
 #'
-#' @return A list of class `"rtf_border"`.
+#' @return An R6 object of class `rtf_border`.
 #' @export
 rtf_border <- function(top = NULL, bottom = NULL, left = NULL, right = NULL) {
-  .check_border_side(top,    "top")
-  .check_border_side(bottom, "bottom")
-  .check_border_side(left,   "left")
-  .check_border_side(right,  "right")
-  structure(
-    list(top = top, bottom = bottom, left = left, right = right),
-    class = "rtf_border"
-  )
+  rtf_border_class$new(top = top, bottom = bottom, left = left, right = right)
 }
 
-#' @export
-print.rtf_border <- function(x, ...) {
-  sides <- c("top", "bottom", "left", "right")
-  cat("<rtf_border>\n")
-  for (s in sides) {
-    if (!is.null(x[[s]])) {
-      b <- x[[s]]
-      col_str <- if (!is.null(b$color)) paste0(", color=", b$color) else ""
-      cat(sprintf("  %s: %s, %d twips%s\n", s, b$style, b$width, col_str))
-    } else {
-      cat(sprintf("  %s: none\n", s))
+# Internal: the R6 class behind rtf_border().
+rtf_border_class <- R6::R6Class(
+  classname = "rtf_border",
+  public = list(
+    top    = NULL,
+    bottom = NULL,
+    left   = NULL,
+    right  = NULL,
+
+    initialize = function(top = NULL, bottom = NULL, left = NULL, right = NULL) {
+      .check_border_side(top,    "top")
+      .check_border_side(bottom, "bottom")
+      .check_border_side(left,   "left")
+      .check_border_side(right,  "right")
+      self$top    <- top
+      self$bottom <- bottom
+      self$left   <- left
+      self$right  <- right
+      invisible(self)
+    },
+
+    # ── In-place setters (chainable; returns self) ────────────────────────
+    # Use these when you are intentionally mutating a shared style template
+    # and want every referencing table to see the update.
+    set_top    = function(side) { .check_border_side(side, "side"); self$top    <- side; invisible(self) },
+    set_bottom = function(side) { .check_border_side(side, "side"); self$bottom <- side; invisible(self) },
+    set_left   = function(side) { .check_border_side(side, "side"); self$left   <- side; invisible(self) },
+    set_right  = function(side) { .check_border_side(side, "side"); self$right  <- side; invisible(self) },
+
+    # ── Non-mutating builders (returns a fresh clone with one side set) ──
+    # Use these in pipe chains where you want to derive a new border from
+    # an existing one without altering the original.
+    with_top    = function(side) self$clone()$set_top(side),
+    with_bottom = function(side) self$clone()$set_bottom(side),
+    with_left   = function(side) self$clone()$set_left(side),
+    with_right  = function(side) self$clone()$set_right(side),
+
+    # ── Apply an override (mutating) — non-NULL sides of `other` win ────
+    apply_override = function(other) {
+      if (is.null(other)) return(invisible(self))
+      for (side in c("top", "bottom", "left", "right")) {
+        if (!is.null(other[[side]])) self[[side]] <- other[[side]]
+      }
+      invisible(self)
+    },
+
+    # ── Non-mutating override — returns a clone with overrides applied ──
+    override = function(other) {
+      out <- self$clone()
+      out$apply_override(other)
+      out
+    },
+
+    print = function(...) {
+      cat("<rtf_border (R6)>\n")
+      for (s in c("top", "bottom", "left", "right")) {
+        v <- self[[s]]
+        if (is.null(v)) {
+          cat(sprintf("  %-6s: none\n", s))
+        } else {
+          col_str <- if (!is.null(v$color)) paste0(", color=", v$color) else ""
+          cat(sprintf("  %-6s: %s, %d twips%s\n", s, v$style, v$width, col_str))
+        }
+      }
+      invisible(self)
     }
-  }
-  invisible(x)
-}
+  )
+)
 
 # ── Convenience rtf_border constructors ────────────────────────────────────────
 
@@ -233,10 +291,21 @@ rtf_border_tfl <- function(style = "single", width = 15L, color = NULL) {
   do.call(rtf_table_border, result)
 }
 
-# Merge two rtf_border objects: override sides of base with non-NULL sides of over.
+# Merge two rtf_border objects: override sides of `base` with non-NULL sides
+# of `over`.  Crucial detail: rtf_border is now R6, which means values are
+# passed by reference.  We MUST clone() first, otherwise mutating `base`
+# would silently alter every caller that shares the same template.
 .merge_rtf_border <- function(base, over) {
   if (is.null(base)) return(over)
   if (is.null(over) || length(over) == 0L) return(base)
+  if (inherits(base, "rtf_border") && inherits(base, "R6")) {
+    out <- base$clone()
+    for (side in c("top", "bottom", "left", "right")) {
+      if (!is.null(over[[side]])) out[[side]] <- over[[side]]
+    }
+    return(out)
+  }
+  # Legacy plain-list path (shouldn't appear anymore, kept defensively).
   for (side in c("top", "bottom", "left", "right")) {
     if (!is.null(over[[side]])) base[[side]] <- over[[side]]
   }

@@ -6,7 +6,82 @@ All notable changes to rtfreporter are documented in this file. Changes are reco
 
 ## v0.1.0 (TBD - when ready for public release)
 
-> **Status**: Currently in development as v0.0.12. Will be released as v0.1.0 when complete.
+> **Status**: Currently in development as v0.0.13. Will be released as v0.1.0 when complete.
+
+### ✨ Features (v0.0.13 — Step C of the style/spec refactor)
+
+#### `rtf_border` is now R6 (backward compatible)
+
+The four-edge cell-border class is upgraded from an S3 list to an R6
+object. The R6 instance still carries `class = "rtf_border"`, so
+existing user code that does `inherits(x, "rtf_border")` and field
+access via `x$top` / `x[["top"]]` continues to work.
+
+The new R6 form adds chainable builder methods and explicit clone /
+override semantics:
+
+```r
+b <- rtf_border()$set_top(rtf_border_side())$set_bottom(rtf_border_side("double"))
+
+b2 <- b$with_right(rtf_border_side("dot"))   # non-mutating clone
+
+b$apply_override(other_border)               # mutating in place
+b3 <- b$override(other_border)               # non-mutating clone
+```
+
+This is the one place in rtfreporter where reference semantics are
+intentionally exposed to users — see [LEARNING.md](LEARNING.md) for the
+design rationale.
+
+#### `rtf_table_style` — shared mutable theme (R6)
+
+A new R6 class for **table-wide style templates that multiple tables
+share by reference**. Define a "company TFL theme" once, hand the same
+instance to many `rtftable()` calls, and tweak it later:
+
+```r
+tfl <- rtf_table_style_tfl()                 # built-in TFL preset
+
+tables <- lapply(dfs, function(df) rtftable(df, style = tfl))
+
+# Build new tables after a tweak picks up the change
+tfl$header_bold <- TRUE
+```
+
+`style$clone_with(field = value, ...)` returns a non-mutating
+derivation. `style$as_table_border()` converts the zone borders into
+the existing `rtf_table_border` form consumed by the renderer.
+
+The `style` argument was added to `rtftable()` and the corresponding
+flow on `rtf_tables()`. Explicit arguments always take precedence over
+the style's defaults.
+
+#### Per-column border in `col_spec`
+
+`col_spec` entries gain a `border` slot (`rtf_border()` instance) that
+overrides the zone border for that column on the column-header row.
+Useful for the clinical-TFL idiom of drawing a bottom line under one
+group of columns only.
+
+```r
+rtftable(df,
+  border   = rtf_table_border(header = rtf_border(top = rtf_border_side(),
+                                                    bottom = rtf_border_side())),
+  col_spec = list(
+    list(col = "Total",
+         border = rtf_border(bottom = rtf_border_side("double", 20L)))
+  ))
+```
+
+The renderer merges (zone border × column border) per cell so each
+column header cell can have its own border profile.
+
+#### LEARNING.md
+
+A new top-level document, [LEARNING.md](LEARNING.md), explains the R6
+vs S3 design decisions across the package. Useful for the package's
+secondary goal of being a small but realistic case study in R object
+systems.
 
 ### ✨ Features (v0.0.12 — Step B of the style/spec refactor)
 

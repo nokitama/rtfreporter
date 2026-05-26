@@ -516,6 +516,50 @@ default_cell_padding_right_twips = 72L
 
 ---
 
+# 共有スタイル `rtf_table_style` (R6)
+
+複数の表で共通の書式テンプレートを使いたい場合に **R6** で実装されているスタイルクラス。1 度作って多くの `rtftable()` から参照するパターン:
+
+```r
+tfl <- rtf_table_style_tfl()               # 既製の TFL プリセット
+
+tbls <- lapply(dfs, function(df) rtftable(df, style = tfl))
+
+# テーマを後から変えると、それ以降に作る表に反映される
+tfl$header_bold <- TRUE
+```
+
+非破壊的に派生させたい場合は `style$clone_with(field = value, ...)`:
+
+```r
+heavy <- tfl$clone_with(header_bold = TRUE,
+                         border_last_row = rtf_border(bottom = rtf_border_side("thick", 30L)))
+```
+
+`style$as_table_border()` で R6 → S3 `rtf_table_border` 変換。
+
+## 列単位の罫線（col_spec[[j]]$border）
+
+カラムヘッダ行に対し、列ごとに罫線を上書きできます:
+
+```r
+rtftable(df,
+  border   = rtf_table_border(header = rtf_border(top = rtf_border_side(),
+                                                    bottom = rtf_border_side())),
+  col_spec = list(
+    list(col = "Total",
+         border = rtf_border(bottom = rtf_border_side("double", 20L)))
+  )
+)
+```
+
+zone 罫線と列罫線の per-cell マージ:
+`effective[j] = zone_header_border × col_spec[[j]]$border`（後者が優先）。
+
+設計判断（R6 vs S3）は [LEARNING.md](../LEARNING.md) を参照。
+
+---
+
 # 罫線 API
 
 ## クラス階層

@@ -459,11 +459,29 @@
 }
 
 # Render one column-header row.
+#
+# Per-cell border resolution:
+#   effective_border[j] = merge(zone_header_border, col_spec[[j]]$border)
+# where the col_spec entry's non-NULL sides override the zone border.
+# This lets users put e.g. a thicker bottom line under a single column
+# without affecting the rest of the header.
 .render_header_row <- function(hdr_labels, cellx, border_spec, row_height_twips,
                                 pad_l, pad_r, valign_cmd, col_spec,
                                 table_align = "left") {
   ncols <- length(cellx)
-  cell_defs     <- .build_cell_defs(cellx, border_spec, valign_cmd)
+
+  # Build per-cell definitions: each cell may have its own border.
+  cell_defs <- vapply(seq_len(ncols), function(j) {
+    col_border <- col_spec[[j]]$border
+    eff_border <- if (!is.null(col_border)) {
+      .effective_row_border(border_spec, col_border)
+    } else {
+      border_spec
+    }
+    bc <- .build_border_commands(eff_border)
+    paste0(bc, valign_cmd, "\\cellx", cellx[j])
+  }, character(1L))
+
   cell_contents <- vapply(seq_len(ncols), function(j) {
     spec  <- col_spec[[j]]
     text  <- .format_cell_text(if (j <= length(hdr_labels)) hdr_labels[[j]] else "")

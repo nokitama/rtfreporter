@@ -14,6 +14,7 @@ rtf_tables(
   border = "tfl",
   blank_rows = NULL,
   read_attributes = TRUE,
+  style = NULL,
   col_rel_width = NULL,
   column_widths_twips = NULL,
   table_width_twips = NULL,

@@ -36,6 +36,10 @@ export(rtf_border_box)
 export(rtf_table_border)
 export(rtf_border_tfl)
 
+# Shared style (R6)
+export(rtf_table_style)
+export(rtf_table_style_tfl)
+
 # Report generation
 export(generate_rtfreport)
 export(assemble_rtf)

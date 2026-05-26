@@ -34,6 +34,11 @@
 #'   - `"tfl"`: clinical TFL preset (header top+bottom, last-row bottom).
 #'   - `"none"`: no borders.
 #'   - An `rtf_table_border` object from `rtf_table_border()`.
+#'   - An `rtf_table_style` R6 object (its border zones are used).
+#' @param style Optional shared `rtf_table_style` (R6). Provides default
+#'   values for borders, alignment, cell padding, etc.; explicit arguments
+#'   to `rtftable()` always override.  Multiple tables that share the same
+#'   `style` instance pick up later mutations to that instance.
 #' @param blank_rows Specification of blank separator rows. Accepts:
 #'   - Integer vector of positions (`0` = before first row, `k` = after
 #'     data row `k`, `-1` = after the last data row).
@@ -93,6 +98,7 @@ rtftable <- function(data, col_header = NULL, col_header_align = NULL,
                      spanning_header = NULL,
                      col_spec = NULL, border = "tfl", blank_rows = NULL,
                      read_attributes = TRUE,
+                     style = NULL,
                      col_rel_width = NULL, column_widths_twips = NULL,
                      table_width_twips = NULL, table_width_pct_of_writable = NULL,
                      table_width_pct = NULL, table_align = "left",
@@ -109,6 +115,7 @@ rtftable <- function(data, col_header = NULL, col_header_align = NULL,
     border                      = border,
     blank_rows                  = blank_rows,
     read_attributes             = read_attributes,
+    style                       = style,
     col_rel_width               = col_rel_width,
     column_widths_twips         = column_widths_twips,
     table_width_twips           = table_width_twips,

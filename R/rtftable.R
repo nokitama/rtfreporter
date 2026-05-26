@@ -4,15 +4,20 @@
 # Pass an rtftable to report$add_table() instead of a bare data.frame.
 
 # Normalize a border specification to rtf_table_border.
-# Accepts: rtf_table_border (returned as-is), "tfl" string (→ rtf_border_tfl()),
-# NULL (→ NULL), or old plain nested list (→ .plain_list_to_table_border()).
+# Accepts:
+#   rtf_table_border          → returned as-is
+#   rtf_table_style (R6)      → s$as_table_border()
+#   "tfl"                     → rtf_border_tfl()
+#   NULL                      → NULL
+#   old plain nested list     → .plain_list_to_table_border()
 .normalize_table_border <- function(border) {
   if (is.null(border)) return(NULL)
   if (inherits(border, "rtf_table_border")) return(border)
+  if (inherits(border, "rtf_table_style"))  return(border$as_table_border())
   if (identical(border, "tfl")) return(rtf_border_tfl())
   if (is.list(border)) return(.plain_list_to_table_border(border))
-  stop("`border` must be \"tfl\", NULL, an rtf_table_border object, or a named list.",
-       call. = FALSE)
+  stop("`border` must be \"tfl\", NULL, an rtf_table_border object, ",
+       "an rtf_table_style object, or a named list.", call. = FALSE)
 }
 
 # Normalize col_spec: list of per-column lists → internal indexed form.
@@ -29,19 +34,28 @@
 # col_header_align: NULL | character(1) | character(ncol).
 #
 .normalize_col_spec <- function(col_spec, ncol_df, col_names,
-                                 col_header_align = NULL) {
-  # Per-column defaults.  `header_align = NULL` means "unresolved" so the
-  # cascade above can fill it in afterwards.
+                                 col_header_align = NULL,
+                                 style = NULL) {
+  # Per-column defaults (potentially seeded from `style`).  `header_align`
+  # is left NULL so the cascade can fill it in further down.
+  base_align         <- if (!is.null(style)) style$align         else "left"
+  base_bold          <- if (!is.null(style)) style$bold          else FALSE
+  base_italic        <- if (!is.null(style)) style$italic        else FALSE
+  base_underline     <- if (!is.null(style)) style$underline     else FALSE
+  base_header_bold   <- if (!is.null(style)) style$header_bold   else FALSE
+  base_header_italic <- if (!is.null(style)) style$header_italic else FALSE
+
   result <- lapply(seq_len(ncol_df), function(j) {
     list(
-      align         = "left",
-      bold          = FALSE,
-      italic        = FALSE,
-      underline     = FALSE,
+      align         = base_align,
+      bold          = base_bold,
+      italic        = base_italic,
+      underline     = base_underline,
       indent_twips  = 0L,
-      header_bold   = FALSE,   # column headers default to normal weight
-      header_align  = NULL,    # resolved later (cascade)
-      header_italic = FALSE
+      header_bold   = base_header_bold,
+      header_align  = NULL,            # resolved later (cascade)
+      header_italic = base_header_italic,
+      border        = NULL             # per-column border override (rtf_border)
     )
   })
 
@@ -66,6 +80,12 @@
       }
       for (key in setdiff(names(spec), "col")) {
         result[[idx]][[key]] <- spec[[key]]
+      }
+      # Validate per-column border (must be rtf_border R6 or NULL).
+      if (!is.null(result[[idx]]$border) &&
+          !inherits(result[[idx]]$border, "rtf_border")) {
+        stop(sprintf("col_spec col %d border must be NULL or an rtf_border() object.",
+                     idx), call. = FALSE)
       }
     }
   }
@@ -289,6 +309,7 @@ rtftable_r6 <- R6::R6Class(
       border = "tfl",
       blank_rows = NULL,
       read_attributes = TRUE,
+      style = NULL,
       col_rel_width = NULL,
       column_widths_twips = NULL,
       table_width_twips = NULL,
@@ -303,6 +324,27 @@ rtftable_r6 <- R6::R6Class(
       cell_padding_right_twips = 72L,
       cell_valign = "bottom"
     ) {
+      # ── Resolve defaults from a shared style template, when supplied ───
+      # The style provides defaults; explicit arguments always override.
+      if (!is.null(style)) {
+        if (!inherits(style, "rtf_table_style")) {
+          stop("`style` must be an rtf_table_style R6 object.", call. = FALSE)
+        }
+        # `border` is "tfl" by default — only adopt the style's borders
+        # when the caller has not passed an rtf_table_border or another
+        # explicit object.
+        if (identical(border, "tfl")) border <- style
+        if (is.null(col_header_align)) col_header_align <- style$header_align
+        if (is.null(row_height_twips)) row_height_twips <- style$row_height_twips
+        if (!is.null(style$cell_padding_left_twips) &&
+            identical(cell_padding_left_twips, 72L)) {
+          cell_padding_left_twips <- style$cell_padding_left_twips
+        }
+        if (!is.null(style$cell_padding_right_twips) &&
+            identical(cell_padding_right_twips, 72L)) {
+          cell_padding_right_twips <- style$cell_padding_right_twips
+        }
+      }
       if (is.data.frame(data)) {
         # ── Single data.frame mode ────────────────────────────────────────────
         self$data      <- data
@@ -316,7 +358,8 @@ rtftable_r6 <- R6::R6Class(
 
         self$col_spec <- .normalize_col_spec(
           col_spec, ncol(data), names(data),
-          col_header_align = col_header_align)
+          col_header_align = col_header_align,
+          style            = style)
 
         # Read recognised attributes off the data.frame as fallback defaults.
         if (isTRUE(read_attributes)) {
@@ -350,7 +393,8 @@ rtftable_r6 <- R6::R6Class(
         ref_names <- names(data[[1L]])
         self$col_spec <- .normalize_col_spec(
           col_spec, ref_ncol, ref_names,
-          col_header_align = col_header_align)
+          col_header_align = col_header_align,
+          style            = style)
 
       } else {
         stop("`data` must be a data.frame or a non-empty list of data.frames.",
