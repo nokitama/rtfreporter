@@ -56,18 +56,16 @@ df <- data.frame(
 )
 
 # ──────────────────────────────────────────────────────────────────────────
-#  ① + ②  Single-row header: top + bottom on the same (only) header row
+#  ① + ②  Single-row header: top + bottom on the only header row.
+#         Data section carries NO default borders in the TFL preset.
 # ──────────────────────────────────────────────────────────────────────────
 tbl <- rtftable(df, col_header = c("Item", "N", "Mean", "N", "Mean"))
 txt <- gen(tbl)
-# Expect: at least 5 \clbrdrt (one per cell of the only header row) +
-#         at least 5 \clbrdrb (same row, also the last header row) +
-#         at least 5 more \clbrdrb on the last data row (TFL preset)
 n_top <- length(gregexpr("\\\\clbrdrt\\\\brdrs", txt)[[1L]])
 n_bot <- length(gregexpr("\\\\clbrdrb\\\\brdrs", txt)[[1L]])
-stopifnot(n_top >= 5L && n_top <= 6L)   # 5 header cells (header is first row)
-stopifnot(n_bot >= 10L)                 # 5 header + 5 last-row body cells
-cat("OK  ① + ② single header row carries both top and bottom borders\n")
+stopifnot(n_top == 5L)            # 5 header cells (also the first header row)
+stopifnot(n_bot == 5L)            # 5 header cells (also the last header row)
+cat("OK  ① + ② single header row carries top + bottom; data has no borders\n")
 
 # ──────────────────────────────────────────────────────────────────────────
 #  ① + ②  Two header rows: top on row 1 only, bottom on row 2 only
@@ -87,16 +85,14 @@ txt <- gen(tbl)
 # Row 2 cell layout:  Item | N | Mean | N | Mean                  → 5 cells
 # Expected \clbrdrt: 3 cells of row 1 only → 3 occurrences
 # Expected \clbrdrb: 2 multi-col span bottoms (ArmA, ArmB) on row 1
-#                 + 5 cells of row 2 (last header)
-#                 + 5 cells of last data row
+#                 + 5 cells of row 2 (last header).
+#                 Data section: no default borders in TFL preset.
 n_top <- length(gregexpr("\\\\clbrdrt\\\\brdrs", txt)[[1L]])
 n_bot <- length(gregexpr("\\\\clbrdrb\\\\brdrs", txt)[[1L]])
-stopifnot(n_top == 3L)                  # Row 1 only — no top on row 2
-stopifnot(n_bot >= 5L)                  # at least row 2 + last data row
-# Item column on row 1 should NOT have a bottom border (single col,
-# not last header row).  ArmA / ArmB cells should.
+stopifnot(n_top == 3L)
+stopifnot(n_bot == 7L)                  # 2 span underlines + 5 row 2 cells
 cat(sprintf("    n_top = %d, n_bot = %d\n", n_top, n_bot))
-cat("OK  ① top on first row only, ② bottom on last row only\n")
+cat("OK  ① top on first row only, ② bottom on last header row only\n")
 
 # ──────────────────────────────────────────────────────────────────────────
 #  ③  Multi-col spanning gets a bottom border (group separator)
@@ -113,9 +109,9 @@ txt <- gen(tbl)
 # ArmB covers 4-5 (multi) → bottom border.  Item is col 1 single (no
 # bottom border on row 1).
 # Row 2 (labels) is the last header row → all 5 cells get bottom.
-# Last data row → 5 more bottoms.
+# Data section has no default borders.
 n_bot <- length(gregexpr("\\\\clbrdrb\\\\brdrs", txt)[[1L]])
-stopifnot(n_bot >= 12L)   # 2 span bottoms + 5 labels + 5 data last-row
+stopifnot(n_bot == 7L)   # 2 span underlines + 5 row-2 labels
 cat("OK  ③ multi-col spanning cells carry a bottom group-separator border\n")
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -134,9 +130,10 @@ tbl <- rtftable(df3,
   ))
 txt <- gen(tbl)
 # Row 1 cells (3): all single-col → NO group bottom.  No top on row 2.
-# So bottoms come only from: row 2 (3 cells) + last data row (3 cells) = 6.
+# So bottoms come only from: row 2 (3 cells = last header row) = 3.
+# Data section: no default borders.
 n_bot <- length(gregexpr("\\\\clbrdrb\\\\brdrs", txt)[[1L]])
-stopifnot(n_bot == 6L)
+stopifnot(n_bot == 3L)
 cat("OK  ③ negative: single-col spanning does NOT add bottom border\n")
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -171,5 +168,49 @@ tbl <- rtftable(df3,
 txt <- gen(tbl)
 stopifnot(grepl("\\\\brdrdb", txt))         # at least one double-line command
 cat("OK  ⑤ per-column col_spec$border still applied\n")
+
+# ──────────────────────────────────────────────────────────────────────────
+#  Data section has NO default borders even with blank_rows -1
+#  (regression guard for the v0.0.18 fix)
+# ──────────────────────────────────────────────────────────────────────────
+tbl <- rtftable(
+  data.frame(A = 1:3, B = letters[1:3], stringsAsFactors = FALSE),
+  col_header = c("A", "B"),
+  blank_rows = c(-1)     # one trailing blank row
+)
+txt <- gen(tbl)
+# Header is one row (first = last) → 2 \clbrdrt + 2 \clbrdrb on header.
+# Data rows + trailing blank row should contribute ZERO additional borders.
+n_top <- length(gregexpr("\\\\clbrdrt\\\\brdrs", txt)[[1L]])
+n_bot <- length(gregexpr("\\\\clbrdrb\\\\brdrs", txt)[[1L]])
+stopifnot(n_top == 2L)
+stopifnot(n_bot == 2L)
+cat("OK  data section emits NO default borders (incl. before trailing blank)\n")
+
+# ──────────────────────────────────────────────────────────────────────────
+#  Explicit last_row border still works when the user opts in
+# ──────────────────────────────────────────────────────────────────────────
+tbl <- rtftable(
+  data.frame(A = 1:3, B = letters[1:3], stringsAsFactors = FALSE),
+  col_header = c("A", "B"),
+  border = rtf_table_border(
+    header   = rtf_border(top = rtf_border_side(), bottom = rtf_border_side()),
+    last_row = rtf_border(bottom = rtf_border_side())
+  )
+)
+txt <- gen(tbl)
+n_bot <- length(gregexpr("\\\\clbrdrb\\\\brdrs", txt)[[1L]])
+# 2 cells header bottom + 2 cells last-row bottom = 4
+stopifnot(n_bot == 4L)
+cat("OK  explicit border$last_row still renders on the last data row\n")
+
+# ──────────────────────────────────────────────────────────────────────────
+#  rtf_table_style_tfl() also defaults to no data-section borders
+# ──────────────────────────────────────────────────────────────────────────
+sty <- rtf_table_style_tfl()
+stopifnot(is.null(sty$border_body))
+stopifnot(is.null(sty$border_first_row))
+stopifnot(is.null(sty$border_last_row))
+cat("OK  rtf_table_style_tfl() leaves body / first_row / last_row at NULL\n")
 
 cat("\n=== ALL HEADER-BORDER TESTS PASSED ===\n\n")

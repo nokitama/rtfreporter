@@ -197,17 +197,23 @@ rtf_table_style <- R6::R6Class(
 #' Clinical TFL preset (R6 style)
 #'
 #' Returns a freshly constructed `rtf_table_style` matching the standard
-#' clinical TFL preset: top + bottom border on the column-header row,
-#' bottom border on the last data row, no vertical lines, no bold headers.
+#' clinical TFL preset: borders are applied to the **column-header
+#' block only** (top on the topmost header row, bottom on the
+#' bottommost; multi-col spanning auto-underlines).  **The data section
+#' carries no borders by default.**  No vertical lines.  No bold
+#' headers.
+#'
+#' Callers who want a bottom rule under the last data row can set it
+#' explicitly after construction:
+#' `style$border_last_row <- rtf_border(bottom = rtf_border_side())`.
 #'
 #' @return An `rtf_table_style` R6 object.
 #' @export
 rtf_table_style_tfl <- function() {
   s <- rtf_border_side()
   rtf_table_style$new(
-    border_header   = rtf_border(top = s, bottom = s),
-    border_last_row = rtf_border(bottom = s),
-    header_bold     = FALSE,
-    header_align    = NULL    # inherit data alignment
+    border_header = rtf_border(top = s, bottom = s),
+    header_bold   = FALSE,
+    header_align  = NULL    # inherit data alignment
   )
 }

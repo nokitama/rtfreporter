@@ -6,7 +6,44 @@ All notable changes to rtfreporter are documented in this file. Changes are reco
 
 ## v0.1.0 (TBD - when ready for public release)
 
-> **Status**: Currently in development as v0.0.17. Will be released as v0.1.0 when complete.
+> **Status**: Currently in development as v0.0.18. Will be released as v0.1.0 when complete.
+
+### 🔴 Breaking Changes (v0.0.18) — data section has no default borders
+
+The `rtf_border_tfl()` preset previously set
+`last_row = rtf_border(bottom = ...)`, which drew a horizontal line
+under the last data row (and, with `blank_rows = c(-1)`, the line
+appeared *above* the trailing blank row).  Per the locked design
+contract that **default borders belong to the column-header block
+only**, the preset is now:
+
+```r
+rtf_table_border(
+  header   = rtf_border(top = s, bottom = s),   # outer frame of header block
+  spanning = NULL,                               # falls back to header
+  body     = NULL,
+  first_row = NULL,
+  last_row  = NULL                               # was: rtf_border(bottom = s)
+)
+```
+
+* The column-header block keeps its outer frame: top border on the
+  topmost header row, bottom border on the bottommost.
+* Multi-column spanning cells still auto-receive a bottom border
+  (group underline) when they are not the last header row.
+* **No horizontal or vertical lines anywhere in the data section by
+  default.**  Trailing blank rows from `blank_rows = c(-1)` no longer
+  acquire a phantom line above them.
+* Callers who relied on the old TFL look can opt back in explicitly:
+  ```r
+  border = rtf_table_border(
+    header   = rtf_border(top = rtf_border_side(), bottom = rtf_border_side()),
+    last_row = rtf_border(bottom = rtf_border_side())
+  )
+  ```
+
+`rtf_table_style_tfl()` is updated in lockstep: its
+`border_last_row` field is now left at `NULL`.
 
 ### 📚 Documentation (v0.0.17)
 
