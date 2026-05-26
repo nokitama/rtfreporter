@@ -345,13 +345,26 @@ rtftable(df,
 )
 ```
 
-**アラインメント**: spanning セルの既定配置は、その **直下の階層**（カバーしている列の `col_spec[[from]]$header_align`、最終的にデータ列の `align`）を継承します。明示的に上書きしたい場合は `align` を指定:
+spanning 仕様の各フィールド:
+
+| フィールド | 必須 | 既定 | 内容 |
+|---|---|---|---|
+| `from`, `to` | ✓ | — | 1始まりの列範囲 |
+| `label` | ✓ | — | セル本文 |
+| `align` |  | 下の階層から継承 | `"left"` / `"center"` / `"right"` |
+| `bold` |  | `FALSE` | 太字化 |
+| `italic` |  | `FALSE` | 斜体 |
+| `underline` |  | `FALSE` | 下線 |
+
+**アラインメント**: spanning セルの既定配置は、その **直下の階層**（カバーしている最左列の `col_spec[[from]]$header_align`、最終的にデータ列の `align`）を継承します。
 
 ```r
-list(from = 2, to = 3, label = "Always Center", underline = TRUE, align = "center")
+list(from = 2, to = 3, label = "Default Inherit", underline = TRUE)               # 下の階層から継承
+list(from = 2, to = 3, label = "Always Center",   underline = TRUE, align = "center")  # 明示上書き
+list(from = 2, to = 3, label = "Bold Spanning",   bold = TRUE, italic = TRUE)
 ```
 
-優先順位: `sp$align` > `col_spec[[sp$from]]$header_align` > `"center"`。`col_header` 内に書いた spanning 行も同じ規則が適用されます。
+優先順位: `sp$align` > `col_spec[[sp$from]]$header_align` > `"center"`。`col_header` 内に書いた spanning 行も同じ規則が適用されます。**書式（bold/italic/underline）はいずれも既定 FALSE**、必要な装飾は明示的に opt-in してください。
 
 ## `blank_rows` — 空行の挿入（3 モード組み合わせ）
 

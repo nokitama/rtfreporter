@@ -48,8 +48,8 @@ tbl1 <- rtftable(df,
   ))
 txt1 <- gen(tbl1)
 # Spanning labels should be \qr (right) by inheritance
-stopifnot(grepl("\\\\qr\\\\li72\\\\ri72 \\\\b \\\\ul Drug A \\(N=30\\)", txt1))
-stopifnot(grepl("\\\\qr\\\\li72\\\\ri72 \\\\b \\\\ul Drug B \\(N=30\\)", txt1))
+stopifnot(grepl("\\\\qr\\\\li72\\\\ri72 \\\\ul Drug A \\(N=30\\)", txt1))
+stopifnot(grepl("\\\\qr\\\\li72\\\\ri72 \\\\ul Drug B \\(N=30\\)", txt1))
 cat("OK  standalone spanning_header inherits right alignment from col_spec\n")
 
 # ── 2. Spanning row inline inside col_header — same inheritance rule ──────
@@ -69,8 +69,8 @@ tbl2 <- rtftable(df,
     list(col = 5, align = "right")
   ))
 txt2 <- gen(tbl2)
-stopifnot(grepl("\\\\qr\\\\li72\\\\ri72 \\\\b \\\\ul Drug A", txt2))
-stopifnot(grepl("\\\\qr\\\\li72\\\\ri72 \\\\b \\\\ul Drug B", txt2))
+stopifnot(grepl("\\\\qr\\\\li72\\\\ri72 \\\\ul Drug A", txt2))
+stopifnot(grepl("\\\\qr\\\\li72\\\\ri72 \\\\ul Drug B", txt2))
 cat("OK  inline spanning row inside col_header inherits alignment\n")
 
 # ── 3. Mixed alignments under one span → leftmost column wins ─────────────
@@ -87,7 +87,7 @@ tbl3 <- rtftable(df3,
   ))
 txt3 <- gen(tbl3)
 # from = 2 → col_spec[[2]]$header_align = "left" (inherited from align)
-stopifnot(grepl("\\\\ql\\\\li72\\\\ri72 \\\\b \\\\ul Mixed", txt3))
+stopifnot(grepl("\\\\ql\\\\li72\\\\ri72 \\\\ul Mixed", txt3))
 cat("OK  spanning cell takes leftmost covered column's alignment\n")
 
 # ── 4. Explicit sp$align overrides inheritance ────────────────────────────
@@ -105,7 +105,7 @@ tbl4 <- rtftable(df,
          align = "center")
   ))
 txt4 <- gen(tbl4)
-stopifnot(grepl("\\\\qc\\\\li72\\\\ri72 \\\\b \\\\ul Forced Center", txt4))
+stopifnot(grepl("\\\\qc\\\\li72\\\\ri72 \\\\ul Forced Center", txt4))
 cat("OK  explicit sp$align overrides inheritance\n")
 
 # ── 5. Fallback to center when col_spec is empty / NULL ───────────────────
@@ -116,7 +116,7 @@ tbl5 <- rtftable(df5,
   ))
 # col_spec defaults to left align for all, header_align inherits → "left"
 txt5 <- gen(tbl5)
-stopifnot(grepl("\\\\ql\\\\li72\\\\ri72 \\\\b \\\\ul All", txt5))
+stopifnot(grepl("\\\\ql\\\\li72\\\\ri72 \\\\ul All", txt5))
 cat("OK  spanning inherits even when col_spec is not user-supplied\n")
 
 cat("\n=== ALL SPANNING-ALIGN TESTS PASSED ===\n\n")

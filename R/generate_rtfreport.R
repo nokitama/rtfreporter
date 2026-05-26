@@ -403,14 +403,20 @@
 }
 
 # Render spanning-header row(s).
-# spanning_header: list of list(from, to, label, underline, [align]).
 #
-# Alignment resolution for a spanning cell covering columns from..to:
-#   1. sp$align                              (explicit per-cell override)
-#   2. col_spec[[sp$from]]$header_align       (inherit from the level below —
-#                                              i.e. the leftmost covered
-#                                              column's header alignment)
-#   3. "center"                              (final fallback)
+# spanning_header: list of spec lists with the following fields:
+#   from, to     — (required) 1-based column range covered by the cell.
+#   label        — (required) cell text.
+#   align        — (optional) "left" / "center" / "right".
+#                   Default: inherit from col_spec[[from]]$header_align
+#                   (the leftmost covered column's header alignment),
+#                   which itself cascades from col_spec$align.
+#                   Final fallback: "center".
+#   bold         — (optional) TRUE / FALSE.  Default FALSE — spanning
+#                   text is rendered in normal weight unless explicitly
+#                   asked for bold.
+#   italic       — (optional) TRUE / FALSE.  Default FALSE.
+#   underline    — (optional) TRUE / FALSE.  Default FALSE.
 .render_spanning_rows <- function(spanning_header, cellx, border_spec,
                                    row_height_twips, pad_l, pad_r, valign_cmd,
                                    col_spec = NULL,
@@ -455,6 +461,10 @@
   }
 
   # Build cell contents.
+  #
+  # Apply decorations inside-out so the outermost wrapper closes last.
+  # All of bold / italic / underline default to FALSE — spanning labels
+  # are rendered in normal weight unless explicitly opted in.
   cell_contents <- character()
   j <- 1L
   while (j <= ncols) {
@@ -463,7 +473,8 @@
       sp        <- spanning_header[[k]]
       label     <- .format_cell_text(sp$label %||% "")
       if (isTRUE(sp$underline)) label <- paste0("\\ul ", label, "\\ulnone ")
-      label     <- paste0("\\b ", label, "\\b0 ")
+      if (isTRUE(sp$italic))    label <- paste0("\\i ",  label, "\\i0 ")
+      if (isTRUE(sp$bold))      label <- paste0("\\b ",  label, "\\b0 ")
       al        <- .span_align(sp)
       align_cmd <- switch(al, left = "\\ql", right = "\\qr",
                               center = "\\qc", "\\qc")

@@ -6,7 +6,43 @@ All notable changes to rtfreporter are documented in this file. Changes are reco
 
 ## v0.1.0 (TBD - when ready for public release)
 
-> **Status**: Currently in development as v0.0.14. Will be released as v0.1.0 when complete.
+> **Status**: Currently in development as v0.0.15. Will be released as v0.1.0 when complete.
+
+### 🔴 Breaking Changes (v0.0.15)
+
+#### Spanning rows: bold default flipped to FALSE; new optional `bold`, `italic`
+
+Spanning-header cells were rendered in **bold** unconditionally.  They
+now default to **normal** weight, matching the policy already adopted
+for column-header rows in v0.0.11.  Three new optional per-cell fields
+let callers opt in:
+
+| Field | Default | Effect |
+|---|---|---|
+| `bold` | `FALSE` | Wrap label in `\b ... \b0`. |
+| `italic` | `FALSE` | Wrap label in `\i ... \i0`. |
+| `underline` | `FALSE` | Wrap label in `\ul ... \ulnone` (already existed). |
+
+```r
+spanning_header = list(
+  list(from = 2, to = 3, label = "Drug A", underline = TRUE),               # plain weight, underlined
+  list(from = 4, to = 5, label = "Drug B", underline = TRUE, bold = TRUE)   # bold + underlined
+)
+```
+
+### 📋 Specification consolidation: column-header alignment
+
+The cascade is unchanged from v0.0.12 but the contract is now pinned by
+a dedicated test file ([tests/test-header-alignment.R](tests/test-header-alignment.R), 15 assertions):
+
+1. **Default**: column-header alignment follows the data column's
+   alignment (`col_spec[[j]]$align`).
+2. **Spanning row**: alignment defaults to the leftmost covered
+   column's resolved `header_align` (i.e. it inherits one level down
+   the hierarchy).
+3. **Per-table override**: `col_header_align` (scalar or length-ncol
+   character vector) sets the table-wide header alignment.
+4. **Per-column override**: `col_spec[[j]]$header_align` always wins.
 
 ### ✨ Features (v0.0.14)
 
