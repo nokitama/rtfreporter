@@ -615,11 +615,37 @@ rtf_border_tfl()  # 臨床 TFL 標準プリセット
 ## 臨床 TFL プリセット (`rtf_border_tfl()`)
 
 ```
-header:    上辺 single + 下辺 single
-spanning:  なし
+header:    上辺 single + 下辺 single     ← カラムヘッダ「ブロック」の外枠
+spanning:  なし                          ← NULL のとき header にフォールバック
 body:      なし
 first_row: なし
-last_row:  下辺 single
+last_row:  下辺 single                   ← データ部最終行
+```
+
+## カラムヘッダーの罫線の出方
+
+`border$header` は **カラムヘッダ「ブロック」全体の外枠**を表します（v0.0.16 以降）。複数行のヘッダ（spanning 行 + ラベル行など）でもブロック全体に対して 1 つの外枠で扱われます。
+
+| 既定の罫線位置 | 説明 |
+|---|---|
+| `border$header$top` | **最上段**のヘッダ行にだけ引かれる |
+| `border$header$bottom` | **最下段**のヘッダ行にだけ引かれる |
+| spanning の下罫線 | spanning が 2 列以上をまとめるとき、その下にもう 1 行ヘッダがある場合に自動で底罫線が引かれる（グループ下線） |
+| 縦罫線 | 既定では引かない |
+
+中間ヘッダ行（最上段でも最下段でもない行）には自動で罫線は引かれません。**個別に上書き**したい場合は:
+
+- 列単位 → `col_spec = list(list(col = j, border = rtf_border(...)))` がカラムヘッダ行で zone 罫線に上乗せされる
+- ゾーン単位 → 明示的に `border = rtf_table_border(header = rtf_border(...), spanning = rtf_border(...))` を渡す
+
+例（2 行ヘッダ + spanning 自動下線）:
+
+```
+─────────────────────────  ← border$header$top （最上段に 1 本）
+│      │ Drug A │ Drug B │
+│      ─────────────────  ← spanning 多列セルの下に自動下線
+│ Item │ N │Mean│ N │Mean│
+─────────────────────────  ← border$header$bottom （最下段に 1 本）
 ```
 
 ---

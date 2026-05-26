@@ -310,11 +310,20 @@
   paste0(.side("top"), .side("bottom"), .side("left"), .side("right"))
 }
 
-# Merge first_row / last_row overrides into a base body border spec.
-# Handles both rtf_border objects (new style) and plain lists (old style).
+# Merge an override border on top of a base border.
+#
+#   base = NULL, override = NULL → NULL
+#   base = X,    override = NULL → X
+#   base = NULL, override = Y    → Y           (was: dropped — bug)
+#   base = X,    override = Y    → X with non-NULL sides of Y replacing X
+#
+# Used by:
+#   * the data-row loop (body × first_row / last_row),
+#   * `.render_header_row()` (zone × col_spec per-cell),
+#   * `.render_spanning_rows()` (zone × col_spec per-cell).
 .effective_row_border <- function(base_border, override) {
-  if (is.null(base_border)) return(NULL)
   if (is.null(override) || length(override) == 0L) return(base_border)
+  if (is.null(base_border)) return(override)
   if (inherits(base_border, "rtf_border")) {
     return(.merge_rtf_border(base_border, override))
   }
@@ -402,6 +411,27 @@
   vapply(cellx, function(cx) paste0(border_cmds, valign_cmd, "\\cellx", cx), character(1L))
 }
 
+# Outer-frame border for a header row at position `idx` of `n` total.
+#
+#   * top      → present only on the FIRST row
+#   * bottom   → present only on the LAST row
+#   * left/right → preserved on every row (per-cell behaviour is
+#                  controlled by the renderer; this just passes them
+#                  through unchanged)
+#
+# Returns NULL when nothing would be emitted.
+.header_outer_border <- function(idx, n, zone_border) {
+  if (is.null(zone_border)) return(NULL)
+  is_first <- idx == 1L
+  is_last  <- idx == n
+  top <- if (is_first) zone_border$top    else NULL
+  bot <- if (is_last)  zone_border$bottom else NULL
+  lft <- zone_border$left
+  rgt <- zone_border$right
+  if (is.null(top) && is.null(bot) && is.null(lft) && is.null(rgt)) return(NULL)
+  rtf_border(top = top, bottom = bot, left = lft, right = rgt)
+}
+
 # Render spanning-header row(s).
 #
 # spanning_header: list of spec lists with the following fields:
@@ -412,15 +442,22 @@
 #                   (the leftmost covered column's header alignment),
 #                   which itself cascades from col_spec$align.
 #                   Final fallback: "center".
-#   bold         — (optional) TRUE / FALSE.  Default FALSE — spanning
-#                   text is rendered in normal weight unless explicitly
-#                   asked for bold.
+#   bold         — (optional) TRUE / FALSE.  Default FALSE.
 #   italic       — (optional) TRUE / FALSE.  Default FALSE.
 #   underline    — (optional) TRUE / FALSE.  Default FALSE.
+#
+# `border_spec` is the row-level border (only top on first / bottom on
+# last header row, per .header_outer_border()).  `group_bottom_side`,
+# when non-NULL, adds a bottom border to every spanning cell that
+# covers more than one column — the typical "underline the group
+# label" look.  Pass NULL to suppress (e.g. when this spanning row is
+# itself the last header row and the row-level bottom already covers
+# the whole span).
 .render_spanning_rows <- function(spanning_header, cellx, border_spec,
                                    row_height_twips, pad_l, pad_r, valign_cmd,
                                    col_spec = NULL,
-                                   table_align = "left") {
+                                   table_align = "left",
+                                   group_bottom_side = NULL) {
   if (is.null(spanning_header) || length(spanning_header) == 0L) return(character())
   ncols <- length(cellx)
 
@@ -433,18 +470,50 @@
     }
   }
 
+  # ── Per-cell border resolution ──────────────────────────────────────────
+  #   row's outer frame (border_spec)
+  #   + multi-col group bottom (if applicable)
+  #   + col_spec[[from]]$border override
+  .cell_border <- function(k, single_col_idx = NULL) {
+    eff <- border_spec
+    if (!is.null(k) && k > 0L) {
+      sp        <- spanning_header[[k]]
+      from_idx  <- as.integer(sp$from)
+      to_idx    <- as.integer(sp$to)
+      multi_col <- to_idx > from_idx
+      if (multi_col && !is.null(group_bottom_side)) {
+        if (is.null(eff)) eff <- rtf_border()
+        eff <- eff$with_bottom(group_bottom_side)
+      }
+      if (!is.null(col_spec) && from_idx >= 1L && from_idx <= length(col_spec)) {
+        cb <- col_spec[[from_idx]]$border
+        if (!is.null(cb)) {
+          eff <- if (is.null(eff)) cb else eff$override(cb)
+        }
+      }
+    } else if (!is.null(single_col_idx) && !is.null(col_spec) &&
+                single_col_idx <= length(col_spec)) {
+      cb <- col_spec[[single_col_idx]]$border
+      if (!is.null(cb)) {
+        eff <- if (is.null(eff)) cb else eff$override(cb)
+      }
+    }
+    eff
+  }
+
   # Build cell definitions: spanned columns use merged width.
   cell_defs <- character()
-  border_cmds <- .build_border_commands(border_spec)
   j <- 1L
   while (j <= ncols) {
     k <- coverage[j]
     if (k > 0L) {
       to_idx <- as.integer(spanning_header[[k]]$to)
-      cell_defs <- c(cell_defs, paste0(border_cmds, valign_cmd, "\\cellx", cellx[to_idx]))
+      bc     <- .build_border_commands(.cell_border(k))
+      cell_defs <- c(cell_defs, paste0(bc, valign_cmd, "\\cellx", cellx[to_idx]))
       j <- to_idx + 1L
     } else {
-      cell_defs <- c(cell_defs, paste0(border_cmds, valign_cmd, "\\cellx", cellx[j]))
+      bc <- .build_border_commands(.cell_border(NULL, single_col_idx = j))
+      cell_defs <- c(cell_defs, paste0(bc, valign_cmd, "\\cellx", cellx[j]))
       j <- j + 1L
     }
   }
@@ -560,32 +629,59 @@
   nrows <- nrow(df)
   lines <- character()
 
-  # Spanning-header rows (repeated per DF in multi-DF mode).
-  if (!is.null(spanning_header)) {
-    lines <- c(lines, .render_spanning_rows(
-      spanning_header, cellx,
-      border$spanning, hdr_h, pad_l, pad_r, valign_cmd,
-      col_spec = col_spec, table_align = table_align
-    ))
-  }
-
-  # Column-header rows.  Each entry of `col_headers` is either:
-  #   * character vector → regular header row (one label per data column)
-  #   * list of list(from, to, label, underline) → spanning row
-  hdr_border <- border$header
+  # ── Column-header block ─────────────────────────────────────────────────
+  #
+  # The whole header block (the legacy standalone `spanning_header`
+  # argument plus every entry of `col_headers`) is treated as a single
+  # outer-framed unit:
+  #
+  #   * `border$header$top`     is applied only to the topmost row.
+  #   * `border$header$bottom`  is applied only to the bottommost row.
+  #   * Intermediate rows carry no row-level top/bottom border by
+  #     default (per-column overrides via `col_spec[[j]]$border`
+  #     still apply, and so do explicit `border$header$left/right`).
+  #
+  # On any spanning row that is *not* the last header row, every cell
+  # covering more than one column additionally receives a bottom border
+  # — the typical clinical TFL "underline the group label" look.
+  #
+  # `border$spanning`, when supplied, takes precedence over
+  # `border$header` for spanning rows.
+  hdr_border  <- border$header
   span_border <- border$spanning %||% border$header
+
+  header_rows <- list()
+  header_kind <- character()
+  if (!is.null(spanning_header)) {
+    header_rows[[length(header_rows) + 1L]] <- spanning_header
+    header_kind <- c(header_kind, "spanning")
+  }
   for (hdr_row in col_headers) {
     is_spanning <- is.list(hdr_row) && length(hdr_row) > 0L &&
                    is.list(hdr_row[[1L]]) && !is.null(hdr_row[[1L]]$from)
-    if (is_spanning) {
+    header_rows[[length(header_rows) + 1L]] <- hdr_row
+    header_kind <- c(header_kind, if (is_spanning) "spanning" else "labels")
+  }
+  n_hdr_rows <- length(header_rows)
+
+  for (idx in seq_len(n_hdr_rows)) {
+    hdr_row <- header_rows[[idx]]
+    kind    <- header_kind[[idx]]
+    zone    <- if (kind == "spanning") span_border else hdr_border
+    row_b   <- .header_outer_border(idx, n_hdr_rows, zone)
+    if (kind == "spanning") {
       lines <- c(lines, .render_spanning_rows(
-        hdr_row, cellx,
-        span_border, hdr_h, pad_l, pad_r, valign_cmd,
-        col_spec = col_spec, table_align = table_align
+        hdr_row, cellx, row_b, hdr_h, pad_l, pad_r, valign_cmd,
+        col_spec = col_spec, table_align = table_align,
+        group_bottom_side = if (idx < n_hdr_rows) {
+          (hdr_border$bottom %||% span_border$bottom %||% rtf_border_side())
+        } else {
+          NULL   # last header row's outer frame already supplies the bottom
+        }
       ))
     } else {
       lines <- c(lines, .render_header_row(
-        hdr_row, cellx, hdr_border, hdr_h, pad_l, pad_r, valign_cmd,
+        hdr_row, cellx, row_b, hdr_h, pad_l, pad_r, valign_cmd,
         col_spec, table_align
       ))
     }
@@ -603,10 +699,16 @@
   if (0L %in% blank_set) lines <- c(lines, .blank_row_rtf())
 
   for (i in seq_len(nrows)) {
-    row_border <- .effective_row_border(
-      border$body,
-      if (i == 1L) border$first_row else if (i == nrows) border$last_row else NULL
-    )
+    # When nrows == 1 the only row is BOTH the first and the last row;
+    # merge both overrides so e.g. the TFL "bottom on last row" still
+    # applies to a single-row table.
+    row_border <- border$body
+    if (i == 1L && !is.null(border$first_row)) {
+      row_border <- .effective_row_border(row_border, border$first_row)
+    }
+    if (i == nrows && !is.null(border$last_row)) {
+      row_border <- .effective_row_border(row_border, border$last_row)
+    }
     lines <- c(lines, .render_data_row(
       as.list(df[i, , drop = FALSE]),
       cellx, row_border, data_h, pad_l, pad_r, valign_cmd, col_spec, table_align

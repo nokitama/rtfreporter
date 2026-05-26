@@ -6,7 +6,52 @@ All notable changes to rtfreporter are documented in this file. Changes are reco
 
 ## v0.1.0 (TBD - when ready for public release)
 
-> **Status**: Currently in development as v0.0.15. Will be released as v0.1.0 when complete.
+> **Status**: Currently in development as v0.0.16. Will be released as v0.1.0 when complete.
+
+### 🔴 Breaking Changes (v0.0.16) — column-header border defaults
+
+The `border$header` zone now describes the **outer frame** of the
+column-header block, not "every header row" individually.  The default
+behaviour for the column-header (the topmost block of the table,
+including the legacy standalone `spanning_header` argument and every
+`col_header` row) is:
+
+| Rule | Effect |
+|---|---|
+| **Top border** | Applied to the **topmost** header row only. |
+| **Bottom border** | Applied to the **bottommost** header row only. |
+| **Multi-col spanning** | Cells that cover more than one column get an extra **bottom** border separating them from the more granular row below — the typical "underline the group label" look. |
+| **Vertical borders** | None by default. |
+| **Override** | `col_spec[[j]]$border` still wins on the column-header row for that single column; explicit `border = ...` argument still flows through. |
+
+With the new semantics, a two-row header looks like:
+
+```
+─────────────────────────  (top border on row 1)
+│      │ Drug A  │ Drug B │
+│      ────────── ─────── (bottom under each multi-col span)
+│ Item │ N │ Mean │ N │ Mean │
+─────────────────────────  (bottom border on row 2 — last header row)
+```
+
+The `rtf_border_tfl()` preset is unchanged in shape but its meaning
+shifts under the new outer-frame interpretation.  Existing user code
+that relied on "border on every header row" needs to migrate to
+per-column overrides via `col_spec[[j]]$border`.
+
+### 🐛 Bug fix (v0.0.16) — last-row border on single-row data
+
+When the data frame had exactly one row, neither `border$first_row`
+nor `border$last_row` was applied — the only row took only the
+`first_row` branch of an `if/else if` chain that bypassed
+`last_row`.  In the standard TFL preset (`first_row = NULL`,
+`last_row = rtf_border(bottom = ...)`), the table therefore had no
+bottom border on its single data row.  Both overrides are now merged
+correctly when `nrows == 1`.
+
+`.effective_row_border()` itself also stopped silently dropping the
+override when the base border was NULL — `merge(NULL, X)` now
+returns `X` instead of `NULL`.
 
 ### 🔴 Breaking Changes (v0.0.15)
 
