@@ -45,6 +45,7 @@ format:
 |---|---|
 | ドキュメント | `rtf_document()`, `rtf_config()` |
 | コンテンツ追加 | `rtf_tables()`, `rtf_figures()` |
+| タイトル/フットノート | `rtf_titles()`, `rtf_footnotes()` |
 | セクション定義 | `rtf_section()` |
 | コンテンツ構築 | `rtftable()`, `rtfplot()` |
 | ヘッダー/フッター | `rtf_header()`, `rtf_footer()` |
@@ -169,6 +170,63 @@ rtf_tables(doc, list(
   rtftable(df2, border="none"),# rtftable: 自身の border="none" 優先
   rtfplot("fig.png")           # 図
 ), col_rel_width = c(2, 1, 1), border = "tfl", row_height_twips = 280L)
+```
+
+---
+
+# タイトル / フットノートとマジックトークン
+
+各ページのコンテンツ（表または図）の **上下に配置するタイトル/フットノート** は、character vector で指定します。各要素が 1 行に対応します。
+
+| 値 | 意味 |
+|---|---|
+| `"任意のテキスト"` | デフォルトの行高でテキスト行を出力 |
+| `""` または `"{BLANK_ROW}"` | デフォルトの行高で空白行 |
+| `"{HALF_BLANK_ROW}"` | **デフォルト行高の半分** の空白行 |
+
+これら**マジックトークン**は title / footnote / `rtf_header()` / `rtf_footer()` の row 値で共通に解釈されます。
+
+**title のデフォルト動作**:
+
+| 入力 | 出力 |
+|---|---|
+| `title = NULL`（既定） | 半行高さの空行 1 つを自動挿入（ヘッダ←→content の呼吸） |
+| `title = character(0)` | 何も出力しない（明示抑制） |
+| `title = "..."` または `title = c(...)` | 各要素を 1 行として出力 |
+
+**pipe API での指定**:
+
+```r
+rtf_document() %>%
+  rtf_tables(list(df1, df2),
+    titles = list(
+      c("Table 14.1.1", "{HALF_BLANK_ROW}", "Safety Population"),
+      "Table 14.1.2"
+    ),
+    footnotes = list(
+      c("Note 1: foo.", "{HALF_BLANK_ROW}", "Note 2: bar."),
+      NULL                # ページ 2 にはフットノートなし
+    )
+  )
+```
+
+**単独関数** `rtf_titles()` / `rtf_footnotes()` でコンテンツ追加後に上書きすることも可能:
+
+```r
+doc %>%
+  rtf_tables(list(df1, df2)) %>%
+  rtf_titles(list("Page One", "Page Two")) %>%
+  rtf_footnotes(list(NULL, "Note for page 2."))
+```
+
+**ヘッダー/フッター行内でのトークン**:
+
+```r
+rtf_header(rows = list(
+  c(l = "Protocol", r = "Page X"),
+  c(c = "{HALF_BLANK_ROW}"),     # 半行空白
+  c(c = "Table 14.1.1")
+))
 ```
 
 ---

@@ -25,6 +25,8 @@ rtf_tables(
   cell_padding_left_twips = 72L,
   cell_padding_right_twips = 72L,
   cell_valign = "bottom",
+  titles = NULL,
+  footnotes = NULL,
   auto_section = FALSE,
   section_label_align = "left"
 )
@@ -45,6 +47,16 @@ element must be one of:
 \item{row_height_twips, row_height_exact, header_row_height_twips, blank_row_height_twips}{Row-height settings applied to bare `data.frame` elements. See [rtftable()] for details.}
 
 \item{cell_padding_left_twips, cell_padding_right_twips, cell_valign}{Cell layout settings applied to bare `data.frame` elements. See [rtftable()] for details.}
+
+\item{titles}{`NULL` (default) or a list of length `length(tables)`. Each
+element is a character vector — one element per row of that page's
+title.  Magic tokens `"{HALF_BLANK_ROW}"` and `"{BLANK_ROW}"` are
+honoured.  Use `NULL` per element to fall back to the default
+(`{HALF_BLANK_ROW}` — one half-height blank row).}
+
+\item{footnotes}{`NULL` (default) or a list of length `length(tables)`.
+Same structure as `titles`; each element becomes one row in the
+footnote block.  Magic tokens supported.}
 
 \item{auto_section}{Logical. When `TRUE` and `tables` is a **named** list,
 each name is used as a per-section heading appended to the common header

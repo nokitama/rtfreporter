@@ -6,7 +6,45 @@ All notable changes to rtfreporter are documented in this file. Changes are reco
 
 ## v0.1.0 (TBD - when ready for public release)
 
-> **Status**: Currently in development as v0.0.8. Will be released as v0.1.0 when complete.
+> **Status**: Currently in development as v0.0.9. Will be released as v0.1.0 when complete.
+
+### ✨ Features
+
+#### Title and footnote blocks: per-row rendering + magic blank-row tokens
+
+Titles and footnotes are now rendered as N×1 RTF tables (one row per
+element of the character vector). Two magic tokens control blank rows in
+title, footnote, `rtf_header()`, and `rtf_footer()` row content:
+
+| Token | Effect |
+|---|---|
+| `"{HALF_BLANK_ROW}"` | Empty row at half the default row height |
+| `"{BLANK_ROW}"` (or just `""`) | Empty row at the default row height |
+
+Default title behaviour changed: a page with `title = NULL` now emits one
+`{HALF_BLANK_ROW}` automatically so there is always a small visual gap
+between the page header and the content.  Use `title = character(0)` to
+suppress the title block entirely.
+
+```r
+rtf_tables(doc, list(df1, df2),
+  titles    = list(c("Table 14.1.1", "{HALF_BLANK_ROW}", "Safety Population"),
+                   "Table 14.1.2"),
+  footnotes = list(c("Note 1: foo.", "{HALF_BLANK_ROW}", "Note 2: bar."),
+                   NULL)
+)
+```
+
+#### `rtf_tables()` / `rtf_figures()` gain `titles` and `footnotes` arguments
+
+Each is a list parallel to `tables` / `figures`. Per-element `NULL`
+falls back to the default (title = one `{HALF_BLANK_ROW}`, footnote =
+no block).
+
+#### `rtf_titles()` / `rtf_footnotes()` standalone setters
+
+Replace per-page titles / footnotes after content has been added. Length
+must equal the current number of pages.
 
 ### 🔴 Breaking Changes
 

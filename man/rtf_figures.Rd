@@ -9,7 +9,9 @@ rtf_figures(
   figures,
   width_twips = NULL,
   height_twips = NULL,
-  align = "center"
+  align = "center",
+  titles = NULL,
+  footnotes = NULL
 )
 }
 \arguments{
@@ -26,6 +28,10 @@ derived from the image's aspect ratio.}
 
 \item{align}{Horizontal alignment for bare paths: `"center"` (default),
 `"left"`, or `"right"`.}
+
+\item{titles, footnotes}{Optional lists of length `length(figures)`. See
+[rtf_tables()] for the same semantics — character vectors per page,
+magic tokens supported.}
 }
 \value{
 Modified rtf_document with appended figure contents.
