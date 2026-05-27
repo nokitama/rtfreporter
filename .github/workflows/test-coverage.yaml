@@ -41,8 +41,12 @@ jobs:
         shell: Rscript {0}
 
       - uses: codecov/codecov-action@v4
+        # Skip the upload if CODECOV_TOKEN isn't set on the repo (Codecov
+        # rejects tokenless uploads from protected branches now).  Coverage
+        # is still computed and printed above; only the badge is stale.
+        if: ${{ secrets.CODECOV_TOKEN != '' }}
         with:
-          fail_ci_if_error: ${{ github.event_name != 'pull_request' }}
+          fail_ci_if_error: false
           files: ./cobertura.xml
           plugins: noop
           disable_search: true
