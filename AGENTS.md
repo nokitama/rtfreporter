@@ -5,7 +5,7 @@
 **Before modifying any code, test, or documentation, always read the spec files first.**
 
 ```
-vignettes/articles/internal-design.qmd   ← Internal R6 class design
+vignettes/articles/internal-design.qmd   ← Internal S3 class design
 vignettes/articles/external-api.qmd      ← Public S3 API contracts
 specs/release_guidelines.md              ← Release and packaging rules
 ```
@@ -44,14 +44,16 @@ rtfreporter/                        ← repo root = R package root (CRAN-ready l
 ├── CHANGELOG.md
 ├── rtfreporter.Rproj
 │
-├── r/                              ← R source files
-│   ├── rtfreport.R                 ← rtfreport_r6 (internal R6), rtf_header(), rtf_footer()
-│   ├── rtf_border.R                ← Border class hierarchy
+├── r/                              ← R source files (all S3)
+│   ├── rtfreport.R                 ← internal rtfreport S3, rtf_header(), rtf_footer()
+│   ├── rtf_border.R                ← Border class hierarchy (S3)
+│   ├── rtf_table_style.R           ← Shared table style record (S3)
 │   ├── generate_rtfreport.R        ← RTF renderer + all render helpers
 │   ├── pipe-composition.R          ← S3 pipe API (rtf_document, rtf_section, etc.)
-│   ├── rtftable.R                  ← rtftable_r6 (internal R6)
-│   ├── rtfplot.R                   ← rtfplot_r6 (internal R6)
+│   ├── rtftable.R                  ← internal .new_rtftable() (returns class "rtftable")
+│   ├── rtfplot.R                   ← internal .new_rtfplot() (returns class "rtfplot")
 │   ├── wrappers.R                  ← Public S3 constructors: rtftable(), rtfplot()
+│   ├── blank_rows.R                ← blank_rows_by_change(), blank_rows_by_rule()
 │   ├── assemble_rtf.R              ← assemble_rtf()
 │   └── text_width.R                ← text_width_in(), auto_col_widths()
 │
@@ -65,7 +67,7 @@ rtfreporter/                        ← repo root = R package root (CRAN-ready l
 │   ├── rtfreporter-quickstart.Rmd  ← User-facing quickstart
 │   ├── rtfreporter-pipes.Rmd       ← Pipe API guide
 │   └── articles/                   ← Design docs (pkgdown articles)
-│       ├── internal-design.qmd     ← Internal R6 class design
+│       ├── internal-design.qmd     ← Internal S3 class design
 │       └── external-api.qmd        ← Public S3 API spec
 │
 ├── inst/
@@ -93,14 +95,23 @@ report <- rtf_document() %>%
   generate_rtfreport("output.rtf", overwrite = TRUE)
 ```
 
-### Internal class naming
+### Internal class naming (all S3 since v0.0.19)
 
-Internal R6 classes use the `_r6` suffix:
-- `rtfreport_r6` — document object
-- `rtftable_r6` — table content
-- `rtfplot_r6` — figure content
+Internal data classes are plain S3 tagged lists built by package-internal
+constructors (prefixed with `.new_*`):
 
-Never reference these in exported functions or documentation.
+- `rtfreport`  — document object       (internal `.new_rtfreport()`)
+- `rtftable`   — table content         (public `rtftable()` → `.new_rtftable()`)
+- `rtfplot`    — figure content        (public `rtfplot()`  → `.new_rtfplot()`)
+- `rtf_page`, `rtf_sect` — records living inside `rtfreport`
+
+`rtfreport` is internal-only; the public path is to build a `rtf_document` via
+the pipe API and let `generate_rtfreport()` convert it internally via
+`.pipe_doc_to_rtfreport()`. Use the `.rtfreport_add_page()` /
+`.rtfreport_add_section()` / `.rtfreport_validate()` functional helpers when
+manipulating an `rtfreport` from inside the package — each returns a new copy.
+
+R6 is no longer used anywhere; `Imports: R6` was removed in v0.0.19.
 
 ### Border class hierarchy
 

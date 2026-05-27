@@ -1,17 +1,35 @@
 Package: rtfreporter
 Type: Package
-Title: Clinical RTF Reporting Toolkit
-Version: 0.0.18
-Authors@R: person("ichirio", email = "ichirio@example.com", role = c("aut", "cre"))
-Description: RTF reporting toolkit specialized for clinical tables and listings. It is not a general-purpose RTF library.
+Title: Clinical RTF Reporting Toolkit for Tables, Listings and Figures
+Version: 0.0.20
+Authors@R:
+    person(given  = "Yoichi",
+           family = "Masui",
+           email  = "ichi.r.pro@gmail.com",
+           role   = c("aut", "cre"))
+Description: A standalone toolkit for generating Rich Text Format (RTF)
+    reports used in clinical trial deliverables — Tables, Listings and
+    Figures (TFLs). Provides a functional, pipe-friendly API to compose
+    documents with multi-section headers and footers, multi-row column
+    headers including spanning groups, per-column formatting, automatic
+    page-number fields, embedded PNG/JPEG figures, and clinical-style
+    borders. Uses only S3 classes and base R; depends on no other
+    RTF-generation packages such as 'r2rtf' or 'reporter'.
 License: MIT + file LICENSE
+URL: https://github.com/ichirio/rtfreporter,
+    https://ichirio.github.io/rtfreporter/
+BugReports: https://github.com/ichirio/rtfreporter/issues
 Encoding: UTF-8
-LazyData: true
-Imports: 
-	R6
+Language: en-US
+Depends:
+    R (>= 4.1)
 Suggests:
-	knitr,
-	rmarkdown,
-	ggplot2
+    knitr,
+    rmarkdown,
+    ggplot2,
+    magrittr,
+    testthat (>= 3.0.0),
+    covr
 VignetteBuilder: knitr
+Config/testthat/edition: 3
 RoxygenNote: 7.3.3

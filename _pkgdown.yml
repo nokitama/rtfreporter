@@ -1,0 +1,133 @@
+url: https://ichirio.github.io/rtfreporter/
+
+template:
+  bootstrap: 5
+  bootswatch: cosmo
+  bslib:
+    primary: "#1f4e79"
+    base_font: {google: "Source Sans 3"}
+    heading_font: {google: "Source Sans 3"}
+    code_font: {google: "JetBrains Mono"}
+
+home:
+  title: "rtfreporter — Clinical RTF Reporting Toolkit for R"
+  description: >
+    Standalone R toolkit for generating RTF Tables, Listings and Figures
+    (TFLs) for clinical trial deliverables. Pure S3, no external
+    dependencies.
+  strip_header: true
+  links:
+    - text: Browse source code
+      href: https://github.com/ichirio/rtfreporter
+    - text: Report a bug
+      href: https://github.com/ichirio/rtfreporter/issues
+
+navbar:
+  structure:
+    left:  [intro, reference, articles, news]
+    right: [search, github]
+  components:
+    intro:
+      text: Get started
+      href: articles/rtfreporter-quickstart.html
+    articles:
+      text: Articles
+      menu:
+        - text: "Tutorials"
+        - text: "Pipe API guide"
+          href: articles/rtfreporter-pipes.html
+        - text: -------
+        - text: "Specification"
+        - text: "External API specification"
+          href: articles/external-api.html
+        - text: "Internal class design (S3)"
+          href: articles/internal-design.html
+    github:
+      icon: fab fa-github
+      href: https://github.com/ichirio/rtfreporter
+      aria-label: GitHub
+
+footer:
+  structure:
+    left:  [developed_by, built_with]
+    right: [package]
+  components:
+    package: "rtfreporter · MIT licensed"
+
+reference:
+  - title: Pipe-composition API
+    desc: >
+      Primary user-facing API. Build a document by piping
+      `rtf_document()` through section / content / format calls, then
+      render with `generate_rtfreport()`.
+    contents:
+      - rtf_document
+      - rtf_config
+      - rtf_section
+      - rtf_tables
+      - rtf_figures
+      - rtf_titles
+      - rtf_footnotes
+      - generate_rtfreport
+      - assemble_rtf
+
+  - title: Content constructors
+    desc: Build a richly formatted table or figure object.
+    contents:
+      - rtftable
+      - rtfplot
+
+  - title: Headers, footers and tokens
+    contents:
+      - rtf_header
+      - update_header_row
+
+  - title: Borders
+    desc: Border specifications for cells, rows and table zones.
+    contents:
+      - rtf_border_side
+      - rtf_border
+      - rtf_border_with
+      - rtf_border_none
+      - rtf_border_top
+      - rtf_border_bottom
+      - rtf_border_box
+      - rtf_table_border
+      - rtf_border_tfl
+
+  - title: Shared table style
+    contents:
+      - rtf_table_style
+      - rtf_table_style_with
+      - rtf_table_style_tfl
+
+  - title: Blank-row specifications
+    contents:
+      - blank_rows_by_change
+      - blank_rows_by_rule
+
+  - title: Column-width helpers
+    contents:
+      - text_width_in
+      - auto_col_widths
+
+  - title: Deprecated
+    contents:
+      - rtf_format-deprecated
+
+articles:
+  - title: Tutorials
+    navbar: ~
+    contents:
+      - rtfreporter-quickstart
+      - rtfreporter-pipes
+
+  - title: Specification
+    navbar: ~
+    contents:
+      - articles/external-api
+      - articles/internal-design
+
+news:
+  releases:
+    - text: "Development version"
