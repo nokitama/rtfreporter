@@ -33,13 +33,8 @@ hdr <- rtf_header(rows = list(
   c(l = "Table 14.1.1",     r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}")
 ))
 
-# Replace row 2
 hdr <- update_header_row(hdr, row = 2, content = c(l = "Table 14.2.1", r = "Page {AUTO_PAGE}"))
-
-# Append row 3
 hdr <- update_header_row(hdr, row = 3, content = c(c = "Draft - Confidential"))
-
-# Add row 5 (row 4 auto-filled with empty center row)
 hdr <- update_header_row(hdr, row = 5, content = c(l = "Run date: 2026-01-01"))
 
 }

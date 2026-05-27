@@ -4,12 +4,12 @@
 \description{
 \code{rtftable} holds one or more \code{data.frame}s together with all
 table-level formatting metadata.  Pass an \code{rtftable} to
-\code{report$add_page()} (inside the \code{content} list) to use rich
-formatting such as spanning headers, relative column widths, TFL borders, and
-table alignment.
+\code{\link{rtf_tables}()} in a pipe chain to use rich formatting such
+as spanning headers, relative column widths, TFL borders, and table
+alignment.
 }
 \usage{
-rtftable$new(
+rtftable(
   data,
   col_header              = NULL,
   spanning_header         = NULL,
@@ -118,27 +118,27 @@ rtftable$new(
 \item{cell_valign}{Vertical cell alignment: \code{"bottom"} (default),
   \code{"top"}, or \code{"center"}.}
 }
-\value{An R6 object of class \code{rtftable}.}
+\value{An S3 object of class \code{rtftable}.}
 \seealso{\code{\link{rtfreport}}, \code{\link{generate_rtfreport}},
   \code{\link{rtf_border_tfl}}, \code{\link{auto_col_widths}}}
 \examples{
 # --- Minimal single-DF table -------------------------------------------------
 df <- data.frame(USUBJID = c("101-001", "101-002"), AGE = c(54L, 61L))
-tbl <- rtftable$new(df)
+tbl <- rtftable(df)
 
 # --- Table width and alignment -----------------------------------------------
 # 70 percent of page width, centered
-tbl2 <- rtftable$new(df,
+tbl2 <- rtftable(df,
   table_width_pct = 70,
   table_align     = "center")
 
 # Absolute width, right-aligned
-tbl3 <- rtftable$new(df,
+tbl3 <- rtftable(df,
   table_width_twips = 7200L,
   table_align       = "right")
 
 # --- Relative column widths --------------------------------------------------
-tbl4 <- rtftable$new(df,
+tbl4 <- rtftable(df,
   col_rel_width     = c(2, 1),
   table_width_twips = 9000L)
 
@@ -148,7 +148,7 @@ counts <- data.frame(
   A_Low = c(4L, 0L, 0L), A_Norm = c(1L, 13L, 1L), A_High = c(0L, 2L, 3L),
   B_Low = c(3L, 0L, 0L), B_Norm = c(1L, 14L, 0L), B_High = c(0L, 1L, 4L)
 )
-shift_tbl <- rtftable$new(
+shift_tbl <- rtftable(
   data            = counts,
   col_header      = c("Baseline", "Low", "Normal", "High", "Low", "Normal", "High"),
   spanning_header = list(
@@ -163,13 +163,13 @@ shift_tbl <- rtftable$new(
 # --- Multi data.frame (shared spanning header, per-DF col_header) ------------
 df1 <- data.frame(A = 1:2, B = 3:4)
 df2 <- data.frame(A = 5:6, B = 7:8)
-tbl_multi <- rtftable$new(
+tbl_multi <- rtftable(
   data       = list(df1, df2),
   col_header = list(c("Group 1 A", "Group 1 B"), c("Group 2 A", "Group 2 B"))
 )
 
 # --- col_spec: first column left, rest centered ------------------------------
-tbl5 <- rtftable$new(df,
+tbl5 <- rtftable(df,
   col_spec = list(
     list(col = 1L, align = "left"),
     list(col = 2L, align = "center")

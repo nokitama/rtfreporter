@@ -12,7 +12,7 @@
 
 <meta name="author" content="ichirio" />
 
-<meta name="date" content="2026-05-26" />
+<meta name="date" content="2026-05-27" />
 
 <title>Pipe-Based API</title>
 
@@ -341,7 +341,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 <h1 class="title toc-ignore">Pipe-Based API</h1>
 <h4 class="author">ichirio</h4>
-<h4 class="date">2026-05-26</h4>
+<h4 class="date">2026-05-27</h4>
 
 
 
@@ -813,7 +813,7 @@ manipulation, more explicit control</p>
 <span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a>    <span class="at">page =</span> <span class="fu">list</span>(orientation, width_in, height_in, margins),</span>
 <span id="cb18-6"><a href="#cb18-6" tabindex="-1"></a>    <span class="at">default_format =</span> ...</span>
 <span id="cb18-7"><a href="#cb18-7" tabindex="-1"></a>  ),</span>
-<span id="cb18-8"><a href="#cb18-8" tabindex="-1"></a>  <span class="at">contents =</span> <span class="fu">list</span>(...),    <span class="co"># Pages: each element is rtftable_r6 | rtfplot_r6</span></span>
+<span id="cb18-8"><a href="#cb18-8" tabindex="-1"></a>  <span class="at">contents =</span> <span class="fu">list</span>(...),    <span class="co"># Pages: each element is rtftable | rtfplot</span></span>
 <span id="cb18-9"><a href="#cb18-9" tabindex="-1"></a>  <span class="at">sections =</span> <span class="fu">list</span>(...)     <span class="co"># Page → section info mapping</span></span>
 <span id="cb18-10"><a href="#cb18-10" tabindex="-1"></a>)</span></code></pre></div>
 <p>Each function returns a modified copy, enabling immutable

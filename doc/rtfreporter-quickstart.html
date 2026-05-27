@@ -747,6 +747,102 @@ section header.</p>
 <span id="cb13-17"><a href="#cb13-17" tabindex="-1"></a>  <span class="at">row_height_twips    =</span> <span class="dv">280</span><span class="dt">L</span>)</span></code></pre></div>
 <hr />
 </div>
+<div id="blank-separator-rows" class="section level2">
+<h2>14 Blank separator rows</h2>
+<p><code>blank_rows</code> accepts three combinable spec modes — integer
+positions, variable-change detection, and regex rule. Combine them in a
+<code>list()</code> and the positions are unioned.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a>df_demog <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a>  <span class="at">Group    =</span> <span class="fu">c</span>(<span class="st">&quot;Sex&quot;</span>,    <span class="st">&quot;Sex&quot;</span>,     <span class="st">&quot;Sex&quot;</span>,</span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a>                <span class="st">&quot;Race&quot;</span>,   <span class="st">&quot;Race&quot;</span>,    <span class="st">&quot;Race&quot;</span>,</span>
+<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a>                <span class="st">&quot;Total&quot;</span>),</span>
+<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a>  <span class="at">Category =</span> <span class="fu">c</span>(<span class="st">&quot;Male&quot;</span>,   <span class="st">&quot;Female&quot;</span>,  <span class="st">&quot;Subtotal&quot;</span>,</span>
+<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a>                <span class="st">&quot;Asian&quot;</span>,  <span class="st">&quot;Other&quot;</span>,   <span class="st">&quot;Subtotal&quot;</span>,</span>
+<span id="cb14-7"><a href="#cb14-7" tabindex="-1"></a>                <span class="st">&quot;&quot;</span>),</span>
+<span id="cb14-8"><a href="#cb14-8" tabindex="-1"></a>  <span class="at">N        =</span> <span class="fu">c</span>(<span class="dv">45</span><span class="dt">L</span>, <span class="dv">35</span><span class="dt">L</span>, <span class="dv">80</span><span class="dt">L</span>, <span class="dv">40</span><span class="dt">L</span>, <span class="dv">40</span><span class="dt">L</span>, <span class="dv">80</span><span class="dt">L</span>, <span class="dv">80</span><span class="dt">L</span>),</span>
+<span id="cb14-9"><a href="#cb14-9" tabindex="-1"></a>  <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
+<span id="cb14-10"><a href="#cb14-10" tabindex="-1"></a>)</span>
+<span id="cb14-11"><a href="#cb14-11" tabindex="-1"></a></span>
+<span id="cb14-12"><a href="#cb14-12" tabindex="-1"></a><span class="co"># Mode 1: integer positions (-1 = after the last row)</span></span>
+<span id="cb14-13"><a href="#cb14-13" tabindex="-1"></a>tbl1 <span class="ot">&lt;-</span> <span class="fu">rtftable</span>(df_demog, <span class="at">blank_rows =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">3</span>, <span class="dv">6</span>, <span class="sc">-</span><span class="dv">1</span>))</span>
+<span id="cb14-14"><a href="#cb14-14" tabindex="-1"></a></span>
+<span id="cb14-15"><a href="#cb14-15" tabindex="-1"></a><span class="co"># Mode 2: blank when a variable&#39;s value changes</span></span>
+<span id="cb14-16"><a href="#cb14-16" tabindex="-1"></a>tbl2 <span class="ot">&lt;-</span> <span class="fu">rtftable</span>(df_demog,</span>
+<span id="cb14-17"><a href="#cb14-17" tabindex="-1"></a>  <span class="at">blank_rows =</span> <span class="fu">blank_rows_by_change</span>(<span class="st">&quot;Group&quot;</span>,</span>
+<span id="cb14-18"><a href="#cb14-18" tabindex="-1"></a>    <span class="at">include_before_first =</span> <span class="cn">FALSE</span>, <span class="at">include_after_last =</span> <span class="cn">FALSE</span>))</span>
+<span id="cb14-19"><a href="#cb14-19" tabindex="-1"></a></span>
+<span id="cb14-20"><a href="#cb14-20" tabindex="-1"></a><span class="co"># Mode 3: regex match (e.g. before every &quot;Total&quot; row)</span></span>
+<span id="cb14-21"><a href="#cb14-21" tabindex="-1"></a>tbl3 <span class="ot">&lt;-</span> <span class="fu">rtftable</span>(df_demog,</span>
+<span id="cb14-22"><a href="#cb14-22" tabindex="-1"></a>  <span class="at">blank_rows =</span> <span class="fu">blank_rows_by_rule</span>(<span class="st">&quot;Group&quot;</span>, <span class="st">&quot;^Total&quot;</span>, <span class="at">where =</span> <span class="st">&quot;before&quot;</span>))</span>
+<span id="cb14-23"><a href="#cb14-23" tabindex="-1"></a></span>
+<span id="cb14-24"><a href="#cb14-24" tabindex="-1"></a><span class="co"># Combination — positions are unioned</span></span>
+<span id="cb14-25"><a href="#cb14-25" tabindex="-1"></a>tbl4 <span class="ot">&lt;-</span> <span class="fu">rtftable</span>(df_demog,</span>
+<span id="cb14-26"><a href="#cb14-26" tabindex="-1"></a>  <span class="at">blank_rows =</span> <span class="fu">list</span>(</span>
+<span id="cb14-27"><a href="#cb14-27" tabindex="-1"></a>    <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>),</span>
+<span id="cb14-28"><a href="#cb14-28" tabindex="-1"></a>    <span class="fu">blank_rows_by_change</span>(<span class="st">&quot;Group&quot;</span>,</span>
+<span id="cb14-29"><a href="#cb14-29" tabindex="-1"></a>      <span class="at">include_before_first =</span> <span class="cn">FALSE</span>, <span class="at">include_after_last =</span> <span class="cn">FALSE</span>),</span>
+<span id="cb14-30"><a href="#cb14-30" tabindex="-1"></a>    <span class="fu">blank_rows_by_rule</span>(<span class="st">&quot;Category&quot;</span>, <span class="st">&quot;^Subtotal&quot;</span>, <span class="at">where =</span> <span class="st">&quot;after&quot;</span>)</span>
+<span id="cb14-31"><a href="#cb14-31" tabindex="-1"></a>  ))</span>
+<span id="cb14-32"><a href="#cb14-32" tabindex="-1"></a></span>
+<span id="cb14-33"><a href="#cb14-33" tabindex="-1"></a><span class="co"># Or attach an attribute to the data frame and let read_attributes pick it up</span></span>
+<span id="cb14-34"><a href="#cb14-34" tabindex="-1"></a><span class="fu">attr</span>(df_demog, <span class="st">&quot;rtf_blank_rows&quot;</span>) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">3</span>, <span class="dv">6</span>, <span class="sc">-</span><span class="dv">1</span>)</span>
+<span id="cb14-35"><a href="#cb14-35" tabindex="-1"></a>tbl5 <span class="ot">&lt;-</span> <span class="fu">rtftable</span>(df_demog)   <span class="co"># read_attributes = TRUE by default</span></span></code></pre></div>
+<hr />
+</div>
+<div id="titles-footnotes-per-page" class="section level2">
+<h2>15 Titles &amp; footnotes per page</h2>
+<p><code>rtf_tables()</code> and <code>rtf_figures()</code> accept
+parallel <code>titles</code> and <code>footnotes</code> lists — one
+entry per page, each a character vector whose elements become individual
+paragraph lines. <code>&quot;&quot;</code> produces a blank line;
+<code>NULL</code> falls back to the package defaults (title = one blank
+centred line; no footnote).</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a>doc <span class="ot">&lt;-</span> <span class="fu">rtf_document</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a>  <span class="fu">rtf_tables</span>(</span>
+<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a>    <span class="fu">list</span>(df_demog, df_demog),</span>
+<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a>    <span class="at">titles =</span> <span class="fu">list</span>(</span>
+<span id="cb15-5"><a href="#cb15-5" tabindex="-1"></a>      <span class="fu">c</span>(<span class="st">&quot;Table 14.1.1&quot;</span>, <span class="st">&quot;&quot;</span>, <span class="st">&quot;Demographics (Safety Population)&quot;</span>),</span>
+<span id="cb15-6"><a href="#cb15-6" tabindex="-1"></a>      <span class="fu">c</span>(<span class="st">&quot;Table 14.1.2&quot;</span>, <span class="st">&quot;&quot;</span>, <span class="st">&quot;Demographics by Region&quot;</span>)</span>
+<span id="cb15-7"><a href="#cb15-7" tabindex="-1"></a>    ),</span>
+<span id="cb15-8"><a href="#cb15-8" tabindex="-1"></a>    <span class="at">footnotes =</span> <span class="fu">list</span>(</span>
+<span id="cb15-9"><a href="#cb15-9" tabindex="-1"></a>      <span class="fu">c</span>(<span class="st">&quot;Source: ADSL.&quot;</span>, <span class="st">&quot;&quot;</span>, <span class="st">&quot;N = 160 subjects.&quot;</span>),</span>
+<span id="cb15-10"><a href="#cb15-10" tabindex="-1"></a>      <span class="cn">NULL</span></span>
+<span id="cb15-11"><a href="#cb15-11" tabindex="-1"></a>    ),</span>
+<span id="cb15-12"><a href="#cb15-12" tabindex="-1"></a>    <span class="at">border           =</span> <span class="st">&quot;tfl&quot;</span>,</span>
+<span id="cb15-13"><a href="#cb15-13" tabindex="-1"></a>    <span class="at">row_height_twips =</span> <span class="dv">280</span><span class="dt">L</span></span>
+<span id="cb15-14"><a href="#cb15-14" tabindex="-1"></a>  )</span>
+<span id="cb15-15"><a href="#cb15-15" tabindex="-1"></a></span>
+<span id="cb15-16"><a href="#cb15-16" tabindex="-1"></a><span class="co"># Or set them after content has been added</span></span>
+<span id="cb15-17"><a href="#cb15-17" tabindex="-1"></a>doc <span class="ot">&lt;-</span> <span class="fu">rtf_document</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb15-18"><a href="#cb15-18" tabindex="-1"></a>  <span class="fu">rtf_tables</span>(<span class="fu">list</span>(df_demog, df_demog)) <span class="sc">%&gt;%</span></span>
+<span id="cb15-19"><a href="#cb15-19" tabindex="-1"></a>  <span class="fu">rtf_titles</span>(<span class="fu">list</span>(<span class="st">&quot;Page One&quot;</span>, <span class="st">&quot;Page Two&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb15-20"><a href="#cb15-20" tabindex="-1"></a>  <span class="fu">rtf_footnotes</span>(<span class="fu">list</span>(<span class="cn">NULL</span>, <span class="st">&quot;Source: ADSL.&quot;</span>))</span></code></pre></div>
+<p>Titles render as centred bold paragraphs; footnotes render as
+left-aligned paragraphs with a top divider line on the first line. Both
+inherit the document font size (one font per document, 9 pt by
+default).</p>
+<hr />
+</div>
+<div id="shared-table-style" class="section level2">
+<h2>16 Shared table style</h2>
+<p><code>rtf_table_style()</code> builds a <strong>table-style
+record</strong> that bundles default borders, alignment, padding and
+row-height. Pass the same record to many <code>rtftable()</code> calls
+and each table snapshots the defaults it needs at construction time. To
+derive a variant, call <code>rtf_table_style_with()</code>.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a>tfl <span class="ot">&lt;-</span> <span class="fu">rtf_table_style_tfl</span>()   <span class="co"># built-in TFL preset</span></span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a></span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a><span class="co"># Hand the same record to many tables</span></span>
+<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a>tables <span class="ot">&lt;-</span> <span class="fu">lapply</span>(<span class="fu">list</span>(df_demog, df_demog, df_demog),</span>
+<span id="cb16-5"><a href="#cb16-5" tabindex="-1"></a>                  <span class="cf">function</span>(df) <span class="fu">rtftable</span>(df, <span class="at">style =</span> tfl, <span class="at">row_height_twips =</span> <span class="dv">280</span><span class="dt">L</span>))</span>
+<span id="cb16-6"><a href="#cb16-6" tabindex="-1"></a></span>
+<span id="cb16-7"><a href="#cb16-7" tabindex="-1"></a><span class="co"># Non-mutating derivation</span></span>
+<span id="cb16-8"><a href="#cb16-8" tabindex="-1"></a>heavy_tfl <span class="ot">&lt;-</span> <span class="fu">rtf_table_style_with</span>(tfl,</span>
+<span id="cb16-9"><a href="#cb16-9" tabindex="-1"></a>  <span class="at">border_last_row =</span> <span class="fu">rtf_border</span>(<span class="at">bottom =</span> <span class="fu">rtf_border_side</span>(<span class="st">&quot;double&quot;</span>, <span class="dv">20</span><span class="dt">L</span>))</span>
+<span id="cb16-10"><a href="#cb16-10" tabindex="-1"></a>)</span></code></pre></div>
+<p>The S3 architecture is documented in <a href="../LEARNING.md">LEARNING.md</a>.</p>
+<hr />
+</div>
 <div id="quick-reference" class="section level2">
 <h2>Quick-reference</h2>
 <div id="rtftable-parameters" class="section level3">
@@ -773,22 +869,50 @@ section header.</p>
 <tr class="even">
 <td><code>col_header</code></td>
 <td>chr / list</td>
-<td>Column header text</td>
+<td>Column header text; list elements may be label rows (char) or
+spanning rows</td>
 </tr>
 <tr class="odd">
-<td><code>spanning_header</code></td>
-<td>list</td>
-<td>Spanning (grouped) header</td>
+<td><code>col_header_align</code></td>
+<td>NULL / scalar / chr(ncol)</td>
+<td>Column-header alignment override (default: inherit
+<code>align</code>)</td>
 </tr>
 <tr class="even">
-<td><code>col_spec</code></td>
+<td><code>spanning_header</code></td>
 <td>list</td>
-<td>Per-column align / bold / italic / indent</td>
+<td>Spanning row placed above <code>col_header</code> (legacy; can mix
+into <code>col_header</code> instead)</td>
 </tr>
 <tr class="odd">
+<td><code>col_spec</code></td>
+<td>list</td>
+<td>Per-column align / bold / italic / indent / <strong>border</strong>
+(<code>rtf_border</code>) / header_*</td>
+</tr>
+<tr class="even">
 <td><code>border</code></td>
 <td><code>&quot;tfl&quot;</code> / object</td>
-<td>Cell borders</td>
+<td>Outer-frame borders (now: top on first header row, bottom on
+last)</td>
+</tr>
+<tr class="odd">
+<td><code>blank_rows</code></td>
+<td>int / spec / list</td>
+<td>Integer positions, <code>blank_rows_by_change()</code>,
+<code>blank_rows_by_rule()</code>, or a list thereof</td>
+</tr>
+<tr class="even">
+<td><code>read_attributes</code></td>
+<td>logical</td>
+<td>Read <code>attr(data, &quot;rtf_blank_rows&quot;)</code> as fallback (default
+TRUE)</td>
+</tr>
+<tr class="odd">
+<td><code>style</code></td>
+<td>rtf_table_style</td>
+<td>Shared S3 theme record; provides defaults overridden by explicit
+args</td>
 </tr>
 <tr class="even">
 <td><code>col_rel_width</code></td>
@@ -818,13 +942,44 @@ section header.</p>
 </tr>
 <tr class="odd">
 <td><code>row_height_twips</code></td>
-<td>integer</td>
-<td>Data row height</td>
+<td>integer / NULL</td>
+<td>Data row height; NULL = font-aware default</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="rtf_tables-rtf_figures-pipe-api-extras" class="section level3">
+<h3>rtf_tables / rtf_figures pipe-API extras</h3>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>titles</code></td>
+<td>list of chr</td>
+<td>One entry per page; each char vector = one paragraph per line
+(<code>&quot;&quot;</code> = blank)</td>
 </tr>
 <tr class="even">
-<td><code>blank_rows</code></td>
-<td>integer vector</td>
-<td>Insert blank separator rows</td>
+<td><code>footnotes</code></td>
+<td>list of chr</td>
+<td>Same shape as <code>titles</code>; first line carries the top
+divider</td>
+</tr>
+<tr class="odd">
+<td>All <code>rtftable()</code> formatting args</td>
+<td>—</td>
+<td>Applied to bare <code>data.frame</code> items in the list</td>
 </tr>
 </tbody>
 </table>

@@ -397,6 +397,114 @@ tbl_ae <- rtftable(df_ae,
 
 ---
 
+## 14  Blank separator rows
+
+`blank_rows` accepts three combinable spec modes — integer positions,
+variable-change detection, and regex rule.  Combine them in a `list()`
+and the positions are unioned.
+
+```{r blank-rows}
+df_demog <- data.frame(
+  Group    = c("Sex",    "Sex",     "Sex",
+                "Race",   "Race",    "Race",
+                "Total"),
+  Category = c("Male",   "Female",  "Subtotal",
+                "Asian",  "Other",   "Subtotal",
+                ""),
+  N        = c(45L, 35L, 80L, 40L, 40L, 80L, 80L),
+  stringsAsFactors = FALSE
+)
+
+# Mode 1: integer positions (-1 = after the last row)
+tbl1 <- rtftable(df_demog, blank_rows = c(0, 3, 6, -1))
+
+# Mode 2: blank when a variable's value changes
+tbl2 <- rtftable(df_demog,
+  blank_rows = blank_rows_by_change("Group",
+    include_before_first = FALSE, include_after_last = FALSE))
+
+# Mode 3: regex match (e.g. before every "Total" row)
+tbl3 <- rtftable(df_demog,
+  blank_rows = blank_rows_by_rule("Group", "^Total", where = "before"))
+
+# Combination — positions are unioned
+tbl4 <- rtftable(df_demog,
+  blank_rows = list(
+    c(-1),
+    blank_rows_by_change("Group",
+      include_before_first = FALSE, include_after_last = FALSE),
+    blank_rows_by_rule("Category", "^Subtotal", where = "after")
+  ))
+
+# Or attach an attribute to the data frame and let read_attributes pick it up
+attr(df_demog, "rtf_blank_rows") <- c(0, 3, 6, -1)
+tbl5 <- rtftable(df_demog)   # read_attributes = TRUE by default
+```
+
+---
+
+## 15  Titles & footnotes per page
+
+`rtf_tables()` and `rtf_figures()` accept parallel `titles` and
+`footnotes` lists — one entry per page, each a character vector whose
+elements become individual paragraph lines.  `""` produces a blank
+line; `NULL` falls back to the package defaults (title = one blank
+centred line; no footnote).
+
+```{r titles-footnotes}
+doc <- rtf_document() %>%
+  rtf_tables(
+    list(df_demog, df_demog),
+    titles = list(
+      c("Table 14.1.1", "", "Demographics (Safety Population)"),
+      c("Table 14.1.2", "", "Demographics by Region")
+    ),
+    footnotes = list(
+      c("Source: ADSL.", "", "N = 160 subjects."),
+      NULL
+    ),
+    border           = "tfl",
+    row_height_twips = 280L
+  )
+
+# Or set them after content has been added
+doc <- rtf_document() %>%
+  rtf_tables(list(df_demog, df_demog)) %>%
+  rtf_titles(list("Page One", "Page Two")) %>%
+  rtf_footnotes(list(NULL, "Source: ADSL."))
+```
+
+Titles render as centred bold paragraphs; footnotes render as
+left-aligned paragraphs with a top divider line on the first line.
+Both inherit the document font size (one font per document, 9 pt by
+default).
+
+---
+
+## 16  Shared table style
+
+`rtf_table_style()` builds a **table-style record** that bundles default
+borders, alignment, padding and row-height.  Pass the same record to
+many `rtftable()` calls and each table snapshots the defaults it needs
+at construction time.  To derive a variant, call `rtf_table_style_with()`.
+
+```{r style-theme}
+tfl <- rtf_table_style_tfl()   # built-in TFL preset
+
+# Hand the same record to many tables
+tables <- lapply(list(df_demog, df_demog, df_demog),
+                  function(df) rtftable(df, style = tfl, row_height_twips = 280L))
+
+# Non-mutating derivation
+heavy_tfl <- rtf_table_style_with(tfl,
+  border_last_row = rtf_border(bottom = rtf_border_side("double", 20L))
+)
+```
+
+The S3 architecture is documented in [LEARNING.md](../LEARNING.md).
+
+---
+
 ## Quick-reference
 
 ### rtftable parameters
@@ -404,17 +512,29 @@ tbl_ae <- rtftable(df_ae,
 | Parameter | Type | Purpose |
 |---|---|---|
 | `data` | data.frame or list | Content rows |
-| `col_header` | chr / list | Column header text |
-| `spanning_header` | list | Spanning (grouped) header |
-| `col_spec` | list | Per-column align / bold / italic / indent |
-| `border` | `"tfl"` / object | Cell borders |
+| `col_header` | chr / list | Column header text; list elements may be label rows (char) or spanning rows |
+| `col_header_align` | NULL / scalar / chr(ncol) | Column-header alignment override (default: inherit `align`) |
+| `spanning_header` | list | Spanning row placed above `col_header` (legacy; can mix into `col_header` instead) |
+| `col_spec` | list | Per-column align / bold / italic / indent / **border** (`rtf_border`) / header_* |
+| `border` | `"tfl"` / object | Outer-frame borders (now: top on first header row, bottom on last) |
+| `blank_rows` | int / spec / list | Integer positions, `blank_rows_by_change()`, `blank_rows_by_rule()`, or a list thereof |
+| `read_attributes` | logical | Read `attr(data, "rtf_blank_rows")` as fallback (default TRUE) |
+| `style` | rtf_table_style | Shared S3 theme record; provides defaults overridden by explicit args |
 | `col_rel_width` | numeric vector | Proportional column widths |
 | `column_widths_twips` | integer vector | Absolute column widths |
 | `table_width_twips` | integer | Table total width (twips) |
 | `table_width_pct` | numeric 0-100 | Table width as % of page |
 | `table_align` | `"left"` / `"center"` / `"right"` | Table position on page |
-| `row_height_twips` | integer | Data row height |
-| `blank_rows` | integer vector | Insert blank separator rows |
+| `row_height_twips` | integer / NULL | Data row height; NULL = font-aware default |
+
+### rtf_tables / rtf_figures pipe-API extras
+
+| Parameter | Type | Purpose |
+|---|---|---|
+| `titles` | list of chr | One entry per page; each char vector = one paragraph per line (`""` = blank) |
+| `footnotes` | list of chr | Same shape as `titles`; first line carries the top divider |
+| All `rtftable()` formatting args | — | Applied to bare `data.frame` items in the list |
+
 
 ### rtfplot parameters
 

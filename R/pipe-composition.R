@@ -143,8 +143,8 @@ rtf_config <- function(doc, font_table = NULL, color_table = NULL, page = NULL,
 #' @param tables A list where each element is one page's content. Each
 #'   element must be one of:
 #'   - `data.frame`: simple table; the table-format arguments below apply.
-#'   - `rtftable_r6` object (from `rtftable()`): table with full formatting.
-#'   - `rtfplot_r6` object (from `rtfplot()`): embedded figure.
+#'   - `rtftable` object (from `rtftable()`): table with full formatting.
+#'   - `rtfplot` object (from `rtfplot()`): embedded figure.
 #' @param col_rel_width,column_widths_twips,table_width_twips,table_width_pct_of_writable,table_width_pct,table_align Column-width and table-width settings applied to bare `data.frame` elements. See [rtftable()] for details.
 #' @param col_header,spanning_header,col_spec,border,blank_rows Per-table content settings applied to bare `data.frame` elements. See [rtftable()] for details.
 #' @param row_height_twips,row_height_exact,header_row_height_twips,blank_row_height_twips Row-height settings applied to bare `data.frame` elements. See [rtftable()] for details.
@@ -220,8 +220,8 @@ rtf_tables <- function(doc, tables,
 
   .is_content_item <- function(x) {
     is.data.frame(x) ||
-      inherits(x, "rtftable_r6") ||
-      inherits(x, "rtfplot_r6")
+      inherits(x, "rtftable") ||
+      inherits(x, "rtfplot")
   }
 
   # Validate each page-level item: exactly one content per page.
@@ -235,10 +235,10 @@ rtf_tables <- function(doc, tables,
     }
   }
 
-  # Promote bare data.frames to rtftable_r6 using the supplied formatting args.
+  # Promote bare data.frames to rtftable using the supplied formatting args.
   tables <- lapply(tables, function(item) {
     if (is.data.frame(item)) {
-      rtftable_r6$new(
+      .new_rtftable(
         data                        = item,
         col_header                  = col_header,
         col_header_align            = col_header_align,
@@ -319,7 +319,7 @@ rtf_tables <- function(doc, tables,
 #'
 #' @param doc An rtf_document object.
 #' @param figures A list whose elements are either character file paths to
-#'   image files (PNG/JPEG) or pre-built `rtfplot_r6` objects from [rtfplot()].
+#'   image files (PNG/JPEG) or pre-built `rtfplot` objects from [rtfplot()].
 #' @param width_twips Display width in twips for bare paths.  `NULL` = full
 #'   writable width.
 #' @param height_twips Display height in twips for bare paths.  `NULL` =
@@ -346,10 +346,10 @@ rtf_figures <- function(doc, figures,
          call. = FALSE)
   }
 
-  # Validate and promote each element to rtfplot_r6.
+  # Validate and promote each element to rtfplot.
   fig_objs <- lapply(seq_along(figures), function(i) {
     fig <- figures[[i]]
-    if (inherits(fig, "rtfplot_r6")) {
+    if (inherits(fig, "rtfplot")) {
       return(fig)
     }
     if (!is.character(fig) || length(fig) != 1L) {
@@ -357,8 +357,8 @@ rtf_figures <- function(doc, figures,
            " must be a single character file path or an rtfplot() object",
            call. = FALSE)
     }
-    rtfplot_r6$new(path = fig, width_twips = width_twips,
-                   height_twips = height_twips, align = align)
+    .new_rtfplot(path = fig, width_twips = width_twips,
+                 height_twips = height_twips, align = align)
   })
 
   .validate_parallel <- function(x, n, name) {

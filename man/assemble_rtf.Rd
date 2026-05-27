@@ -30,15 +30,16 @@ header/footer text uses \emph{dynamic} tokens:
 The static token \code{\{TOTAL_PAGES\}} reflects only the page count of each
 source file and will show the wrong total in the assembled output.
 }
-\seealso{\code{\link{generate_rtfreport}}, \code{\link{rtfreport}}}
+\seealso{\code{\link{generate_rtfreport}}, \code{\link{rtf_document}}}
 \examples{
 \dontrun{
+  library(magrittr)
+
   # Build two reports and assemble them.
   make_report <- function(df, hdr) {
-    r <- rtfreport$new()
-    sec <- r$add_section(header = c(l = hdr))
-    r$add_page(sec, content = list(list(type = "table", data = df)))
-    r
+    rtf_document() \%>\%
+      rtf_section(page = 1, secinfo = list(header = rtf_header(c(l = hdr)))) \%>\%
+      rtf_tables(list(df))
   }
 
   f1 <- tempfile(fileext = ".rtf")

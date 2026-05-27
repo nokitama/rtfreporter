@@ -483,19 +483,19 @@
       multi_col <- to_idx > from_idx
       if (multi_col && !is.null(group_bottom_side)) {
         if (is.null(eff)) eff <- rtf_border()
-        eff <- eff$with_bottom(group_bottom_side)
+        eff <- .merge_rtf_border(eff, rtf_border(bottom = group_bottom_side))
       }
       if (!is.null(col_spec) && from_idx >= 1L && from_idx <= length(col_spec)) {
         cb <- col_spec[[from_idx]]$border
         if (!is.null(cb)) {
-          eff <- if (is.null(eff)) cb else eff$override(cb)
+          eff <- if (is.null(eff)) cb else .merge_rtf_border(eff, cb)
         }
       }
     } else if (!is.null(single_col_idx) && !is.null(col_spec) &&
                 single_col_idx <= length(col_spec)) {
       cb <- col_spec[[single_col_idx]]$border
       if (!is.null(cb)) {
-        eff <- if (is.null(eff)) cb else eff$override(cb)
+        eff <- if (is.null(eff)) cb else .merge_rtf_border(eff, cb)
       }
     }
     eff
@@ -994,7 +994,7 @@
   }
 
   .tbl_colors <- function(tbl) {
-    if (!inherits(tbl, "rtftable_r6")) return(character(0))
+    if (!inherits(tbl, "rtftable")) return(character(0))
     tb <- tbl$border
     if (is.null(tb)) return(character(0))
     if (inherits(tb, "rtf_table_border")) return(.collect_table_border_colors(tb))
@@ -1007,7 +1007,7 @@
   }
   for (pg in report$pages) {
     ct <- pg$content
-    if (inherits(ct, "rtftable_r6")) cols <- c(cols, .tbl_colors(ct))
+    if (inherits(ct, "rtftable")) cols <- c(cols, .tbl_colors(ct))
   }
   unique(cols)
 }
@@ -1049,14 +1049,14 @@
 # Compute the rendered width of a content block in twips.
 .compute_content_width <- function(content, writable_width) {
   if (is.null(content)) return(writable_width)
-  if (inherits(content, "rtftable_r6")) {
+  if (inherits(content, "rtftable")) {
     if (!is.null(content$column_widths_twips)) return(sum(as.integer(content$column_widths_twips)))
     if (!is.null(content$table_width_twips))   return(as.integer(content$table_width_twips))
     if (!is.null(content$table_width_pct_of_writable)) {
       return(as.integer(round(writable_width * content$table_width_pct_of_writable)))
     }
   }
-  if (inherits(content, "rtfplot_r6")) {
+  if (inherits(content, "rtfplot")) {
     return(content$width_twips %||% writable_width)
   }
   writable_width
@@ -1149,7 +1149,7 @@
 
 
 # ============================================================================
-# Pipe API Adapter: Convert rtf_document → rtfreport_r6
+# Pipe API Adapter: Convert rtf_document (public S3) → rtfreport (internal S3)
 # ============================================================================
 
 # ── auto_section helpers ───────────────────────────────────────────────────────
@@ -1180,7 +1180,7 @@
 }
 
 # Unwrap an rtf_auto_section_item to its underlying content object.
-# By contract, item$content is always a single rtftable_r6, rtfplot_r6, or
+# By contract, item$content is always a single rtftable, rtfplot, or
 # data.frame (validated and promoted in rtf_tables()).
 .unwrap_auto_section_item <- function(item) {
   item$content
@@ -1188,27 +1188,27 @@
 
 # Internal helper: pass through a single content item.
 # By contract, rtf_tables() and rtf_figures() guarantee a single content
-# object (rtftable_r6, rtfplot_r6, or data.frame) per element.
+# object (rtftable, rtfplot, or data.frame) per element.
 .normalise_content_item <- function(content_item) {
   content_item
 }
 
-# Internal helper: convert S3 rtf_document (pipe API) to R6 rtfreport_r6.
-.pipe_doc_to_r6_report <- function(pipe_doc) {
+# Internal helper: convert S3 rtf_document (pipe API) to internal S3 rtfreport.
+.pipe_doc_to_rtfreport <- function(pipe_doc) {
   if (!inherits(pipe_doc, "rtf_document")) return(NULL)
 
-  r6_report <- rtfreport_r6$new()
+  report <- .new_rtfreport()
 
-  # Copy document-level settings
+  # Copy document-level settings.
   if (!is.null(pipe_doc$document$font_table)) {
-    r6_report$set_document_defaults(font_table = pipe_doc$document$font_table)
+    report <- .rtfreport_set_font_table(report, pipe_doc$document$font_table)
   }
   if (!is.null(pipe_doc$document$color_table)) {
-    r6_report$set_document_defaults(color_table = pipe_doc$document$color_table)
+    report <- .rtfreport_set_color_table(report, pipe_doc$document$color_table)
   }
   if (!is.null(pipe_doc$document$page)) {
     ps <- pipe_doc$document$page
-    r6_report$set_default_page(list(
+    report <- .rtfreport_set_default_page(report, list(
       orientation         = ps$orientation        %||% "landscape",
       width_twips         = .in_to_twips(ps$width_in        %||% 11),
       height_twips        = .in_to_twips(ps$height_in       %||% 8.5),
@@ -1219,7 +1219,7 @@
     ))
   }
   if (!is.null(pipe_doc$document$default_format)) {
-    r6_report$set_default_format(pipe_doc$document$default_format)
+    report <- .rtfreport_set_default_format(report, pipe_doc$document$default_format)
   }
 
   # ── Detect auto-section items ─────────────────────────────────────────────
@@ -1236,8 +1236,8 @@
     explicit_keys <- sort(as.integer(all_keys[all_keys != "_default"]))
     for (key in explicit_keys) {
       si <- pipe_doc$sections[[as.character(key)]]
-      r6_report$add_section(header = si$header, footer = si$footer,
-                             from_page = key)
+      report <- .rtfreport_add_section(report, header = si$header,
+                                       footer = si$footer, from_page = key)
     }
 
     # Process contents one by one, creating one RTF section per named item.
@@ -1251,25 +1251,27 @@
         label_align <- content_item$label_align %||% "left"
         sec_header  <- .build_auto_section_header(default_sec, label, label_align)
         sec_footer  <- if (!is.null(default_sec)) default_sec$footer else NULL
-        r6_report$add_section(header = sec_header, footer = sec_footer,
-                               from_page = page_counter)
+        report <- .rtfreport_add_section(report, header = sec_header,
+                                         footer = sec_footer,
+                                         from_page = page_counter)
         ct <- .unwrap_auto_section_item(content_item)
       } else {
         ct <- .normalise_content_item(content_item)
       }
       title_i    <- if (ci <= length(pipe_doc$titles))    pipe_doc$titles[[ci]]    else NULL
       footnote_i <- if (ci <= length(pipe_doc$footnotes)) pipe_doc$footnotes[[ci]] else NULL
-      r6_report$add_page(content = ct, title = title_i, footnote = footnote_i)
+      report <- .rtfreport_add_page(report, content = ct, title = title_i,
+                                    footnote = footnote_i)
     }
 
     # Guard: if no section was added at all (e.g., all items were non-auto),
     # fall back to the "_default" section or an empty one.
-    if (length(r6_report$sections) == 0L) {
+    if (length(report$sections) == 0L) {
       if (!is.null(default_sec)) {
-        r6_report$add_section(header = default_sec$header,
-                               footer = default_sec$footer)
+        report <- .rtfreport_add_section(report, header = default_sec$header,
+                                         footer = default_sec$footer)
       } else {
-        r6_report$add_section()
+        report <- .rtfreport_add_section(report)
       }
     }
 
@@ -1283,16 +1285,16 @@
       # No explicit page sections – use "_default" or an empty default.
       default_sec <- pipe_doc$sections[["_default"]]
       if (!is.null(default_sec)) {
-        r6_report$add_section(header = default_sec$header,
-                               footer = default_sec$footer)
+        report <- .rtfreport_add_section(report, header = default_sec$header,
+                                         footer = default_sec$footer)
       } else {
-        r6_report$add_section()  # default section covering all pages
+        report <- .rtfreport_add_section(report)  # default covering all pages
       }
     } else {
       for (key in section_keys) {
         si <- pipe_doc$sections[[as.character(key)]]
-        r6_report$add_section(header = si$header, footer = si$footer,
-                               from_page = key)
+        report <- .rtfreport_add_section(report, header = si$header,
+                                         footer = si$footer, from_page = key)
       }
     }
 
@@ -1301,20 +1303,21 @@
       ct         <- .normalise_content_item(pipe_doc$contents[[ci]])
       title_i    <- if (ci <= length(pipe_doc$titles))    pipe_doc$titles[[ci]]    else NULL
       footnote_i <- if (ci <= length(pipe_doc$footnotes)) pipe_doc$footnotes[[ci]] else NULL
-      r6_report$add_page(content = ct, title = title_i, footnote = footnote_i)
+      report <- .rtfreport_add_page(report, content = ct, title = title_i,
+                                    footnote = footnote_i)
     }
   }
 
-  r6_report
+  report
 }
 
 #' Generate an RTF file from a report object
 #'
-#' Renders an `rtf_document` (from the pipe API) or `rtfreport_r6` object
-#' to an RTF file.
+#' Renders an `rtf_document` (from the pipe API) or internal `rtfreport`
+#' object to an RTF file.
 #'
 #' @param report An `rtf_document` object (from `rtf_document()`) or an
-#'   internal `rtfreport_r6` object.
+#'   internal `rtfreport` object.
 #' @param file_path Output RTF file path.
 #' @param overwrite Logical; whether to overwrite an existing file.
 #'   Default `FALSE`.
@@ -1323,19 +1326,19 @@
 #' @export
 generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
   if (inherits(report, "rtf_document")) {
-    report <- .pipe_doc_to_r6_report(report)
+    report <- .pipe_doc_to_rtfreport(report)
     if (is.null(report)) {
-      stop("`report` must be an rtf_document or rtfreport_r6 object.", call. = FALSE)
+      stop("`report` must be an rtf_document or rtfreport object.", call. = FALSE)
     }
-  } else if (!inherits(report, "rtfreport_r6")) {
-    stop("`report` must be an rtf_document (from rtf_document()) or rtfreport_r6 object.",
+  } else if (!inherits(report, "rtfreport")) {
+    stop("`report` must be an rtf_document (from rtf_document()) or rtfreport object.",
          call. = FALSE)
   }
   if (file.exists(file_path) && !isTRUE(overwrite)) {
     stop("`file_path` already exists. Set overwrite = TRUE.", call. = FALSE)
   }
 
-  report$validate()
+  report <- .rtfreport_validate(report)
 
   doc           <- report$document
   page_defaults <- doc$default_page
@@ -1451,15 +1454,15 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
       p_idx <- sec_pages[sp_idx]
       page  <- report$pages[[p_idx]]
 
-      # ── Content (single rtftable_r6 or rtfplot_r6) ───────────────────────
+      # ── Content (single rtftable or rtfplot) ─────────────────────────────
       ct <- page$content
 
       # ── Title (plain centred paragraphs; NULL → one blank line) ──────────
       lines <- c(lines, .render_title_text(page$title, align = "center"))
       if (!is.null(ct)) {
-        if (inherits(ct, "rtftable_r6")) {
+        if (inherits(ct, "rtftable")) {
           lines <- c(lines, .render_rtftable(ct, writable_w, font_half_points))
-        } else if (inherits(ct, "rtfplot_r6")) {
+        } else if (inherits(ct, "rtfplot")) {
           lines <- c(lines, .render_rtfplot(ct, writable_w))
         }
       }

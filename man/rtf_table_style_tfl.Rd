@@ -2,12 +2,12 @@
 % Please edit documentation in r/rtf_table_style.R
 \name{rtf_table_style_tfl}
 \alias{rtf_table_style_tfl}
-\title{Clinical TFL preset (R6 style)}
+\title{Clinical TFL preset (table style)}
 \usage{
 rtf_table_style_tfl()
 }
 \value{
-An `rtf_table_style` R6 object.
+An `rtf_table_style` object.
 }
 \description{
 Returns a freshly constructed `rtf_table_style` matching the standard
@@ -18,7 +18,11 @@ carries no borders by default.**  No vertical lines.  No bold
 headers.
 }
 \details{
-Callers who want a bottom rule under the last data row can set it
-explicitly after construction:
-`style$border_last_row <- rtf_border(bottom = rtf_border_side())`.
+To override one or more fields, pipe through [rtf_table_style_with()]:
+
+\preformatted{
+  heavy <- rtf_table_style_with(rtf_table_style_tfl(),
+            header_bold = TRUE,
+            border_last_row = rtf_border(bottom = rtf_border_side()))
+}
 }

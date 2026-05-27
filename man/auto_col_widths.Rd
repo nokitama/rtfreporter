@@ -51,6 +51,6 @@ df <- data.frame(
   AGE      = c(45L, 62L)
 )
 widths <- auto_col_widths(df, table_width_twips = 14400L)
-tbl <- rtftable$new(df, column_widths_twips = widths)
+tbl <- rtftable(df, column_widths_twips = widths)
 
 }

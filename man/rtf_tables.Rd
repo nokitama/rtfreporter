@@ -40,8 +40,8 @@ rtf_tables(
 \item{tables}{A list where each element is one page's content. Each
 element must be one of:
 - `data.frame`: simple table; the table-format arguments below apply.
-- `rtftable_r6` object (from `rtftable()`): table with full formatting.
-- `rtfplot_r6` object (from `rtfplot()`): embedded figure.}
+- `rtftable` object (from `rtftable()`): table with full formatting.
+- `rtfplot` object (from `rtfplot()`): embedded figure.}
 
 \item{col_header, spanning_header, col_spec, border, blank_rows}{Per-table content settings applied to bare `data.frame` elements. See [rtftable()] for details.}
 

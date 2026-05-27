@@ -1,7 +1,8 @@
 # rtfplot: figure object for embedding PNG/JPEG images into RTF reports.
 #
-# Reads the image file, extracts dimensions, and stores the binary data as
-# hex so that generate_rtfreport() can emit a \pict RTF command.
+# Reads the image file, extracts dimensions, and stores the binary data
+# location plus metadata.  The renderer (.render_rtfplot) reads the file and
+# emits a \pict RTF command.
 
 # Read PNG image dimensions from the IHDR chunk (bytes 17-24).
 .read_png_dims <- function(path) {
@@ -37,55 +38,34 @@
   stop("Could not locate SOF marker to read JPEG dimensions.", call. = FALSE)
 }
 
-#' RTF plot (embedded figure) object
-#'
-#' `rtfplot` reads a PNG or JPEG image and prepares it for binary embedding
-#' inside an RTF document via the `\pict` command.
-#'
-#' @param path Path to the image file (PNG or JPEG).
-#' @param width_twips Displayed width in twips.  `NULL` = use the full
-#'   writable width of the page.
-#' @param height_twips Displayed height in twips.  `NULL` = maintain the
-#'   image's aspect ratio given `width_twips`.
-#' @param align Horizontal alignment: `"center"` (default), `"left"`,
-#'   `"right"`.
-#'
-#' Internal R6 class for plot objects
-#' (S3 wrapper rtfplot() is the public API)
-rtfplot_r6 <- R6::R6Class(
-  classname = "rtfplot_r6",
-  public = list(
-    path         = NULL,
-    width_twips  = NULL,
-    height_twips = NULL,
-    align        = NULL,
-    img_width    = NULL,  # native pixel width
-    img_height   = NULL,  # native pixel height
-    img_type     = NULL,  # "png" or "jpeg"
+# Internal S3 constructor.  Public callers use rtfplot() in wrappers.R.
+.new_rtfplot <- function(path, width_twips = NULL, height_twips = NULL,
+                         align = "center") {
+  if (!file.exists(path)) {
+    stop(sprintf("Image file not found: %s", path), call. = FALSE)
+  }
+  ext <- tolower(tools::file_ext(path))
+  if (!ext %in% c("png", "jpg", "jpeg")) {
+    stop("rtfplot supports PNG and JPEG files only.", call. = FALSE)
+  }
+  img_type <- if (ext == "png") "png" else "jpeg"
 
-    initialize = function(path, width_twips = NULL, height_twips = NULL,
-                          align = "center") {
-      if (!file.exists(path)) {
-        stop(sprintf("Image file not found: %s", path), call. = FALSE)
-      }
-      ext <- tolower(tools::file_ext(path))
-      if (!ext %in% c("png", "jpg", "jpeg")) {
-        stop("rtfplot supports PNG and JPEG files only.", call. = FALSE)
-      }
-      self$path <- path
-      self$img_type <- if (ext == "png") "png" else "jpeg"
+  dims <- if (img_type == "png") .read_png_dims(path) else .read_jpeg_dims(path)
 
-      dims <- if (self$img_type == "png") .read_png_dims(path) else .read_jpeg_dims(path)
-      self$img_width  <- dims$width
-      self$img_height <- dims$height
+  if (!align %in% c("left", "center", "right")) {
+    stop("`align` must be 'left', 'center', or 'right'.", call. = FALSE)
+  }
 
-      self$width_twips  <- if (!is.null(width_twips))  as.integer(width_twips)  else NULL
-      self$height_twips <- if (!is.null(height_twips)) as.integer(height_twips) else NULL
-      if (!align %in% c("left", "center", "right")) {
-        stop("`align` must be 'left', 'center', or 'right'.", call. = FALSE)
-      }
-      self$align <- align
-      invisible(self)
-    }
+  structure(
+    list(
+      path         = path,
+      width_twips  = if (!is.null(width_twips))  as.integer(width_twips)  else NULL,
+      height_twips = if (!is.null(height_twips)) as.integer(height_twips) else NULL,
+      align        = align,
+      img_width    = dims$width,
+      img_height   = dims$height,
+      img_type     = img_type
+    ),
+    class = "rtfplot"
   )
-)
+}

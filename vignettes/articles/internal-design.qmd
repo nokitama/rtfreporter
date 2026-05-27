@@ -1,6 +1,6 @@
 ---
 title: "rtfreporter 内部クラス設計書"
-subtitle: "rtfreport_r6 / rtftable_r6 / rtfplot_r6"
+subtitle: "rtfreport / rtftable / rtfplot（全 S3）"
 author: "rtfreporter development team"
 date: last-modified
 date-format: "YYYY-MM-DD"
@@ -25,51 +25,47 @@ format:
 # 概要
 
 `rtfreporter` パッケージは、臨床試験用の RTF レポートを生成するパッケージです。
-内部では R6 クラスを使用し、外部には S3 関数 API のみを公開します。
+**v0.0.19 以降、すべての内部・外部クラスは S3 に統一**されており、R6 は使用しません（`Imports: R6` も DESCRIPTION から削除済み）。
 
 ## クラス構成
 
-| 内部クラス | 役割 | 公開 S3 ラッパー |
+| 内部クラス | 役割 | 公開コンストラクタ |
 |---|---|---|
-| `rtfreport_r6` | RTF 文書全体を管理 | `rtf_document()` （パイプ API） |
-| `rtftable_r6` | テーブルデータと書式を管理 | `rtftable()` |
-| `rtfplot_r6` | 図（PNG/JPEG）を管理 | `rtfplot()` |
+| `rtfreport` | RTF 文書全体を管理（内部 S3） | `.new_rtfreport()`（非公開）。ユーザー向けは `rtf_document()` パイプ API |
+| `rtftable` | テーブルデータと書式を管理 | `rtftable()` |
+| `rtfplot` | 図（PNG/JPEG）を管理 | `rtfplot()` |
 
-ヘッダー/フッターと罫線は R6 ではなく **S3 plain list** として実装されています。
+ヘッダー/フッター、罫線、スタイルもすべて S3 plain list です。
 
 ## クラス・オブジェクトの使い分け方針
 
-パッケージ内では 3 種類のオブジェクト形式を使い分けています。
+パッケージ内では 2 種類の S3 オブジェクト形式を使い分けています。
 
 | 形式 | 使う場面 | 具体例 |
 |---|---|---|
-| **内部 R6 クラス** (`_r6`) | 状態を持ち、メソッドで操作する主役オブジェクト | `rtfreport_r6`, `rtftable_r6`, `rtfplot_r6` |
-| **内部 S3 typed list** | R6 の中に格納されるデータ容器（メソッド不要） | `rtf_page`, `rtf_sect` |
-| **外部 S3 関数の戻り値** | ユーザーが直接渡す設定オブジェクト（NAMESPACE に export） | `rtf_header()`, `rtf_footer()`, `rtf_border()` |
+| **内部 S3 typed list** | パッケージ内部だけで使うデータ容器 | `rtfreport`, `rtf_page`, `rtf_sect` |
+| **外部 S3 関数の戻り値** | ユーザーが直接渡す設定オブジェクト（NAMESPACE に export） | `rtftable()`, `rtfplot()`, `rtf_header()`, `rtf_footer()`, `rtf_border()`, `rtf_table_style()` |
 
-**なぜ `rtf_page` / `rtf_sect` を R6 にしないのか:**
+S3 リストには `structure(list(...), class = "...")` で `class` タグを付与し、`inherits()` による型チェックとデバッグ表示（`str()`, `print()`, `dput()`）の両方が機能するようにしています。
 
-- これらは **純粋なデータ容器** であり、自分からは何もしない（メソッド不要）
-- R6 は環境ベースの **参照セマンティクス** を持つが、リスト要素として格納されるデータ構造には **値コピー** が自然
-- `class` タグを付けることで `inherits()` による型チェックとデバッグ表示のみを得る
+## R6 を採用しなかった理由（v0.0.19 で R6 → S3 統一）
 
-**"内部 R6、外部 S3" 原則との整合:**
+旧 v0.0.18 までは `rtfreport_r6` / `rtftable_r6` / `rtfplot_r6` / `rtf_border`（R6）/ `rtf_table_style`（R6）の 5 クラスが R6 でした。次の理由で全て S3 に置き換えました：
 
-原則は保たれています。`rtf_page` / `rtf_sect` は「内部 R6 の中に住むデータ構造」であり、独立した公開オブジェクトではありません。R6 クラスが `integer` や `character` を内部に保持するのと同じ感覚で、少しだけ型安全にした named list です。
+1. **`_r6` 系の内部クラスは寿命が短く参照セマンティクスが不要**：`.pipe_doc_to_rtfreport()` でアダプタとして 1 度作り、レンダラーが読むだけ。S3 リスト + 関数型ヘルパー（`.rtfreport_add_page(rep, ...)` などで新コピーを返す）の方がシンプルかつ `dput()`/`saveRDS()` が綺麗に通る。
+2. **`rtf_border` (R6) の `set_*` / `with_*` / `apply_override` などのチェインビルダーは実コードでほぼ未使用**：内部唯一の `eff$with_bottom()` / `eff$override()` 呼び出しは `.merge_rtf_border()` で 1 行に置換できた。
+3. **`rtf_table_style` (R6) の「共有可変テーマ」は実は機能していなかった**：`rtftable()` コンストラクタが style の各フィールドを構築時にスナップショットしてしまうため、後から `style$header_bold <- TRUE` しても既存 table には反映されない。値コピーの S3 と何も変わらない。
 
-## `_r6` サフィックスについて
+S3 統一により得たもの：
 
-内部 R6 クラスには `_r6` サフィックスを付けています。理由：
-
-- コード中で R6 オブジェクトと S3 オブジェクトを一目で区別できる
-- `rtftable_r6$new(...)` と公開関数 `rtftable(...)` の混同を防ぐ
-- 将来 S3 公開ラッパー関数と同名の概念が存在しても衝突しない
-
-R6 クラスは NAMESPACE から除外されており、ユーザーが直接触れることはありません。
+- `dput()` / `str()` / `print()` / `saveRDS()` が綺麗に動く
+- パイプ関数型コンポジションと整合（参照セマンティクスの混入なし）
+- `Imports: R6` を削除、外部依存ゼロ化
+- メンバ関数 vs 自由関数の混在が消え、コードベース全体が一貫した関数型に
 
 ## 設計原則
 
-1. **外部公開は S3 のみ** — R6 の `$new()` を公開しない
+1. **すべて S3** — `class` タグ付きの plain list / vector のみ
 2. **twips 統一** — 寸法はすべて twips（フォントサイズ依存計算なし）
 3. **RTF コマンドはリソースファイルに集約** — レンダラーにコマンドを埋め込まない
 4. **"none" = コマンドなし** — 罫線なしは該当 RTF コマンドを出力しない
@@ -77,12 +73,12 @@ R6 クラスは NAMESPACE から除外されており、ユーザーが直接触
 
 ---
 
-# `rtfreport_r6` — RTF 文書クラス
+# `rtfreport` — RTF 文書クラス
 
 ## データ構造概念図
 
 ```
-rtfreport_r6
+rtfreport
 ├── document              # 文書レベル設定（named list）
 │   ├── font_table
 │   ├── color_table
@@ -92,7 +88,7 @@ rtfreport_r6
 ├── pages[]               # rtf_page オブジェクトのリスト（文書レベルで管理）
 │   └── rtf_page
 │       ├── title         # character vector（複数行可、デフォルト: center）
-│       ├── content       # rtftable_r6 | rtfplot_r6 | NULL（1ページ1つのみ）
+│       ├── content       # rtftable | rtfplot | NULL（1ページ1つのみ）
 │       └── footnote      # character vector（複数行可、1×1テーブル表示）
 │
 └── sections[]            # rtf_sect オブジェクトのリスト
@@ -113,7 +109,7 @@ sections: [sect A  ]  [sect B       ]
 
 - **ページ (`pages`)** は文書レベルのフラットなリスト
 - **セクション (`sections`)** は `from_page` でページ範囲を指定
-- セクションは **最低 1 つ必須**。指定がない場合、`validate()` 時に空のデフォルトセクション（ヘッダー/フッターなし）が自動生成される
+- セクションは **最低 1 つ必須**。指定がない場合、`.rtfreport_validate()` 時に空のデフォルトセクション（ヘッダー/フッターなし）が自動生成される
 - セクションの `to_page` はレンダラーが「次のセクションの `from_page - 1`」として自動計算する
 
 ## セクション継承ルール
@@ -145,7 +141,7 @@ RTF では `\sect` でセクションが切り替わるたびに `{\header}` と
 | フィールド | 型 | 説明 |
 |---|---|---|
 | `title` | `character vector` \| `NULL` | ページタイトル（複数行 = 複数要素）。デフォルト配置: center |
-| `content` | `rtftable_r6` \| `rtfplot_r6` \| `NULL` | コンテンツ（1ページ1つのみ）。デフォルト配置: center |
+| `content` | `rtftable` \| `rtfplot` \| `NULL` | コンテンツ（1ページ1つのみ）。デフォルト配置: center |
 | `footnote` | `character vector` \| `NULL` | フットノート（複数行 = 複数要素）。コンテンツ直下に同幅1×1テーブルで表示。デフォルト: left |
 
 ### フットノートのレンダリング
@@ -178,58 +174,64 @@ RTF では `\sect` でセクションが切り替わるたびに `{\header}` と
 | `footer` | `rtf_footer()` \| named vector \| `NULL` | セクションフッター（NULL = 前セクションから継承） |
 | `from_page` | `integer` \| `NULL` | このセクションが開始するページ番号。NULL は最初のセクション（= 1）として扱う |
 
-## メソッド定義
+## 内部 S3 ヘルパー関数
+
+`rtfreport` は S3 list であり、内部からは次の **関数型ヘルパー** で操作します。すべて新コピーを返し、引数を破壊的に変更しません。
 
 ### コンストラクタ
 
 ```r
-initialize(
+.new_rtfreport(
   font_table     = NULL,   # NULL = list(list(name = "Courier"))
   color_table    = NULL,   # NULL = c("#000000")
   default_page   = NULL,   # NULL = letter landscape 0.75/0.5インチ余白
   default_format = NULL    # NULL = Courier 9pt single spacing
 )
+# → class = "rtfreport" の S3 list
 ```
 
 ### ページ操作
 
 ```r
 # ページ追加（rtf_page オブジェクトとして格納）
-add_page(title = NULL, content = NULL, footnote = NULL)
-# → invisible(page_index)
+.rtfreport_add_page(report, title = NULL, content = NULL, footnote = NULL)
+# → 新しい rtfreport（pages に 1 件追加された copy）
 
-# 取得・更新
-get_page(page_index)
-set_page_title(page_index, title)
-set_page_content(page_index, content)
-set_page_footnote(page_index, footnote)
+# 取得・更新は通常のリスト操作で
+page <- report$pages[[i]]
+report$pages[[i]]$footnote <- "Note: ..."
 ```
 
 ### セクション操作
 
 ```r
 # セクション追加（rtf_sect オブジェクトとして格納）
-add_section(header = NULL, footer = NULL, from_page = NULL)
-# → invisible(section_index)
+.rtfreport_add_section(report, header = NULL, footer = NULL, from_page = NULL)
+# → 新しい rtfreport（sections に 1 件追加された copy）
 # from_page = NULL → 最初のセクションとして from_page = 1 に解決
 
-# 取得・更新
-get_section(section_index)
-get_section_header(section_index)
-get_section_footer(section_index)
-set_section_header(section_index, header)
-set_section_footer(section_index, footer)
-set_section_from_page(section_index, from_page)
+# 取得・更新は通常のリスト操作で
+sec <- report$sections[[i]]
+report$sections[[i]]$header <- new_header
+```
+
+### 文書デフォルト
+
+```r
+.rtfreport_set_font_table(report, font_table)
+.rtfreport_set_color_table(report, color_table)
+.rtfreport_set_default_page(report, page)       # 部分マージ
+.rtfreport_set_default_format(report, fmt)      # 部分マージ
 ```
 
 ### バリデーション
 
 ```r
-validate()
-# 1. sections が空の場合は空のデフォルトセクションを自動生成して警告
+.rtfreport_validate(report)
+# 1. sections が空の場合は空のデフォルトセクションを自動生成して message()
 # 2. pages が最低 1 つあること（なければ stop）
-# 3. 各ページの content が rtftable_r6 | rtfplot_r6 | NULL であること
-# → invisible(TRUE)
+# 3. 各ページの content が rtftable | rtfplot | NULL であること
+# → 検証済み report を返す（必要なら sections を補ったコピー）
 ```
 
 ---
@@ -297,12 +299,14 @@ hdr <- update_header_row(hdr, row = 5, content = c(c = "Draft"))
 
 ---
 
-# `rtftable_r6` — テーブルクラス
+# `rtftable` — テーブルクラス
+
+公開コンストラクタ `rtftable(...)`（`r/wrappers.R`）から内部 `.new_rtftable(...)`（`r/rtftable.R`）を呼び、`structure(list(...), class = "rtftable")` の S3 list を返します。
 
 ## コンストラクタ引数
 
 ```r
-rtftable_r6$new(
+rtftable(
   data,                        # data.frame | list(df1, df2, ...) (multi-DF)
   col_header          = NULL,  # NULL | chr vec | list | "A | B | C"
   spanning_header     = NULL,  # list(list(from=2,to=3,label="Arm A",underline=TRUE))
@@ -349,10 +353,12 @@ rtftable_r6$new(
 
 ---
 
-# `rtfplot_r6` — フィギュアクラス
+# `rtfplot` — フィギュアクラス
+
+公開コンストラクタ `rtfplot(...)`（`r/wrappers.R`）から内部 `.new_rtfplot(...)`（`r/rtfplot.R`）を呼び、`structure(list(...), class = "rtfplot")` の S3 list を返します。
 
 ```r
-rtfplot_r6$new(
+rtfplot(
   path,                  # PNG | JPEG ファイルパス
   width_twips  = NULL,   # NULL = 書き込み可能幅
   height_twips = NULL,   # NULL = アスペクト比維持
@@ -439,7 +445,7 @@ last_row:  bottom = single
 
 | 関数 | 役割 |
 |---|---|
-| `generate_rtfreport(report, file_path, overwrite)` | 主エントリポイント。`rtf_document` または `rtfreport_r6` を RTF ファイルに書き出す |
+| `generate_rtfreport(report, file_path, overwrite)` | 主エントリポイント。`rtf_document`（公開）または `rtfreport`（内部 S3）を RTF ファイルに書き出す |
 | `assemble_rtf(...)` | 複数の RTF ファイルを結合する |
 
 ### 内部ヘルパー関数（`generate_rtfreport.R`）
@@ -491,8 +497,8 @@ last_row:  bottom = single
 
 | 関数 | 役割 |
 |---|---|
-| `.render_rtftable(tbl, writable_width_twips)` | `rtftable_r6` → RTF 行文字列ベクトル（単一 DF・複数 DF 両対応） |
-| `.render_rtfplot(plot_obj, writable_width_twips)` | `rtfplot_r6` → RTF `\pict` ブロック（PNG/JPEG hex 埋め込み） |
+| `.render_rtftable(tbl, writable_width_twips)` | `rtftable` → RTF 行文字列ベクトル（単一 DF・複数 DF 両対応） |
+| `.render_rtfplot(plot_obj, writable_width_twips)` | `rtfplot` → RTF `\pict` ブロック（PNG/JPEG hex 埋め込み） |
 | `.render_header_footer(hf, writable_width_twips, ...)` | `rtf_header()`/`rtf_footer()` オブジェクト → ヘッダー/フッターの RTF テーブル行 |
 | `.render_footnote_table(footnote, width_twips)` | フットノート → 1×1 RTF テーブル（上辺罫線、コンテンツ同幅） |
 
@@ -511,7 +517,7 @@ last_row:  bottom = single
 
 | 関数 | 役割 |
 |---|---|
-| `.pipe_doc_to_r6_report(pipe_doc)` | `rtf_document`（パイプ API）→ `rtfreport_r6` に変換 |
+| `.pipe_doc_to_rtfreport(pipe_doc)` | `rtf_document`（公開 S3 / パイプ API）→ `rtfreport`（内部 S3）に変換 |
 
 ---
 
@@ -520,9 +526,9 @@ last_row:  bottom = single
 ```
 generate_rtfreport(report, file_path)
   │
-  ├─ rtf_document の場合 → .pipe_doc_to_r6_report() で rtfreport_r6 に変換
+  ├─ rtf_document の場合 → .pipe_doc_to_rtfreport() で rtfreport（内部 S3）に変換
   │
-  ▼ report$validate()
+  ▼ .rtfreport_validate(report)
   │   sections が空 → デフォルトセクション自動生成
   │
   ▼ .collect_report_colors() → .build_color_table_rtf() → .build_color_index_map()
@@ -707,3 +713,4 @@ lines <- c(lines, cmds$document$section_break) # → "\sect"
 | v0.1.0（予定） | `rtf_page` / `rtf_sect` S3 タグ付きオブジェクト導入 |
 | v0.1.0（予定） | `update_header_row()` / `update_footer_row()` 追加 |
 | v0.1.0（予定） | `sections` 未設定時のデフォルトセクション自動生成 |
+| v0.0.19 | **R6 全廃**：`rtfreport_r6` / `rtftable_r6` / `rtfplot_r6` / `rtf_border` (R6) / `rtf_table_style` (R6) を S3 に統一。`Imports: R6` を削除。`_r6` サフィックス廃止。R6 メソッドチェイン（`set_*` / `with_*` / `apply_override` / `override` / `clone_with` / `as_table_border`）撤廃。代替ヘルパー `rtf_border_with()` / `rtf_table_style_with()` を追加。`.pipe_doc_to_r6_report()` → `.pipe_doc_to_rtfreport()`、`report$validate()` → `.rtfreport_validate(report)`。 |

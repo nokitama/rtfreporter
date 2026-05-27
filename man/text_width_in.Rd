@@ -13,7 +13,7 @@ text_width_in(text, font = "courier_new", size_half_points = 18L)
 `"arial"`.  Unrecognised values fall back to Courier New.}
 
 \item{size_half_points}{Font size in **half-points** (the unit used by RTF
-and `rtfreport$new()`).  Default `18` = 9 pt.}
+and the document's `default_format$font_size_half_points`).  Default `18` = 9 pt.}
 }
 \value{
 A numeric vector of estimated widths in inches (same length as

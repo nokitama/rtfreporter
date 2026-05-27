@@ -54,6 +54,25 @@ knitr::opts_chunk$set(
 #   )
 
 ## ----eval = FALSE-------------------------------------------------------------
+# rtf_document() %>%
+#   rtf_tables(list(df1, df2),
+#     titles = list(
+#       c("Table 14.1.1", "", "Safety Population"),
+#       "Table 14.1.2"
+#     ),
+#     footnotes = list(
+#       c("Note 1: foo.", "", "Note 2: bar."),
+#       NULL
+#     )
+#   )
+# 
+# # Or assign separately after content has been added
+# doc %>%
+#   rtf_tables(list(df1, df2)) %>%
+#   rtf_titles(list("Page 1", "Page 2")) %>%
+#   rtf_footnotes(list(NULL, "Footer for page 2."))
+
+## ----eval = FALSE-------------------------------------------------------------
 # doc <- rtf_document() %>%
 #   rtf_figures(
 #     list("plot1.png", "plot2.png", rtfplot("plot3.png", align = "left")),

@@ -481,26 +481,27 @@ default).
 
 ---
 
-## 16  Shared table style (R6 theme)
+## 16  Shared table style
 
-`rtf_table_style$new()` builds a **shared mutable theme** that you can
-hand to many tables.  Mutating the theme later affects every table
-constructed after the mutation.
+`rtf_table_style()` builds a **table-style record** that bundles default
+borders, alignment, padding and row-height.  Pass the same record to
+many `rtftable()` calls and each table snapshots the defaults it needs
+at construction time.  To derive a variant, call `rtf_table_style_with()`.
 
 ```{r style-theme}
-tfl <- rtf_table_style_tfl()   # built-in TFL preset (R6)
+tfl <- rtf_table_style_tfl()   # built-in TFL preset
 
-# Hand the same instance to many tables
+# Hand the same record to many tables
 tables <- lapply(list(df_demog, df_demog, df_demog),
                   function(df) rtftable(df, style = tfl, row_height_twips = 280L))
 
 # Non-mutating derivation
-heavy_tfl <- tfl$clone_with(
+heavy_tfl <- rtf_table_style_with(tfl,
   border_last_row = rtf_border(bottom = rtf_border_side("double", 20L))
 )
 ```
 
-The R6-vs-S3 design choice is documented in [LEARNING.md](../LEARNING.md).
+The S3 architecture is documented in [LEARNING.md](../LEARNING.md).
 
 ---
 
@@ -514,11 +515,11 @@ The R6-vs-S3 design choice is documented in [LEARNING.md](../LEARNING.md).
 | `col_header` | chr / list | Column header text; list elements may be label rows (char) or spanning rows |
 | `col_header_align` | NULL / scalar / chr(ncol) | Column-header alignment override (default: inherit `align`) |
 | `spanning_header` | list | Spanning row placed above `col_header` (legacy; can mix into `col_header` instead) |
-| `col_spec` | list | Per-column align / bold / italic / indent / **border** (R6 rtf_border) / header_* |
+| `col_spec` | list | Per-column align / bold / italic / indent / **border** (`rtf_border`) / header_* |
 | `border` | `"tfl"` / object | Outer-frame borders (now: top on first header row, bottom on last) |
 | `blank_rows` | int / spec / list | Integer positions, `blank_rows_by_change()`, `blank_rows_by_rule()`, or a list thereof |
 | `read_attributes` | logical | Read `attr(data, "rtf_blank_rows")` as fallback (default TRUE) |
-| `style` | rtf_table_style | Shared R6 theme; provides defaults overridden by explicit args |
+| `style` | rtf_table_style | Shared S3 theme record; provides defaults overridden by explicit args |
 | `col_rel_width` | numeric vector | Proportional column widths |
 | `column_widths_twips` | integer vector | Absolute column widths |
 | `table_width_twips` | integer | Table total width (twips) |

@@ -1,153 +1,100 @@
-# Learning Notes — R6 vs S3 in `rtfreporter`
+# Learning Notes — S3 architecture in `rtfreporter`
 
-`rtfreporter` is also intended as a small but realistic case study in how to
-choose between R6 and S3 inside a single R package. This file documents
-**which class system each public concept uses, and why**.
+`rtfreporter` is implemented entirely with S3 classes — there is no R6
+anywhere in the package.  This document records *why*, because earlier
+versions of the codebase mixed S3 and R6 and the path back to a uniform
+S3 design is itself instructive.
 
-The rule of thumb followed throughout the codebase:
+The rule of thumb is now simply:
 
-> **Use S3 for data; use R6 for state.**
-> Pick S3 by default; reach for R6 only when reference semantics, mutation,
-> or method chaining genuinely improves the API. Then document the choice
-> next to the class definition.
+> **Use S3 for data.  Reach for R6 only when reference semantics,
+> long-lived state, or method chaining genuinely improves the API —
+> and `rtfreporter` has none of those.**
 
 ---
 
 ## Summary table
 
-| Concept | Class system | File | Reason in one line |
+| Concept | Class system | File | Notes |
 |---|---|---|---|
-| `rtf_border_side` | **S3** (list) | [`R/rtf_border.R`](R/rtf_border.R) | Tiny immutable value object (style + width + colour). |
-| `rtf_border` | **R6** (since v0.0.13) | [`R/rtf_border.R`](R/rtf_border.R) | Builder pattern (`with_top()`, `apply_override()`) and shareable reference across many tables. |
-| `rtf_table_border` | **S3** (list) | [`R/rtf_border.R`](R/rtf_border.R) | Passive grouping of borders by zone; no behaviour of its own; `dput()`-able. |
-| `rtf_table_style` | **R6** | [`R/rtf_table_style.R`](R/rtf_table_style.R) | Shared mutable theme: define once, hand to many `rtftable()`s, tweak later → every referencing table reflects the change. |
-| `rtfreport_r6` | **R6** | [`R/rtfreport.R`](R/rtfreport.R) | Build-time scaffold with `add_page()` / `add_section()` mutators; lives briefly between the pipe API and the renderer. |
-| `rtftable_r6` | **R6** | [`R/rtftable.R`](R/rtftable.R) | Same reason: short-lived mutable scaffold with rich state. |
-| `rtfplot_r6` | **R6** | [`R/rtfplot.R`](R/rtfplot.R) | Same reason; symmetric with `rtftable_r6`. |
-| `rtf_page`, `rtf_sect` | **S3** (tagged lists) | [`R/rtfreport.R`](R/rtfreport.R) | Plain data records sitting inside `rtfreport_r6$pages` / `$sections`. |
+| `rtf_border_side` | **S3** (tagged list) | [`R/rtf_border.R`](R/rtf_border.R) | Tiny immutable value object (style + width + colour). |
+| `rtf_border` | **S3** (tagged list) | [`R/rtf_border.R`](R/rtf_border.R) | Four-edge spec; derive variants with `rtf_border_with()`. |
+| `rtf_table_border` | **S3** (tagged list) | [`R/rtf_border.R`](R/rtf_border.R) | Passive grouping of `rtf_border`s by zone. |
+| `rtf_table_style` | **S3** (tagged list) | [`R/rtf_table_style.R`](R/rtf_table_style.R) | Bundle of table defaults; derive variants with `rtf_table_style_with()`. |
+| `rtfreport` | **S3** (internal tagged list) | [`R/rtfreport.R`](R/rtfreport.R) | Internal scaffold built by the pipe adapter; the renderer consumes it. |
+| `rtftable` | **S3** (tagged list) | [`R/rtftable.R`](R/rtftable.R) | Public content record built by `rtftable()`. |
+| `rtfplot` | **S3** (tagged list) | [`R/rtfplot.R`](R/rtfplot.R) | Public content record built by `rtfplot()`. |
+| `rtf_page`, `rtf_sect` | **S3** (tagged lists) | [`R/rtfreport.R`](R/rtfreport.R) | Data records sitting inside `rtfreport$pages` / `$sections`. |
 | `rtf_document` (pipe API) | **S3** | [`R/pipe-composition.R`](R/pipe-composition.R) | Immutable functional composition — `%>%` returns a fresh copy each step. |
-| `rtf_blank_rows_by_change` / `_by_rule` | **S3** (tagged lists) | [`R/blank_rows.R`](R/blank_rows.R) | Tiny specification records; no methods needed. |
+| `rtf_blank_rows_by_change` / `_by_rule` | **S3** (tagged lists) | [`R/blank_rows.R`](R/blank_rows.R) | Tiny specification records. |
 | `rtf_auto_section_item` | **S3** (tagged list) | [`R/pipe-composition.R`](R/pipe-composition.R) | A render-time sentinel; pure data. |
 
 ---
 
-## Why S3 is the default
+## Why S3 (everywhere)
 
-S3 is R-idiomatic, lightweight, and has properties that matter for a data
-manipulation / reporting package:
+S3 is R-idiomatic, lightweight, and has properties that matter for a
+data-manipulation / reporting package:
 
-* **`dput()` / `str()` / `print()` show real content.** Debugging is easy.
-* **`saveRDS()` / `loadRDS()` round-trip cleanly.** Environments inside R6
-  objects can interact poorly with serialisation in subtle ways.
-* **Pure values compose with `%>%`.** Each pipe step returns a new copy and
-  reasoning is purely functional.
-* **Type dispatch via `UseMethod()`** is enough for the common "different
-  flavours of the same concept" pattern (e.g. `print.rtf_border_side()`).
-
-So for **value-like things** — a single border edge, a list of zone
-borders, a record of "rows where the value changes" — S3 is unambiguously
-better.
+* **`dput()` / `str()` / `print()` show real content.** Debugging is easy
+  and serialization (`saveRDS()` / `loadRDS()`) round-trips cleanly.
+* **Pure values compose with `%>%`.** Each pipe step returns a new copy
+  and reasoning is purely functional.
+* **Copy-on-modify is the default.** A border or style handed to many
+  tables can never be mutated through a back door.
+* **No extra dependency.** S3 is part of base R; there is no `Imports:`
+  cost.
 
 ---
 
-## Why these things are R6
+## Why R6 was removed
 
-### 1. `rtf_border` — builder pattern + shared mutable defaults
+Earlier versions used R6 for `rtfreport_r6`, `rtftable_r6`, `rtfplot_r6`,
+`rtf_border`, and `rtf_table_style`.  Each of those choices was revisited
+and found to be paying complexity without delivering anything in return.
 
-A border has four sides. Three usage patterns make R6 nicer than S3:
+### 1. `rtfreport_r6` / `rtftable_r6` / `rtfplot_r6` — short-lived scaffolds
 
-```r
-# Chained builder: mutate self, return self
-b <- rtf_border()$set_top(rtf_border_side())$set_bottom(rtf_border_side("double"))
+These existed only inside `.pipe_doc_to_rtfreport()` and the renderer;
+users never held one.  Construction did a few mutations
+(`add_page()`, `add_section()`) and then the object was read once.  An
+S3 list with functional helpers (`.rtfreport_add_page(rep, ...)`
+returning a new copy) does the same job in fewer lines, with the bonus
+that the result is `dput()`-able and serializable.
 
-# Non-mutating derivation
-b2 <- b$with_right(rtf_border_side("dot"))   # b unaffected
+### 2. `rtf_border` (R6) — chained builders that nobody used
 
-# Apply an override in place — every site referencing `b` sees the change
-b$apply_override(some_other_border)
-```
+The R6 implementation exposed `$set_top()`, `$with_top()`,
+`$apply_override()`, `$override()` etc.  Outside one internal call site
+(`generate_rtfreport.R`'s spanning-row border resolution) and the
+package's own tests, none of these were used.  The single internal site
+was a one-liner that became `.merge_rtf_border(eff, rtf_border(bottom = ...))`
+under the S3 design — simpler, not harder.  Users who do want
+non-mutating derivation now call `rtf_border_with(b, top = ...)`.
 
-The same in pure S3 would either need a verbose, allocating helper
-(`rtf_border_set_top(b, side)` returning a new list) or break the
-"shared reference" use case.
+### 3. `rtf_table_style` (R6) — the "shared mutable theme" that wasn't
 
-Backward compatibility is preserved: the R6 class carries `classname =
-"rtf_border"`, so existing code that does `inherits(x, "rtf_border")` and
-`x$top` / `x[["top"]]` continues to work unchanged.
-
-### 2. `rtf_table_style` — themes shared across many tables
-
-This is the **canonical "you really want R6"** use case in `rtfreporter`:
-
-```r
-# Define a theme once
-tfl <- rtf_table_style_tfl()
-
-# Hand the same instance to dozens of tables
-tables <- lapply(dfs, function(df) rtftable(df, style = tfl))
-
-# Tweak the theme — every table picks it up
-tfl$header_bold <- TRUE     # (or use a setter)
-```
-
-With S3 lists, each `rtftable()` call would snapshot a copy of the style.
-Subsequent mutations would only affect later-constructed tables. R6's
-reference semantics give the intuitive "global theme" behaviour.
-
-For users who want immutable derivation, `style$clone_with(header_bold =
-TRUE)` returns an independent copy — the best of both worlds.
-
-### 3. `rtfreport_r6` / `rtftable_r6` / `rtfplot_r6` — build-time scaffolds
-
-These are the internal objects produced by `.pipe_doc_to_r6_report()` for
-the renderer to walk. Their construction loop calls `add_page()`,
-`add_section()`, etc. — many small mutations to one object. R6 makes that
-ergonomic. The pipe API on top is still immutable; users never see R6.
-
-Note that these are deliberately **not exported**. The S3 wrappers
-(`rtftable()`, `rtfplot()`) are the public API.
+This was billed as the canonical R6 win: define a theme once, hand the
+same instance to many tables, mutate it, watch every table reflect the
+change.  In practice this only worked for nested `rtf_border` mutations
+that happened to be passed through `as_table_border()` unchanged.  Every
+scalar field (`header_bold`, `header_align`, `cell_padding_*`, …) was
+**snapshotted by the rtftable constructor at build time**, so mutating
+the style after construction was silently ignored.  The promised
+semantics were inconsistent; the simpler S3 model (build the style,
+hand it to tables, derive variants with `rtf_table_style_with()`) is
+honest about what actually happens.
 
 ---
 
-## When *not* to use R6
+## What this means for users
 
-A few features of R6 look attractive in isolation but cost more than they
-give for this package:
-
-* **Active bindings** — useful for computed-on-access properties, but our
-  fields are plain data. Active bindings would add a layer of indirection
-  that obscures `str()` output.
-* **Private fields** — encapsulation is rarely the bottleneck; documented
-  conventions and `.foo` naming work fine here.
-* **`finalize()`** — we never hold OS resources (files / connections /
-  ports), so there is nothing to clean up.
-
----
-
-## Migration patterns used here
-
-When an S3 list-based concept was promoted to R6 (e.g. `rtf_border` in
-v0.0.13), the following techniques kept user code working:
-
-1. **Set `R6Class(classname = "rtf_border", ...)`** so the S3 class name is
-   preserved. `inherits(x, "rtf_border")` continues to return `TRUE`.
-2. **Keep the same constructor signature.** `rtf_border(top = ..., bottom
-   = ...)` produces an R6 instance now, but reads identically at call
-   sites.
-3. **Audit `[[` / `$` access** at the call sites. R6 supports both —
-   nothing to change.
-4. **Audit *mutation* of fields.** Any internal helper that did
-   `base$top <- new_top` on a list (creating an implicit copy) must now
-   `clone()` first to avoid mutating shared references. See
-   `.merge_rtf_border()` in [`R/rtf_border.R`](R/rtf_border.R) for the
-   pattern.
-
----
-
-## Further reading
-
-* Advanced R, 2nd ed. — "Object-oriented programming" part:
-  <https://adv-r.hadley.nz/oo.html>
-* R6 vignette: <https://r6.r-lib.org/articles/Introduction.html>
-* S7 (the new "official" formal OO system, not yet adopted here):
-  <https://github.com/RConsortium/S7>
+* All public objects are plain S3 lists.  `inherits(x, "rtf_border")`,
+  field access via `x$top` / `x[["top"]]`, and `unclass(x)` all work as
+  expected.
+* To derive a border from another, use `rtf_border_with(b, bottom = ...)`.
+* To derive a style from another, use `rtf_table_style_with(s, header_bold = TRUE)`.
+* Multiple tables that share the same style snapshot defaults at
+  construction.  To "change the theme", build a new style with
+  `rtf_table_style_with()` and pass it to new tables — there is no
+  hidden propagation.

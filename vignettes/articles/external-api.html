@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="rtfreporter development team">
-<meta name="dcterms.date" content="2026-05-26">
+<meta name="dcterms.date" content="2026-05-27">
 
 <title>rtfreporter 外部インターフェース仕様書</title>
 <style>
@@ -2241,7 +2241,7 @@ vertical-align: -.125em;
   <ul>
   <li><a href="#セル左右パディング" id="toc-セル左右パディング" class="nav-link" data-scroll-target="#セル左右パディング"><span class="header-section-number">13.0.1</span> セル左右パディング</a></li>
   </ul></li>
-  <li><a href="#共有スタイル-rtf_table_style-r6" id="toc-共有スタイル-rtf_table_style-r6" class="nav-link" data-scroll-target="#共有スタイル-rtf_table_style-r6"><span class="header-section-number">14</span> 共有スタイル <code>rtf_table_style</code> (R6)</a>
+  <li><a href="#共有スタイル-rtf_table_style-s3" id="toc-共有スタイル-rtf_table_style-s3" class="nav-link" data-scroll-target="#共有スタイル-rtf_table_style-s3"><span class="header-section-number">14</span> 共有スタイル <code>rtf_table_style</code> (S3)</a>
   <ul>
   <li><a href="#列単位の罫線col_specjborder" id="toc-列単位の罫線col_specjborder" class="nav-link" data-scroll-target="#列単位の罫線col_specjborder"><span class="header-section-number">14.1</span> 列単位の罫線（col_spec[[j]]$border）</a></li>
   </ul></li>
@@ -2282,7 +2282,7 @@ vertical-align: -.125em;
     <div>
     <div class="quarto-title-meta-heading">公開</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">2026-05-26</p>
+      <p class="date">2026-05-27</p>
     </div>
   </div>
   
@@ -2304,12 +2304,12 @@ vertical-align: -.125em;
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>このドキュメントは <strong>外部インターフェース仕様書</strong> です。内部 R6 クラスの詳細は <a href="internal-design.qmd">内部クラス設計書</a> を参照してください。</p>
+<p>このドキュメントは <strong>外部インターフェース仕様書</strong> です。内部 S3 クラスの詳細は <a href="internal-design.qmd">内部クラス設計書</a> を参照してください。</p>
 </div>
 </div>
 <section id="概要" class="level1" data-number="1">
 <h1 data-number="1"><span class="header-section-number">1</span> 概要</h1>
-<p><code>rtfreporter</code> は臨床試験向け RTF レポート（テーブル・リスティング・フィギュア、TFL）を 生成する R パッケージです。公開 API は <strong>S3 関数のみ</strong> です。内部実装に使用する R6 クラスは NAMESPACE から公開されません。</p>
+<p><code>rtfreporter</code> は臨床試験向け RTF レポート（テーブル・リスティング・フィギュア、TFL）を 生成する R パッケージです。v0.0.19 以降、<strong>公開・内部とも全クラスが S3</strong> に統一されています（<code>Imports: R6</code> も DESCRIPTION から削除）。</p>
 <section id="基本方針" class="level2" data-number="1.1">
 <h2 data-number="1.1" class="anchored" data-anchor-id="基本方針"><span class="header-section-number">1.1</span> 基本方針</h2>
 <table class="caption-top table">
@@ -2325,8 +2325,8 @@ vertical-align: -.125em;
 </thead>
 <tbody>
 <tr class="odd">
-<td><strong>公開 API は S3 のみ</strong></td>
-<td><code>$new()</code> は公開しない</td>
+<td><strong>すべて S3</strong></td>
+<td>公開・内部とも <code>structure(list(...), class = ...)</code> の plain list</td>
 </tr>
 <tr class="even">
 <td><strong>twips 統一</strong></td>
@@ -2334,11 +2334,11 @@ vertical-align: -.125em;
 </tr>
 <tr class="odd">
 <td><strong>依存なし</strong></td>
-<td>r2rtf / reporter に依存しない完全独立実装</td>
+<td>r2rtf / reporter / R6 に依存しない完全独立実装</td>
 </tr>
 <tr class="even">
-<td><strong>R6 は内部のみ</strong></td>
-<td>可変参照セマンティクスは内部で利用、外部には不変 S3 を提示</td>
+<td><strong>関数型・不変</strong></td>
+<td>パイプ API は immutable composition、新コピーを返す</td>
 </tr>
 </tbody>
 </table>
@@ -2512,8 +2512,8 @@ vertical-align: -.125em;
 <li>各要素は次のいずれかでなければなりません:
 <ul>
 <li><code>data.frame</code> — <code>rtf_tables()</code> の書式引数が既定値として適用されます。</li>
-<li><code>rtftable()</code> の戻り値（<code>rtftable_r6</code>）— 自身の設定が優先されます。</li>
-<li><code>rtfplot()</code> の戻り値（<code>rtfplot_r6</code>）。</li>
+<li><code>rtftable()</code> の戻り値（S3 クラス <code>rtftable</code>）— 自身の設定が優先されます。</li>
+<li><code>rtfplot()</code> の戻り値（S3 クラス <code>rtfplot</code>）。</li>
 </ul></li>
 <li>書式引数（<code>col_rel_width</code>, <code>border</code>, <code>row_height_twips</code> …）は <strong>bare data.frame 要素にのみ</strong> 適用されます。<code>rtftable()</code> で構築済みの要素には影響しません。</li>
 </ul>
@@ -3072,19 +3072,18 @@ vertical-align: -.125em;
 <hr>
 </section>
 </section>
-<section id="共有スタイル-rtf_table_style-r6" class="level1" data-number="14">
-<h1 data-number="14"><span class="header-section-number">14</span> 共有スタイル <code>rtf_table_style</code> (R6)</h1>
-<p>複数の表で共通の書式テンプレートを使いたい場合に <strong>R6</strong> で実装されているスタイルクラス。1 度作って多くの <code>rtftable()</code> から参照するパターン:</p>
+<section id="共有スタイル-rtf_table_style-s3" class="level1" data-number="14">
+<h1 data-number="14"><span class="header-section-number">14</span> 共有スタイル <code>rtf_table_style</code> (S3)</h1>
+<p>複数の表で共通の書式テンプレートを使いたい場合のスタイルレコード。1 度作って多くの <code>rtftable()</code> に渡すパターン:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>tfl <span class="ot">&lt;-</span> <span class="fu">rtf_table_style_tfl</span>()               <span class="co"># 既製の TFL プリセット</span></span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>tbls <span class="ot">&lt;-</span> <span class="fu">lapply</span>(dfs, <span class="cf">function</span>(df) <span class="fu">rtftable</span>(df, <span class="at">style =</span> tfl))</span>
-<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a><span class="co"># テーマを後から変えると、それ以降に作る表に反映される</span></span>
-<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>tfl<span class="sc">$</span>header_bold <span class="ot">&lt;-</span> <span class="cn">TRUE</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
-<p>非破壊的に派生させたい場合は <code>style$clone_with(field = value, ...)</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>heavy <span class="ot">&lt;-</span> tfl<span class="sc">$</span><span class="fu">clone_with</span>(<span class="at">header_bold =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>                         <span class="at">border_last_row =</span> <span class="fu">rtf_border</span>(<span class="at">bottom =</span> <span class="fu">rtf_border_side</span>(<span class="st">&quot;thick&quot;</span>, <span class="dv">30</span>L)))</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>style$as_table_border()</code> で R6 → S3 <code>rtf_table_border</code> 変換。</p>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>tbls <span class="ot">&lt;-</span> <span class="fu">lapply</span>(dfs, <span class="cf">function</span>(df) <span class="fu">rtftable</span>(df, <span class="at">style =</span> tfl))</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>スタイルの値は <strong>各 <code>rtftable()</code> がコンストラクタ時点でスナップショット</strong> します。スタイル側を後から書き換えても、すでに構築済みの table には反映されません（v0.0.19 で R6 → S3 統一に伴い変更）。テーマを切り替えたい場合は派生スタイルを作り直して新しい table に渡してください。</p>
+<p>非破壊的に派生させたい場合は <code>rtf_table_style_with(style, field = value, ...)</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>heavy <span class="ot">&lt;-</span> <span class="fu">rtf_table_style_with</span>(tfl,</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>            <span class="at">header_bold     =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>            <span class="at">border_last_row =</span> <span class="fu">rtf_border</span>(<span class="at">bottom =</span> <span class="fu">rtf_border_side</span>(<span class="st">&quot;thick&quot;</span>, <span class="dv">30</span>L)))</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<p>内部的には <code>.style_to_table_border(style)</code> で <code>rtf_table_border</code> に変換されます（非公開ヘルパー）。</p>
 <section id="列単位の罫線col_specjborder" class="level2" data-number="14.1">
 <h2 data-number="14.1" class="anchored" data-anchor-id="列単位の罫線col_specjborder"><span class="header-section-number">14.1</span> 列単位の罫線（col_spec[[j]]$border）</h2>
 <p>カラムヘッダ行に対し、列ごとに罫線を上書きできます:</p>
@@ -3097,7 +3096,7 @@ vertical-align: -.125em;
 <span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 <p>zone 罫線と列罫線の per-cell マージ: <code>effective[j] = zone_header_border × col_spec[[j]]$border</code>（後者が優先）。</p>
-<p>設計判断（R6 vs S3）は <a href="../LEARNING.md">LEARNING.md</a> を参照。</p>
+<p>S3 統一アーキテクチャと R6 を廃止した理由は <a href="../LEARNING.md">LEARNING.md</a> を参照。</p>
 <hr>
 </section>
 </section>
@@ -3134,7 +3133,12 @@ rtf_table_border  — テーブルゾーン別（header / spanning / body / firs
 spanning:  なし                          ← NULL のとき header にフォールバック
 body:      なし
 first_row: なし
-last_row:  下辺 single                   ← データ部最終行</code></pre>
+last_row:  なし                          ← データ部分は既定で罫線なし</code></pre>
+<p><strong>既定では罫線はカラムヘッダーブロックのみ</strong>に引かれます。データ行・空白セパレータ・最終行のいずれにも自動の罫線は出ません。データ部の罫線が必要な場合は明示的に指定:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rtf_table_border</span>(</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">header   =</span> <span class="fu">rtf_border</span>(<span class="at">top =</span> <span class="fu">rtf_border_side</span>(), <span class="at">bottom =</span> <span class="fu">rtf_border_side</span>()),</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">last_row =</span> <span class="fu">rtf_border</span>(<span class="at">bottom =</span> <span class="fu">rtf_border_side</span>())   <span class="co"># ← 自分で opt-in</span></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="カラムヘッダーの罫線の出方" class="level2" data-number="15.4">
 <h2 data-number="15.4" class="anchored" data-anchor-id="カラムヘッダーの罫線の出方"><span class="header-section-number">15.4</span> カラムヘッダーの罫線の出方</h2>
@@ -3185,7 +3189,7 @@ last_row:  下辺 single                   ← データ部最終行</code></pre
 </section>
 <section id="generate_rtfreport-rtf-ファイル出力" class="level1" data-number="16">
 <h1 data-number="16"><span class="header-section-number">16</span> <code>generate_rtfreport()</code> — RTF ファイル出力</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">generate_rtfreport</span>(report, file_path, <span class="at">overwrite =</span> <span class="cn">FALSE</span>)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">generate_rtfreport</span>(report, file_path, <span class="at">overwrite =</span> <span class="cn">FALSE</span>)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -3213,7 +3217,7 @@ last_row:  下辺 single                   ← データ部最終行</code></pre
 </section>
 <section id="assemble_rtf-複数-rtf-の結合" class="level1" data-number="17">
 <h1 data-number="17"><span class="header-section-number">17</span> <code>assemble_rtf()</code> — 複数 RTF の結合</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">assemble_rtf</span>(input_files, output_file, <span class="at">overwrite =</span> <span class="cn">FALSE</span>)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">assemble_rtf</span>(input_files, output_file, <span class="at">overwrite =</span> <span class="cn">FALSE</span>)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 <p>複数の独立した RTF ファイルを <code>\sect</code> で繋いで一つの RTF に結合します。</p>
 <hr>
 </section>
@@ -3280,14 +3284,14 @@ last_row:  下辺 single                   ← データ部最終行</code></pre
 </thead>
 <tbody>
 <tr class="odd">
-<td>公開 API: S3 のみ</td>
-<td>2026-05-22</td>
-<td>R6 は NAMESPACE から除外</td>
+<td>全クラス S3 統一</td>
+<td>2026-05-27 (v0.0.19)</td>
+<td>内部 R6（<code>rtfreport_r6</code> 等）も含め全て S3 へ。<code>Imports: R6</code> 削除。R6 メソッドチェインは <code>rtf_border_with()</code> / <code>rtf_table_style_with()</code> 等の S3 関数に置換</td>
 </tr>
 <tr class="even">
-<td>可変性: R6 可変、S3 不変</td>
+<td>公開 API: S3 のみ</td>
 <td>2026-05-22</td>
-<td>コピーコストを避けつつ安全な API を提供</td>
+<td><code>$new()</code> 系を公開しない（以後 S3 化により自然に達成）</td>
 </tr>
 <tr class="odd">
 <td><code>add_section()</code> 廃止</td>

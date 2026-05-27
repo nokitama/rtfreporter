@@ -278,3 +278,74 @@ library(magrittr)
 #   border              = "tfl",
 #   row_height_twips    = 280L)
 
+## ----blank-rows---------------------------------------------------------------
+# df_demog <- data.frame(
+#   Group    = c("Sex",    "Sex",     "Sex",
+#                 "Race",   "Race",    "Race",
+#                 "Total"),
+#   Category = c("Male",   "Female",  "Subtotal",
+#                 "Asian",  "Other",   "Subtotal",
+#                 ""),
+#   N        = c(45L, 35L, 80L, 40L, 40L, 80L, 80L),
+#   stringsAsFactors = FALSE
+# )
+# 
+# # Mode 1: integer positions (-1 = after the last row)
+# tbl1 <- rtftable(df_demog, blank_rows = c(0, 3, 6, -1))
+# 
+# # Mode 2: blank when a variable's value changes
+# tbl2 <- rtftable(df_demog,
+#   blank_rows = blank_rows_by_change("Group",
+#     include_before_first = FALSE, include_after_last = FALSE))
+# 
+# # Mode 3: regex match (e.g. before every "Total" row)
+# tbl3 <- rtftable(df_demog,
+#   blank_rows = blank_rows_by_rule("Group", "^Total", where = "before"))
+# 
+# # Combination — positions are unioned
+# tbl4 <- rtftable(df_demog,
+#   blank_rows = list(
+#     c(-1),
+#     blank_rows_by_change("Group",
+#       include_before_first = FALSE, include_after_last = FALSE),
+#     blank_rows_by_rule("Category", "^Subtotal", where = "after")
+#   ))
+# 
+# # Or attach an attribute to the data frame and let read_attributes pick it up
+# attr(df_demog, "rtf_blank_rows") <- c(0, 3, 6, -1)
+# tbl5 <- rtftable(df_demog)   # read_attributes = TRUE by default
+
+## ----titles-footnotes---------------------------------------------------------
+# doc <- rtf_document() %>%
+#   rtf_tables(
+#     list(df_demog, df_demog),
+#     titles = list(
+#       c("Table 14.1.1", "", "Demographics (Safety Population)"),
+#       c("Table 14.1.2", "", "Demographics by Region")
+#     ),
+#     footnotes = list(
+#       c("Source: ADSL.", "", "N = 160 subjects."),
+#       NULL
+#     ),
+#     border           = "tfl",
+#     row_height_twips = 280L
+#   )
+# 
+# # Or set them after content has been added
+# doc <- rtf_document() %>%
+#   rtf_tables(list(df_demog, df_demog)) %>%
+#   rtf_titles(list("Page One", "Page Two")) %>%
+#   rtf_footnotes(list(NULL, "Source: ADSL."))
+
+## ----style-theme--------------------------------------------------------------
+# tfl <- rtf_table_style_tfl()   # built-in TFL preset
+# 
+# # Hand the same record to many tables
+# tables <- lapply(list(df_demog, df_demog, df_demog),
+#                   function(df) rtftable(df, style = tfl, row_height_twips = 280L))
+# 
+# # Non-mutating derivation
+# heavy_tfl <- rtf_table_style_with(tfl,
+#   border_last_row = rtf_border(bottom = rtf_border_side("double", 20L))
+# )
+

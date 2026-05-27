@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="rtfreporter development team">
-<meta name="dcterms.date" content="2026-05-26">
+<meta name="dcterms.date" content="2026-05-27">
 
 <title>rtfreporter 内部クラス設計書</title>
 <style>
@@ -2213,10 +2213,10 @@ vertical-align: -.125em;
   <ul>
   <li><a href="#クラス構成" id="toc-クラス構成" class="nav-link" data-scroll-target="#クラス構成"><span class="header-section-number">1.1</span> クラス構成</a></li>
   <li><a href="#クラスオブジェクトの使い分け方針" id="toc-クラスオブジェクトの使い分け方針" class="nav-link" data-scroll-target="#クラスオブジェクトの使い分け方針"><span class="header-section-number">1.2</span> クラス・オブジェクトの使い分け方針</a></li>
-  <li><a href="#r6-サフィックスについて" id="toc-r6-サフィックスについて" class="nav-link" data-scroll-target="#r6-サフィックスについて"><span class="header-section-number">1.3</span> <code>_r6</code> サフィックスについて</a></li>
+  <li><a href="#r6-を採用しなかった理由v0.0.19-で-r6-s3-統一" id="toc-r6-を採用しなかった理由v0.0.19-で-r6-s3-統一" class="nav-link" data-scroll-target="#r6-を採用しなかった理由v0.0.19-で-r6-s3-統一"><span class="header-section-number">1.3</span> R6 を採用しなかった理由（v0.0.19 で R6 → S3 統一）</a></li>
   <li><a href="#設計原則" id="toc-設計原則" class="nav-link" data-scroll-target="#設計原則"><span class="header-section-number">1.4</span> 設計原則</a></li>
   </ul></li>
-  <li><a href="#rtfreport_r6-rtf-文書クラス" id="toc-rtfreport_r6-rtf-文書クラス" class="nav-link" data-scroll-target="#rtfreport_r6-rtf-文書クラス"><span class="header-section-number">2</span> <code>rtfreport_r6</code> — RTF 文書クラス</a>
+  <li><a href="#rtfreport-rtf-文書クラス" id="toc-rtfreport-rtf-文書クラス" class="nav-link" data-scroll-target="#rtfreport-rtf-文書クラス"><span class="header-section-number">2</span> <code>rtfreport</code> — RTF 文書クラス</a>
   <ul>
   <li><a href="#データ構造概念図" id="toc-データ構造概念図" class="nav-link" data-scroll-target="#データ構造概念図"><span class="header-section-number">2.1</span> データ構造概念図</a></li>
   <li><a href="#ページとセクションの関係" id="toc-ページとセクションの関係" class="nav-link" data-scroll-target="#ページとセクションの関係"><span class="header-section-number">2.2</span> ページとセクションの関係</a></li>
@@ -2226,12 +2226,13 @@ vertical-align: -.125em;
   <li><a href="#フットノートのレンダリング" id="toc-フットノートのレンダリング" class="nav-link" data-scroll-target="#フットノートのレンダリング"><span class="header-section-number">2.4.1</span> フットノートのレンダリング</a></li>
   </ul></li>
   <li><a href="#rtf_sect-オブジェクト内部-s3-クラス" id="toc-rtf_sect-オブジェクト内部-s3-クラス" class="nav-link" data-scroll-target="#rtf_sect-オブジェクト内部-s3-クラス"><span class="header-section-number">2.5</span> <code>rtf_sect</code> オブジェクト（内部 S3 クラス）</a></li>
-  <li><a href="#メソッド定義" id="toc-メソッド定義" class="nav-link" data-scroll-target="#メソッド定義"><span class="header-section-number">2.6</span> メソッド定義</a>
+  <li><a href="#内部-s3-ヘルパー関数" id="toc-内部-s3-ヘルパー関数" class="nav-link" data-scroll-target="#内部-s3-ヘルパー関数"><span class="header-section-number">2.6</span> 内部 S3 ヘルパー関数</a>
   <ul class="collapse">
   <li><a href="#コンストラクタ" id="toc-コンストラクタ" class="nav-link" data-scroll-target="#コンストラクタ"><span class="header-section-number">2.6.1</span> コンストラクタ</a></li>
   <li><a href="#ページ操作" id="toc-ページ操作" class="nav-link" data-scroll-target="#ページ操作"><span class="header-section-number">2.6.2</span> ページ操作</a></li>
   <li><a href="#セクション操作" id="toc-セクション操作" class="nav-link" data-scroll-target="#セクション操作"><span class="header-section-number">2.6.3</span> セクション操作</a></li>
-  <li><a href="#バリデーション" id="toc-バリデーション" class="nav-link" data-scroll-target="#バリデーション"><span class="header-section-number">2.6.4</span> バリデーション</a></li>
+  <li><a href="#文書デフォルト" id="toc-文書デフォルト" class="nav-link" data-scroll-target="#文書デフォルト"><span class="header-section-number">2.6.4</span> 文書デフォルト</a></li>
+  <li><a href="#バリデーション" id="toc-バリデーション" class="nav-link" data-scroll-target="#バリデーション"><span class="header-section-number">2.6.5</span> バリデーション</a></li>
   </ul></li>
   </ul></li>
   <li><a href="#ヘッダーフッター操作関数" id="toc-ヘッダーフッター操作関数" class="nav-link" data-scroll-target="#ヘッダーフッター操作関数"><span class="header-section-number">3</span> ヘッダー/フッター操作関数</a>
@@ -2239,13 +2240,13 @@ vertical-align: -.125em;
   <li><a href="#作成全行置き換え" id="toc-作成全行置き換え" class="nav-link" data-scroll-target="#作成全行置き換え"><span class="header-section-number">3.1</span> 作成（全行置き換え）</a></li>
   <li><a href="#特定行の追加置き換え" id="toc-特定行の追加置き換え" class="nav-link" data-scroll-target="#特定行の追加置き換え"><span class="header-section-number">3.2</span> 特定行の追加・置き換え</a></li>
   </ul></li>
-  <li><a href="#rtftable_r6-テーブルクラス" id="toc-rtftable_r6-テーブルクラス" class="nav-link" data-scroll-target="#rtftable_r6-テーブルクラス"><span class="header-section-number">4</span> <code>rtftable_r6</code> — テーブルクラス</a>
+  <li><a href="#rtftable-テーブルクラス" id="toc-rtftable-テーブルクラス" class="nav-link" data-scroll-target="#rtftable-テーブルクラス"><span class="header-section-number">4</span> <code>rtftable</code> — テーブルクラス</a>
   <ul>
   <li><a href="#コンストラクタ引数" id="toc-コンストラクタ引数" class="nav-link" data-scroll-target="#コンストラクタ引数"><span class="header-section-number">4.1</span> コンストラクタ引数</a></li>
   <li><a href="#col_spec-属性一覧" id="toc-col_spec-属性一覧" class="nav-link" data-scroll-target="#col_spec-属性一覧"><span class="header-section-number">4.2</span> <code>col_spec</code> 属性一覧</a></li>
   <li><a href="#列幅の解決優先順位" id="toc-列幅の解決優先順位" class="nav-link" data-scroll-target="#列幅の解決優先順位"><span class="header-section-number">4.3</span> 列幅の解決優先順位</a></li>
   </ul></li>
-  <li><a href="#rtfplot_r6-フィギュアクラス" id="toc-rtfplot_r6-フィギュアクラス" class="nav-link" data-scroll-target="#rtfplot_r6-フィギュアクラス"><span class="header-section-number">5</span> <code>rtfplot_r6</code> — フィギュアクラス</a></li>
+  <li><a href="#rtfplot-フィギュアクラス" id="toc-rtfplot-フィギュアクラス" class="nav-link" data-scroll-target="#rtfplot-フィギュアクラス"><span class="header-section-number">5</span> <code>rtfplot</code> — フィギュアクラス</a></li>
   <li><a href="#罫線クラス階層" id="toc-罫線クラス階層" class="nav-link" data-scroll-target="#罫線クラス階層"><span class="header-section-number">6</span> 罫線クラス階層</a>
   <ul>
   <li><a href="#rtf-スタイルマッピング" id="toc-rtf-スタイルマッピング" class="nav-link" data-scroll-target="#rtf-スタイルマッピング"><span class="header-section-number">6.1</span> RTF スタイルマッピング</a></li>
@@ -2281,7 +2282,7 @@ vertical-align: -.125em;
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
 <h1 class="title">rtfreporter 内部クラス設計書</h1>
-<p class="subtitle lead">rtfreport_r6 / rtftable_r6 / rtfplot_r6</p>
+<p class="subtitle lead">rtfreport / rtftable / rtfplot（全 S3）</p>
 </div>
 
 
@@ -2298,7 +2299,7 @@ vertical-align: -.125em;
     <div>
     <div class="quarto-title-meta-heading">公開</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">2026-05-26</p>
+      <p class="date">2026-05-27</p>
     </div>
   </div>
   
@@ -2325,7 +2326,7 @@ vertical-align: -.125em;
 </div>
 <section id="概要" class="level1" data-number="1">
 <h1 data-number="1"><span class="header-section-number">1</span> 概要</h1>
-<p><code>rtfreporter</code> パッケージは、臨床試験用の RTF レポートを生成するパッケージです。 内部では R6 クラスを使用し、外部には S3 関数 API のみを公開します。</p>
+<p><code>rtfreporter</code> パッケージは、臨床試験用の RTF レポートを生成するパッケージです。 <strong>v0.0.19 以降、すべての内部・外部クラスは S3 に統一</strong>されており、R6 は使用しません（<code>Imports: R6</code> も DESCRIPTION から削除済み）。</p>
 <section id="クラス構成" class="level2" data-number="1.1">
 <h2 data-number="1.1" class="anchored" data-anchor-id="クラス構成"><span class="header-section-number">1.1</span> クラス構成</h2>
 <table class="caption-top table">
@@ -2338,32 +2339,32 @@ vertical-align: -.125em;
 <tr class="header">
 <th>内部クラス</th>
 <th>役割</th>
-<th>公開 S3 ラッパー</th>
+<th>公開コンストラクタ</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>rtfreport_r6</code></td>
-<td>RTF 文書全体を管理</td>
-<td><code>rtf_document()</code> （パイプ API）</td>
+<td><code>rtfreport</code></td>
+<td>RTF 文書全体を管理（内部 S3）</td>
+<td><code>.new_rtfreport()</code>（非公開）。ユーザー向けは <code>rtf_document()</code> パイプ API</td>
 </tr>
 <tr class="even">
-<td><code>rtftable_r6</code></td>
+<td><code>rtftable</code></td>
 <td>テーブルデータと書式を管理</td>
 <td><code>rtftable()</code></td>
 </tr>
 <tr class="odd">
-<td><code>rtfplot_r6</code></td>
+<td><code>rtfplot</code></td>
 <td>図（PNG/JPEG）を管理</td>
 <td><code>rtfplot()</code></td>
 </tr>
 </tbody>
 </table>
-<p>ヘッダー/フッターと罫線は R6 ではなく <strong>S3 plain list</strong> として実装されています。</p>
+<p>ヘッダー/フッター、罫線、スタイルもすべて S3 plain list です。</p>
 </section>
 <section id="クラスオブジェクトの使い分け方針" class="level2" data-number="1.2">
 <h2 data-number="1.2" class="anchored" data-anchor-id="クラスオブジェクトの使い分け方針"><span class="header-section-number">1.2</span> クラス・オブジェクトの使い分け方針</h2>
-<p>パッケージ内では 3 種類のオブジェクト形式を使い分けています。</p>
+<p>パッケージ内では 2 種類の S3 オブジェクト形式を使い分けています。</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 33%">
@@ -2379,45 +2380,39 @@ vertical-align: -.125em;
 </thead>
 <tbody>
 <tr class="odd">
-<td><strong>内部 R6 クラス</strong> (<code>_r6</code>)</td>
-<td>状態を持ち、メソッドで操作する主役オブジェクト</td>
-<td><code>rtfreport_r6</code>, <code>rtftable_r6</code>, <code>rtfplot_r6</code></td>
+<td><strong>内部 S3 typed list</strong></td>
+<td>パッケージ内部だけで使うデータ容器</td>
+<td><code>rtfreport</code>, <code>rtf_page</code>, <code>rtf_sect</code></td>
 </tr>
 <tr class="even">
-<td><strong>内部 S3 typed list</strong></td>
-<td>R6 の中に格納されるデータ容器（メソッド不要）</td>
-<td><code>rtf_page</code>, <code>rtf_sect</code></td>
-</tr>
-<tr class="odd">
 <td><strong>外部 S3 関数の戻り値</strong></td>
 <td>ユーザーが直接渡す設定オブジェクト（NAMESPACE に export）</td>
-<td><code>rtf_header()</code>, <code>rtf_footer()</code>, <code>rtf_border()</code></td>
+<td><code>rtftable()</code>, <code>rtfplot()</code>, <code>rtf_header()</code>, <code>rtf_footer()</code>, <code>rtf_border()</code>, <code>rtf_table_style()</code></td>
 </tr>
 </tbody>
 </table>
-<p><strong>なぜ <code>rtf_page</code> / <code>rtf_sect</code> を R6 にしないのか:</strong></p>
-<ul>
-<li>これらは <strong>純粋なデータ容器</strong> であり、自分からは何もしない（メソッド不要）</li>
-<li>R6 は環境ベースの <strong>参照セマンティクス</strong> を持つが、リスト要素として格納されるデータ構造には <strong>値コピー</strong> が自然</li>
-<li><code>class</code> タグを付けることで <code>inherits()</code> による型チェックとデバッグ表示のみを得る</li>
-</ul>
-<p><strong>“内部 R6、外部 S3” 原則との整合:</strong></p>
-<p>原則は保たれています。<code>rtf_page</code> / <code>rtf_sect</code> は「内部 R6 の中に住むデータ構造」であり、独立した公開オブジェクトではありません。R6 クラスが <code>integer</code> や <code>character</code> を内部に保持するのと同じ感覚で、少しだけ型安全にした named list です。</p>
+<p>S3 リストには <code>structure(list(...), class = &quot;...&quot;)</code> で <code>class</code> タグを付与し、<code>inherits()</code> による型チェックとデバッグ表示（<code>str()</code>, <code>print()</code>, <code>dput()</code>）の両方が機能するようにしています。</p>
 </section>
-<section id="r6-サフィックスについて" class="level2" data-number="1.3">
-<h2 data-number="1.3" class="anchored" data-anchor-id="r6-サフィックスについて"><span class="header-section-number">1.3</span> <code>_r6</code> サフィックスについて</h2>
-<p>内部 R6 クラスには <code>_r6</code> サフィックスを付けています。理由：</p>
+<section id="r6-を採用しなかった理由v0.0.19-で-r6-s3-統一" class="level2" data-number="1.3">
+<h2 data-number="1.3" class="anchored" data-anchor-id="r6-を採用しなかった理由v0.0.19-で-r6-s3-統一"><span class="header-section-number">1.3</span> R6 を採用しなかった理由（v0.0.19 で R6 → S3 統一）</h2>
+<p>旧 v0.0.18 までは <code>rtfreport_r6</code> / <code>rtftable_r6</code> / <code>rtfplot_r6</code> / <code>rtf_border</code>（R6）/ <code>rtf_table_style</code>（R6）の 5 クラスが R6 でした。次の理由で全て S3 に置き換えました：</p>
+<ol type="1">
+<li><strong><code>_r6</code> 系の内部クラスは寿命が短く参照セマンティクスが不要</strong>：<code>.pipe_doc_to_rtfreport()</code> でアダプタとして 1 度作り、レンダラーが読むだけ。S3 リスト + 関数型ヘルパー（<code>.rtfreport_add_page(rep, ...)</code> などで新コピーを返す）の方がシンプルかつ <code>dput()</code>/<code>saveRDS()</code> が綺麗に通る。</li>
+<li><strong><code>rtf_border</code> (R6) の <code>set_*</code> / <code>with_*</code> / <code>apply_override</code> などのチェインビルダーは実コードでほぼ未使用</strong>：内部唯一の <code>eff$with_bottom()</code> / <code>eff$override()</code> 呼び出しは <code>.merge_rtf_border()</code> で 1 行に置換できた。</li>
+<li><strong><code>rtf_table_style</code> (R6) の「共有可変テーマ」は実は機能していなかった</strong>：<code>rtftable()</code> コンストラクタが style の各フィールドを構築時にスナップショットしてしまうため、後から <code>style$header_bold &lt;- TRUE</code> しても既存 table には反映されない。値コピーの S3 と何も変わらない。</li>
+</ol>
+<p>S3 統一により得たもの：</p>
 <ul>
-<li>コード中で R6 オブジェクトと S3 オブジェクトを一目で区別できる</li>
-<li><code>rtftable_r6$new(...)</code> と公開関数 <code>rtftable(...)</code> の混同を防ぐ</li>
-<li>将来 S3 公開ラッパー関数と同名の概念が存在しても衝突しない</li>
+<li><code>dput()</code> / <code>str()</code> / <code>print()</code> / <code>saveRDS()</code> が綺麗に動く</li>
+<li>パイプ関数型コンポジションと整合（参照セマンティクスの混入なし）</li>
+<li><code>Imports: R6</code> を削除、外部依存ゼロ化</li>
+<li>メンバ関数 vs 自由関数の混在が消え、コードベース全体が一貫した関数型に</li>
 </ul>
-<p>R6 クラスは NAMESPACE から除外されており、ユーザーが直接触れることはありません。</p>
 </section>
 <section id="設計原則" class="level2" data-number="1.4">
 <h2 data-number="1.4" class="anchored" data-anchor-id="設計原則"><span class="header-section-number">1.4</span> 設計原則</h2>
 <ol type="1">
-<li><strong>外部公開は S3 のみ</strong> — R6 の <code>$new()</code> を公開しない</li>
+<li><strong>すべて S3</strong> — <code>class</code> タグ付きの plain list / vector のみ</li>
 <li><strong>twips 統一</strong> — 寸法はすべて twips（フォントサイズ依存計算なし）</li>
 <li><strong>RTF コマンドはリソースファイルに集約</strong> — レンダラーにコマンドを埋め込まない</li>
 <li><strong>“none” = コマンドなし</strong> — 罫線なしは該当 RTF コマンドを出力しない</li>
@@ -2426,11 +2421,11 @@ vertical-align: -.125em;
 <hr>
 </section>
 </section>
-<section id="rtfreport_r6-rtf-文書クラス" class="level1" data-number="2">
-<h1 data-number="2"><span class="header-section-number">2</span> <code>rtfreport_r6</code> — RTF 文書クラス</h1>
+<section id="rtfreport-rtf-文書クラス" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> <code>rtfreport</code> — RTF 文書クラス</h1>
 <section id="データ構造概念図" class="level2" data-number="2.1">
 <h2 data-number="2.1" class="anchored" data-anchor-id="データ構造概念図"><span class="header-section-number">2.1</span> データ構造概念図</h2>
-<pre><code>rtfreport_r6
+<pre><code>rtfreport
 ├── document              # 文書レベル設定（named list）
 │   ├── font_table
 │   ├── color_table
@@ -2440,7 +2435,7 @@ vertical-align: -.125em;
 ├── pages[]               # rtf_page オブジェクトのリスト（文書レベルで管理）
 │   └── rtf_page
 │       ├── title         # character vector（複数行可、デフォルト: center）
-│       ├── content       # rtftable_r6 | rtfplot_r6 | NULL（1ページ1つのみ）
+│       ├── content       # rtftable | rtfplot | NULL（1ページ1つのみ）
 │       └── footnote      # character vector（複数行可、1×1テーブル表示）
 │
 └── sections[]            # rtf_sect オブジェクトのリスト
@@ -2458,7 +2453,7 @@ sections: [sect A  ]  [sect B       ]
 <ul>
 <li><strong>ページ (<code>pages</code>)</strong> は文書レベルのフラットなリスト</li>
 <li><strong>セクション (<code>sections</code>)</strong> は <code>from_page</code> でページ範囲を指定</li>
-<li>セクションは <strong>最低 1 つ必須</strong>。指定がない場合、<code>validate()</code> 時に空のデフォルトセクション（ヘッダー/フッターなし）が自動生成される</li>
+<li>セクションは <strong>最低 1 つ必須</strong>。指定がない場合、<code>.rtfreport_validate()</code> 時に空のデフォルトセクション（ヘッダー/フッターなし）が自動生成される</li>
 <li>セクションの <code>to_page</code> はレンダラーが「次のセクションの <code>from_page - 1</code>」として自動計算する</li>
 </ul>
 </section>
@@ -2538,7 +2533,7 @@ sections: [sect A  ]  [sect B       ]
 </tr>
 <tr class="even">
 <td><code>content</code></td>
-<td><code>rtftable_r6</code> | <code>rtfplot_r6</code> | <code>NULL</code></td>
+<td><code>rtftable</code> | <code>rtfplot</code> | <code>NULL</code></td>
 <td>コンテンツ（1ページ1つのみ）。デフォルト配置: center</td>
 </tr>
 <tr class="odd">
@@ -2600,51 +2595,54 @@ sections: [sect A  ]  [sect B       ]
 </tbody>
 </table>
 </section>
-<section id="メソッド定義" class="level2" data-number="2.6">
-<h2 data-number="2.6" class="anchored" data-anchor-id="メソッド定義"><span class="header-section-number">2.6</span> メソッド定義</h2>
+<section id="内部-s3-ヘルパー関数" class="level2" data-number="2.6">
+<h2 data-number="2.6" class="anchored" data-anchor-id="内部-s3-ヘルパー関数"><span class="header-section-number">2.6</span> 内部 S3 ヘルパー関数</h2>
+<p><code>rtfreport</code> は S3 list であり、内部からは次の <strong>関数型ヘルパー</strong> で操作します。すべて新コピーを返し、引数を破壊的に変更しません。</p>
 <section id="コンストラクタ" class="level3" data-number="2.6.1">
 <h3 data-number="2.6.1" class="anchored" data-anchor-id="コンストラクタ"><span class="header-section-number">2.6.1</span> コンストラクタ</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">initialize</span>(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">.new_rtfreport</span>(</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">font_table     =</span> <span class="cn">NULL</span>,   <span class="co"># NULL = list(list(name = &quot;Courier&quot;))</span></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">color_table    =</span> <span class="cn">NULL</span>,   <span class="co"># NULL = c(&quot;#000000&quot;)</span></span>
 <span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">default_page   =</span> <span class="cn">NULL</span>,   <span class="co"># NULL = letter landscape 0.75/0.5インチ余白</span></span>
 <span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">default_format =</span> <span class="cn">NULL</span>    <span class="co"># NULL = Courier 9pt single spacing</span></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># → class = &quot;rtfreport&quot; の S3 list</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="ページ操作" class="level3" data-number="2.6.2">
 <h3 data-number="2.6.2" class="anchored" data-anchor-id="ページ操作"><span class="header-section-number">2.6.2</span> ページ操作</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ページ追加（rtf_page オブジェクトとして格納）</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">add_page</span>(<span class="at">title =</span> <span class="cn">NULL</span>, <span class="at">content =</span> <span class="cn">NULL</span>, <span class="at">footnote =</span> <span class="cn">NULL</span>)</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co"># → invisible(page_index)</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">.rtfreport_add_page</span>(report, <span class="at">title =</span> <span class="cn">NULL</span>, <span class="at">content =</span> <span class="cn">NULL</span>, <span class="at">footnote =</span> <span class="cn">NULL</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co"># → 新しい rtfreport（pages に 1 件追加された copy）</span></span>
 <span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 取得・更新</span></span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="fu">get_page</span>(page_index)</span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="fu">set_page_title</span>(page_index, title)</span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="fu">set_page_content</span>(page_index, content)</span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="fu">set_page_footnote</span>(page_index, footnote)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 取得・更新は通常のリスト操作で</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>page <span class="ot">&lt;-</span> report<span class="sc">$</span>pages[[i]]</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>report<span class="sc">$</span>pages[[i]]<span class="sc">$</span>footnote <span class="ot">&lt;-</span> <span class="st">&quot;Note: ...&quot;</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="セクション操作" class="level3" data-number="2.6.3">
 <h3 data-number="2.6.3" class="anchored" data-anchor-id="セクション操作"><span class="header-section-number">2.6.3</span> セクション操作</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># セクション追加（rtf_sect オブジェクトとして格納）</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">add_section</span>(<span class="at">header =</span> <span class="cn">NULL</span>, <span class="at">footer =</span> <span class="cn">NULL</span>, <span class="at">from_page =</span> <span class="cn">NULL</span>)</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># → invisible(section_index)</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">.rtfreport_add_section</span>(report, <span class="at">header =</span> <span class="cn">NULL</span>, <span class="at">footer =</span> <span class="cn">NULL</span>, <span class="at">from_page =</span> <span class="cn">NULL</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># → 新しい rtfreport（sections に 1 件追加された copy）</span></span>
 <span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co"># from_page = NULL → 最初のセクションとして from_page = 1 に解決</span></span>
 <span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 取得・更新</span></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="fu">get_section</span>(section_index)</span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="fu">get_section_header</span>(section_index)</span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="fu">get_section_footer</span>(section_index)</span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="fu">set_section_header</span>(section_index, header)</span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="fu">set_section_footer</span>(section_index, footer)</span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="fu">set_section_from_page</span>(section_index, from_page)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 取得・更新は通常のリスト操作で</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>sec <span class="ot">&lt;-</span> report<span class="sc">$</span>sections[[i]]</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>report<span class="sc">$</span>sections[[i]]<span class="sc">$</span>header <span class="ot">&lt;-</span> new_header</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="バリデーション" class="level3" data-number="2.6.4">
-<h3 data-number="2.6.4" class="anchored" data-anchor-id="バリデーション"><span class="header-section-number">2.6.4</span> バリデーション</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">validate</span>()</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. sections が空の場合は空のデフォルトセクションを自動生成して警告</span></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. pages が最低 1 つあること（なければ stop）</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. 各ページの content が rtftable_r6 | rtfplot_r6 | NULL であること</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co"># → invisible(TRUE)</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="文書デフォルト" class="level3" data-number="2.6.4">
+<h3 data-number="2.6.4" class="anchored" data-anchor-id="文書デフォルト"><span class="header-section-number">2.6.4</span> 文書デフォルト</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">.rtfreport_set_font_table</span>(report, font_table)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">.rtfreport_set_color_table</span>(report, color_table)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="fu">.rtfreport_set_default_page</span>(report, page)       <span class="co"># 部分マージ</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="fu">.rtfreport_set_default_format</span>(report, fmt)      <span class="co"># 部分マージ</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="バリデーション" class="level3" data-number="2.6.5">
+<h3 data-number="2.6.5" class="anchored" data-anchor-id="バリデーション"><span class="header-section-number">2.6.5</span> バリデーション</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">.rtfreport_validate</span>(report)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. sections が空の場合は空のデフォルトセクションを自動生成して message()</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. pages が最低 1 つあること（なければ stop）</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. 各ページの content が rtftable | rtfplot | NULL であること</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co"># → 検証済み report を返す（必要なら sections を補ったコピー）</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 <hr>
 </section>
 </section>
@@ -2653,24 +2651,24 @@ sections: [sect A  ]  [sect B       ]
 <h1 data-number="3"><span class="header-section-number">3</span> ヘッダー/フッター操作関数</h1>
 <section id="作成全行置き換え" class="level2" data-number="3.1">
 <h2 data-number="3.1" class="anchored" data-anchor-id="作成全行置き換え"><span class="header-section-number">3.1</span> 作成（全行置き換え）</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rtf_header</span>(</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  rows,                      <span class="co"># named vector (1行) または list(named vecs) (複数行)</span></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">border           =</span> <span class="cn">NULL</span>,   <span class="co"># rtf_border | NULL</span></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">width_twips      =</span> <span class="cn">NULL</span>,</span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">row_height_twips =</span> <span class="cn">NULL</span></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="fu">rtf_footer</span>(</span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  rows,</span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">border           =</span> <span class="fu">rtf_border_top</span>(),  <span class="co"># デフォルト: 上辺に横線</span></span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">width_twips      =</span> <span class="cn">NULL</span>,</span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">row_height_twips =</span> <span class="cn">NULL</span></span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rtf_header</span>(</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  rows,                      <span class="co"># named vector (1行) または list(named vecs) (複数行)</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">border           =</span> <span class="cn">NULL</span>,   <span class="co"># rtf_border | NULL</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">width_twips      =</span> <span class="cn">NULL</span>,</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">row_height_twips =</span> <span class="cn">NULL</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="fu">rtf_footer</span>(</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>  rows,</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">border           =</span> <span class="fu">rtf_border_top</span>(),  <span class="co"># デフォルト: 上辺に横線</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">width_twips      =</span> <span class="cn">NULL</span>,</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">row_height_twips =</span> <span class="cn">NULL</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="特定行の追加置き換え" class="level2" data-number="3.2">
 <h2 data-number="3.2" class="anchored" data-anchor-id="特定行の追加置き換え"><span class="header-section-number">3.2</span> 特定行の追加・置き換え</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">update_header_row</span>(header, row, content)</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">update_footer_row</span>(footer, row, content)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">update_header_row</span>(header, row, content)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">update_footer_row</span>(footer, row, content)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 33%">
@@ -2729,49 +2727,50 @@ sections: [sect A  ]  [sect B       ]
 </tr>
 </tbody>
 </table>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 例: 2行ヘッダーの3行目を追加</span></span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>hdr <span class="ot">&lt;-</span> <span class="fu">rtf_header</span>(<span class="at">rows =</span> <span class="fu">list</span>(</span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Protocol: XXX-001&quot;</span>, <span class="at">r =</span> <span class="st">&quot;Company&quot;</span>),</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Table 14.1.1&quot;</span>,     <span class="at">r =</span> <span class="st">&quot;Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}&quot;</span>)</span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>))</span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 3行目を追加</span></span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>hdr <span class="ot">&lt;-</span> <span class="fu">update_header_row</span>(hdr, <span class="at">row =</span> <span class="dv">3</span>, <span class="at">content =</span> <span class="fu">c</span>(<span class="at">c =</span> <span class="st">&quot;Subtitle&quot;</span>))</span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="co"># 2行目だけを置き換え</span></span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>hdr <span class="ot">&lt;-</span> <span class="fu">update_header_row</span>(hdr, <span class="at">row =</span> <span class="dv">2</span>, <span class="at">content =</span> <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Table 14.2.1&quot;</span>, <span class="at">r =</span> <span class="st">&quot;Page {AUTO_PAGE}&quot;</span>))</span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="co"># 5行目を追加（4行目は空行 c(c=&quot;&quot;) が自動補填される）</span></span>
-<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>hdr <span class="ot">&lt;-</span> <span class="fu">update_header_row</span>(hdr, <span class="at">row =</span> <span class="dv">5</span>, <span class="at">content =</span> <span class="fu">c</span>(<span class="at">c =</span> <span class="st">&quot;Draft&quot;</span>))</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 例: 2行ヘッダーの3行目を追加</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>hdr <span class="ot">&lt;-</span> <span class="fu">rtf_header</span>(<span class="at">rows =</span> <span class="fu">list</span>(</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Protocol: XXX-001&quot;</span>, <span class="at">r =</span> <span class="st">&quot;Company&quot;</span>),</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Table 14.1.1&quot;</span>,     <span class="at">r =</span> <span class="st">&quot;Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}&quot;</span>)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>))</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 3行目を追加</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>hdr <span class="ot">&lt;-</span> <span class="fu">update_header_row</span>(hdr, <span class="at">row =</span> <span class="dv">3</span>, <span class="at">content =</span> <span class="fu">c</span>(<span class="at">c =</span> <span class="st">&quot;Subtitle&quot;</span>))</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="co"># 2行目だけを置き換え</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>hdr <span class="ot">&lt;-</span> <span class="fu">update_header_row</span>(hdr, <span class="at">row =</span> <span class="dv">2</span>, <span class="at">content =</span> <span class="fu">c</span>(<span class="at">l =</span> <span class="st">&quot;Table 14.2.1&quot;</span>, <span class="at">r =</span> <span class="st">&quot;Page {AUTO_PAGE}&quot;</span>))</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="co"># 5行目を追加（4行目は空行 c(c=&quot;&quot;) が自動補填される）</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>hdr <span class="ot">&lt;-</span> <span class="fu">update_header_row</span>(hdr, <span class="at">row =</span> <span class="dv">5</span>, <span class="at">content =</span> <span class="fu">c</span>(<span class="at">c =</span> <span class="st">&quot;Draft&quot;</span>))</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 <p><code>update_header_row()</code> と <code>update_footer_row()</code> は内部実装を共有し、 <code>rtf_header()</code> / <code>rtf_footer()</code> どちらの戻り値にも適用できます。</p>
 <hr>
 </section>
 </section>
-<section id="rtftable_r6-テーブルクラス" class="level1" data-number="4">
-<h1 data-number="4"><span class="header-section-number">4</span> <code>rtftable_r6</code> — テーブルクラス</h1>
+<section id="rtftable-テーブルクラス" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> <code>rtftable</code> — テーブルクラス</h1>
+<p>公開コンストラクタ <code>rtftable(...)</code>（<code>r/wrappers.R</code>）から内部 <code>.new_rtftable(...)</code>（<code>r/rtftable.R</code>）を呼び、<code>structure(list(...), class = &quot;rtftable&quot;)</code> の S3 list を返します。</p>
 <section id="コンストラクタ引数" class="level2" data-number="4.1">
 <h2 data-number="4.1" class="anchored" data-anchor-id="コンストラクタ引数"><span class="header-section-number">4.1</span> コンストラクタ引数</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>rtftable_r6<span class="sc">$</span><span class="fu">new</span>(</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  data,                        <span class="co"># data.frame | list(df1, df2, ...) (multi-DF)</span></span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_header          =</span> <span class="cn">NULL</span>,  <span class="co"># NULL | chr vec | list | &quot;A | B | C&quot;</span></span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">spanning_header     =</span> <span class="cn">NULL</span>,  <span class="co"># list(list(from=2,to=3,label=&quot;Arm A&quot;,underline=TRUE))</span></span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_spec            =</span> <span class="cn">NULL</span>,  <span class="co"># 列書式リスト（下表参照）</span></span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">border              =</span> <span class="st">&quot;tfl&quot;</span>, <span class="co"># &quot;tfl&quot; | NULL | rtf_table_border()</span></span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">blank_rows          =</span> <span class="cn">NULL</span>,</span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_rel_width       =</span> <span class="cn">NULL</span>,</span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">column_widths_twips =</span> <span class="cn">NULL</span>,</span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">table_width_twips   =</span> <span class="cn">NULL</span>,</span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">table_width_pct_of_writable =</span> <span class="cn">NULL</span>,</span>
-<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">table_width_pct     =</span> <span class="cn">NULL</span>,</span>
-<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">table_align         =</span> <span class="st">&quot;left&quot;</span>,</span>
-<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">row_height_twips    =</span> <span class="dv">0</span>L,</span>
-<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">row_height_exact    =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">header_row_height_twips =</span> <span class="cn">NULL</span>,</span>
-<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">blank_row_height_twips  =</span> <span class="cn">NULL</span>,</span>
-<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">cell_padding_left_twips  =</span> <span class="dv">72</span>L,</span>
-<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">cell_padding_right_twips =</span> <span class="dv">72</span>L,</span>
-<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">cell_valign         =</span> <span class="st">&quot;bottom&quot;</span></span>
-<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rtftable</span>(</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  data,                        <span class="co"># data.frame | list(df1, df2, ...) (multi-DF)</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_header          =</span> <span class="cn">NULL</span>,  <span class="co"># NULL | chr vec | list | &quot;A | B | C&quot;</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">spanning_header     =</span> <span class="cn">NULL</span>,  <span class="co"># list(list(from=2,to=3,label=&quot;Arm A&quot;,underline=TRUE))</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_spec            =</span> <span class="cn">NULL</span>,  <span class="co"># 列書式リスト（下表参照）</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">border              =</span> <span class="st">&quot;tfl&quot;</span>, <span class="co"># &quot;tfl&quot; | NULL | rtf_table_border()</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">blank_rows          =</span> <span class="cn">NULL</span>,</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_rel_width       =</span> <span class="cn">NULL</span>,</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">column_widths_twips =</span> <span class="cn">NULL</span>,</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">table_width_twips   =</span> <span class="cn">NULL</span>,</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">table_width_pct_of_writable =</span> <span class="cn">NULL</span>,</span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">table_width_pct     =</span> <span class="cn">NULL</span>,</span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">table_align         =</span> <span class="st">&quot;left&quot;</span>,</span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">row_height_twips    =</span> <span class="dv">0</span>L,</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">row_height_exact    =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">header_row_height_twips =</span> <span class="cn">NULL</span>,</span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">blank_row_height_twips  =</span> <span class="cn">NULL</span>,</span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">cell_padding_left_twips  =</span> <span class="dv">72</span>L,</span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">cell_padding_right_twips =</span> <span class="dv">72</span>L,</span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">cell_valign         =</span> <span class="st">&quot;bottom&quot;</span></span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="col_spec-属性一覧" class="level2" data-number="4.2">
 <h2 data-number="4.2" class="anchored" data-anchor-id="col_spec-属性一覧"><span class="header-section-number">4.2</span> <code>col_spec</code> 属性一覧</h2>
@@ -2844,14 +2843,15 @@ sections: [sect A  ]  [sect B       ]
 <hr>
 </section>
 </section>
-<section id="rtfplot_r6-フィギュアクラス" class="level1" data-number="5">
-<h1 data-number="5"><span class="header-section-number">5</span> <code>rtfplot_r6</code> — フィギュアクラス</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>rtfplot_r6<span class="sc">$</span><span class="fu">new</span>(</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  path,                  <span class="co"># PNG | JPEG ファイルパス</span></span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">width_twips  =</span> <span class="cn">NULL</span>,   <span class="co"># NULL = 書き込み可能幅</span></span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">height_twips =</span> <span class="cn">NULL</span>,   <span class="co"># NULL = アスペクト比維持</span></span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">align        =</span> <span class="st">&quot;center&quot;</span></span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="rtfplot-フィギュアクラス" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> <code>rtfplot</code> — フィギュアクラス</h1>
+<p>公開コンストラクタ <code>rtfplot(...)</code>（<code>r/wrappers.R</code>）から内部 <code>.new_rtfplot(...)</code>（<code>r/rtfplot.R</code>）を呼び、<code>structure(list(...), class = &quot;rtfplot&quot;)</code> の S3 list を返します。</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rtfplot</span>(</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  path,                  <span class="co"># PNG | JPEG ファイルパス</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">width_twips  =</span> <span class="cn">NULL</span>,   <span class="co"># NULL = 書き込み可能幅</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">height_twips =</span> <span class="cn">NULL</span>,   <span class="co"># NULL = アスペクト比維持</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">align        =</span> <span class="st">&quot;center&quot;</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 <hr>
 </section>
 <section id="罫線クラス階層" class="level1" data-number="6">
@@ -3064,7 +3064,7 @@ last_row:  bottom = single</code></pre>
 <tbody>
 <tr class="odd">
 <td><code>generate_rtfreport(report, file_path, overwrite)</code></td>
-<td>主エントリポイント。<code>rtf_document</code> または <code>rtfreport_r6</code> を RTF ファイルに書き出す</td>
+<td>主エントリポイント。<code>rtf_document</code>（公開）または <code>rtfreport</code>（内部 S3）を RTF ファイルに書き出す</td>
 </tr>
 <tr class="even">
 <td><code>assemble_rtf(...)</code></td>
@@ -3237,11 +3237,11 @@ last_row:  bottom = single</code></pre>
 <tbody>
 <tr class="odd">
 <td><code>.render_rtftable(tbl, writable_width_twips)</code></td>
-<td><code>rtftable_r6</code> → RTF 行文字列ベクトル（単一 DF・複数 DF 両対応）</td>
+<td><code>rtftable</code> → RTF 行文字列ベクトル（単一 DF・複数 DF 両対応）</td>
 </tr>
 <tr class="even">
 <td><code>.render_rtfplot(plot_obj, writable_width_twips)</code></td>
-<td><code>rtfplot_r6</code> → RTF <code>\pict</code> ブロック（PNG/JPEG hex 埋め込み）</td>
+<td><code>rtfplot</code> → RTF <code>\pict</code> ブロック（PNG/JPEG hex 埋め込み）</td>
 </tr>
 <tr class="odd">
 <td><code>.render_header_footer(hf, writable_width_twips, ...)</code></td>
@@ -3306,8 +3306,8 @@ last_row:  bottom = single</code></pre>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>.pipe_doc_to_r6_report(pipe_doc)</code></td>
-<td><code>rtf_document</code>（パイプ API）→ <code>rtfreport_r6</code> に変換</td>
+<td><code>.pipe_doc_to_rtfreport(pipe_doc)</code></td>
+<td><code>rtf_document</code>（公開 S3 / パイプ API）→ <code>rtfreport</code>（内部 S3）に変換</td>
 </tr>
 </tbody>
 </table>
@@ -3318,9 +3318,9 @@ last_row:  bottom = single</code></pre>
 <h2 data-number="9.2" class="anchored" data-anchor-id="generate_rtfreport-の処理フロー"><span class="header-section-number">9.2</span> <code>generate_rtfreport()</code> の処理フロー</h2>
 <pre><code>generate_rtfreport(report, file_path)
   │
-  ├─ rtf_document の場合 → .pipe_doc_to_r6_report() で rtfreport_r6 に変換
+  ├─ rtf_document の場合 → .pipe_doc_to_rtfreport() で rtfreport（内部 S3）に変換
   │
-  ▼ report$validate()
+  ▼ .rtfreport_validate(report)
   │   sections が空 → デフォルトセクション自動生成
   │
   ▼ .collect_report_colors() → .build_color_table_rtf() → .build_color_index_map()
@@ -3724,31 +3724,31 @@ last_row:  bottom = single</code></pre>
 </section>
 <section id="コマンド利用の仕組み" class="level3" data-number="9.3.2">
 <h3 data-number="9.3.2" class="anchored" data-anchor-id="コマンド利用の仕組み"><span class="header-section-number">9.3.2</span> コマンド利用の仕組み</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. 遅延読み込み（初回のみファイル I/O）</span></span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>cmds <span class="ot">&lt;-</span> <span class="fu">.load_rtf_commands</span>()</span>
-<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. テンプレート置換</span></span>
-<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="fu">.cmd_fmt</span>(cmds<span class="sc">$</span>document<span class="sc">$</span>page_settings_template, <span class="fu">list</span>(</span>
-<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">width_twips  =</span> <span class="dv">15840</span>,</span>
-<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">height_twips =</span> <span class="dv">12240</span>,</span>
-<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>  ...</span>
-<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>))</span>
-<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. 直接参照（テンプレートでないもの）</span></span>
-<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>lines <span class="ot">&lt;-</span> <span class="fu">c</span>(lines, cmds<span class="sc">$</span>document<span class="sc">$</span>page_break)   <span class="co"># → &quot;\page&quot;</span></span>
-<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>lines <span class="ot">&lt;-</span> <span class="fu">c</span>(lines, cmds<span class="sc">$</span>document<span class="sc">$</span>section_break) <span class="co"># → &quot;\sect&quot;</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. 遅延読み込み（初回のみファイル I/O）</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>cmds <span class="ot">&lt;-</span> <span class="fu">.load_rtf_commands</span>()</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. テンプレート置換</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="fu">.cmd_fmt</span>(cmds<span class="sc">$</span>document<span class="sc">$</span>page_settings_template, <span class="fu">list</span>(</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">width_twips  =</span> <span class="dv">15840</span>,</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">height_twips =</span> <span class="dv">12240</span>,</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>  ...</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>))</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. 直接参照（テンプレートでないもの）</span></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>lines <span class="ot">&lt;-</span> <span class="fu">c</span>(lines, cmds<span class="sc">$</span>document<span class="sc">$</span>page_break)   <span class="co"># → &quot;\page&quot;</span></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>lines <span class="ot">&lt;-</span> <span class="fu">c</span>(lines, cmds<span class="sc">$</span>document<span class="sc">$</span>section_break) <span class="co"># → &quot;\sect&quot;</span></span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="セクション解決アルゴリズム.resolve_sections" class="level2" data-number="9.4">
 <h2 data-number="9.4" class="anchored" data-anchor-id="セクション解決アルゴリズム.resolve_sections"><span class="header-section-number">9.4</span> セクション解決アルゴリズム（<code>.resolve_sections()</code>）</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 入力: report$sections（rtf_sect オブジェクトのリスト）</span></span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 出力: list(list(header, footer, from_page, to_page), ...)</span></span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="fl">1.</span> from_page を抽出（NULL の場合は <span class="cn">NA</span> として扱う）</span>
-<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="fl">2.</span> セクションが <span class="dv">1</span> つかつ from_page <span class="ot">=</span> <span class="cn">NULL</span> → from_page <span class="ot">=</span> <span class="dv">1</span> に設定</span>
-<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a><span class="fl">3.</span> from_page でソート（NA は末尾）</span>
-<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="fl">4.</span> 最初のセクションの from_page を強制的に <span class="dv">1</span> に設定</span>
-<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a><span class="fl">5.</span> to_page <span class="ot">=</span> 次セクションの from_page <span class="sc">-</span> <span class="dv">1</span>（最後のセクションは n_pages）</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 入力: report$sections（rtf_sect オブジェクトのリスト）</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 出力: list(list(header, footer, from_page, to_page), ...)</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="fl">1.</span> from_page を抽出（NULL の場合は <span class="cn">NA</span> として扱う）</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a><span class="fl">2.</span> セクションが <span class="dv">1</span> つかつ from_page <span class="ot">=</span> <span class="cn">NULL</span> → from_page <span class="ot">=</span> <span class="dv">1</span> に設定</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a><span class="fl">3.</span> from_page でソート（NA は末尾）</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a><span class="fl">4.</span> 最初のセクションの from_page を強制的に <span class="dv">1</span> に設定</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a><span class="fl">5.</span> to_page <span class="ot">=</span> 次セクションの from_page <span class="sc">-</span> <span class="dv">1</span>（最後のセクションは n_pages）</span></code></pre></div><button title="コピー" class="code-copy-button"><i class="bi"></i></button></div>
 <hr>
 </section>
 </section>
@@ -3789,6 +3789,10 @@ last_row:  bottom = single</code></pre>
 <tr class="even">
 <td>v0.1.0（予定）</td>
 <td><code>sections</code> 未設定時のデフォルトセクション自動生成</td>
+</tr>
+<tr class="odd">
+<td>v0.0.19</td>
+<td><strong>R6 全廃</strong>：<code>rtfreport_r6</code> / <code>rtftable_r6</code> / <code>rtfplot_r6</code> / <code>rtf_border</code> (R6) / <code>rtf_table_style</code> (R6) を S3 に統一。<code>Imports: R6</code> を削除。<code>_r6</code> サフィックス廃止。R6 メソッドチェイン（<code>set_*</code> / <code>with_*</code> / <code>apply_override</code> / <code>override</code> / <code>clone_with</code> / <code>as_table_border</code>）撤廃。代替ヘルパー <code>rtf_border_with()</code> / <code>rtf_table_style_with()</code> を追加。<code>.pipe_doc_to_r6_report()</code> → <code>.pipe_doc_to_rtfreport()</code>、<code>report$validate()</code> → <code>.rtfreport_validate(report)</code>。</td>
 </tr>
 </tbody>
 </table>

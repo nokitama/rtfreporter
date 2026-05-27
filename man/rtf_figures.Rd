@@ -18,7 +18,7 @@ rtf_figures(
 \item{doc}{An rtf_document object.}
 
 \item{figures}{A list whose elements are either character file paths to
-image files (PNG/JPEG) or pre-built `rtfplot_r6` objects from [rtfplot()].}
+image files (PNG/JPEG) or pre-built `rtfplot` objects from [rtfplot()].}
 
 \item{width_twips}{Display width in twips for bare paths.  `NULL` = full
 writable width.}

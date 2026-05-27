@@ -823,22 +823,24 @@ inherit the document font size (one font per document, 9 pt by
 default).</p>
 <hr />
 </div>
-<div id="shared-table-style-r6-theme" class="section level2">
-<h2>16 Shared table style (R6 theme)</h2>
-<p><code>rtf_table_style$new()</code> builds a <strong>shared mutable
-theme</strong> that you can hand to many tables. Mutating the theme
-later affects every table constructed after the mutation.</p>
-<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a>tfl <span class="ot">&lt;-</span> <span class="fu">rtf_table_style_tfl</span>()   <span class="co"># built-in TFL preset (R6)</span></span>
+<div id="shared-table-style" class="section level2">
+<h2>16 Shared table style</h2>
+<p><code>rtf_table_style()</code> builds a <strong>table-style
+record</strong> that bundles default borders, alignment, padding and
+row-height. Pass the same record to many <code>rtftable()</code> calls
+and each table snapshots the defaults it needs at construction time. To
+derive a variant, call <code>rtf_table_style_with()</code>.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a>tfl <span class="ot">&lt;-</span> <span class="fu">rtf_table_style_tfl</span>()   <span class="co"># built-in TFL preset</span></span>
 <span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a></span>
-<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a><span class="co"># Hand the same instance to many tables</span></span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a><span class="co"># Hand the same record to many tables</span></span>
 <span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a>tables <span class="ot">&lt;-</span> <span class="fu">lapply</span>(<span class="fu">list</span>(df_demog, df_demog, df_demog),</span>
 <span id="cb16-5"><a href="#cb16-5" tabindex="-1"></a>                  <span class="cf">function</span>(df) <span class="fu">rtftable</span>(df, <span class="at">style =</span> tfl, <span class="at">row_height_twips =</span> <span class="dv">280</span><span class="dt">L</span>))</span>
 <span id="cb16-6"><a href="#cb16-6" tabindex="-1"></a></span>
 <span id="cb16-7"><a href="#cb16-7" tabindex="-1"></a><span class="co"># Non-mutating derivation</span></span>
-<span id="cb16-8"><a href="#cb16-8" tabindex="-1"></a>heavy_tfl <span class="ot">&lt;-</span> tfl<span class="sc">$</span><span class="fu">clone_with</span>(</span>
+<span id="cb16-8"><a href="#cb16-8" tabindex="-1"></a>heavy_tfl <span class="ot">&lt;-</span> <span class="fu">rtf_table_style_with</span>(tfl,</span>
 <span id="cb16-9"><a href="#cb16-9" tabindex="-1"></a>  <span class="at">border_last_row =</span> <span class="fu">rtf_border</span>(<span class="at">bottom =</span> <span class="fu">rtf_border_side</span>(<span class="st">&quot;double&quot;</span>, <span class="dv">20</span><span class="dt">L</span>))</span>
 <span id="cb16-10"><a href="#cb16-10" tabindex="-1"></a>)</span></code></pre></div>
-<p>The R6-vs-S3 design choice is documented in <a href="../LEARNING.md">LEARNING.md</a>.</p>
+<p>The S3 architecture is documented in <a href="../LEARNING.md">LEARNING.md</a>.</p>
 <hr />
 </div>
 <div id="quick-reference" class="section level2">
@@ -886,7 +888,7 @@ into <code>col_header</code> instead)</td>
 <td><code>col_spec</code></td>
 <td>list</td>
 <td>Per-column align / bold / italic / indent / <strong>border</strong>
-(R6 rtf_border) / header_*</td>
+(<code>rtf_border</code>) / header_*</td>
 </tr>
 <tr class="even">
 <td><code>border</code></td>
@@ -909,7 +911,8 @@ TRUE)</td>
 <tr class="odd">
 <td><code>style</code></td>
 <td>rtf_table_style</td>
-<td>Shared R6 theme; provides defaults overridden by explicit args</td>
+<td>Shared S3 theme record; provides defaults overridden by explicit
+args</td>
 </tr>
 <tr class="even">
 <td><code>col_rel_width</code></td>

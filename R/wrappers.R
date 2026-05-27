@@ -1,6 +1,6 @@
 # Constructor wrappers for rtftable and rtfplot
-# These are thin shells over the internal R6 classes, providing a clean
-# public API with full parameter documentation.
+# Thin shells over the internal S3 constructors (.new_rtftable / .new_rtfplot)
+# providing the public-facing function signatures with full documentation.
 
 #' Create an RTF table object
 #'
@@ -74,7 +74,7 @@
 #' @param cell_valign Vertical alignment: `"bottom"` (default), `"top"`,
 #'   or `"center"`.
 #'
-#' @return An `rtftable_r6` object suitable for use in `rtf_tables()`.
+#' @return An `rtftable` (S3) object suitable for use in `rtf_tables()`.
 #'
 #' @examples
 #' \dontrun{
@@ -106,7 +106,7 @@ rtftable <- function(data, col_header = NULL, col_header_align = NULL,
                      header_row_height_twips = NULL, blank_row_height_twips = NULL,
                      cell_padding_left_twips = 72L, cell_padding_right_twips = 72L,
                      cell_valign = "bottom") {
-  rtftable_r6$new(
+  .new_rtftable(
     data                        = data,
     col_header                  = col_header,
     col_header_align            = col_header_align,
@@ -142,7 +142,7 @@ rtftable <- function(data, col_header = NULL, col_header_align = NULL,
 #' @param height_twips Display height in twips. `NULL` = derived from aspect ratio.
 #' @param align Horizontal alignment: `"center"` (default), `"left"`, or `"right"`.
 #'
-#' @return An `rtfplot_r6` object suitable for use in `rtf_tables()`.
+#' @return An `rtfplot` (S3) object suitable for use in `rtf_tables()`.
 #'
 #' @examples
 #' \dontrun{
@@ -160,7 +160,7 @@ rtftable <- function(data, col_header = NULL, col_header_align = NULL,
 #' @export
 rtfplot <- function(path, width_twips = NULL, height_twips = NULL,
                     align = "center") {
-  rtfplot_r6$new(
+  .new_rtfplot(
     path         = path,
     width_twips  = width_twips,
     height_twips = height_twips,

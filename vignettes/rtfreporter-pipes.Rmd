@@ -485,7 +485,7 @@ list(
     page = list(orientation, width_in, height_in, margins),
     default_format = ...
   ),
-  contents = list(...),    # Pages: each element is rtftable_r6 | rtfplot_r6
+  contents = list(...),    # Pages: each element is rtftable | rtfplot
   sections = list(...)     # Page → section info mapping
 )
 ```

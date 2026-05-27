@@ -67,7 +67,6 @@ hdr <- rtf_header(
 )
 ftr <- rtf_footer(c(l = "Confidential"))
 
-# Add a third row later
 hdr <- update_header_row(hdr, row = 3, content = c(c = "Draft"))
 
 }

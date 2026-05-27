@@ -5,18 +5,19 @@
 \code{rtfplot} reads a PNG or JPEG image and prepares it for embedding inside
 an RTF document.
 }
-\usage{rtfplot$new(path, width_twips = NULL, height_twips = NULL, align = "center")}
+\usage{rtfplot(path, width_twips = NULL, height_twips = NULL, align = "center")}
 \arguments{
 \item{path}{Path to a PNG or JPEG image file.}
-\item{width_twips}{Displayed width in twips.}
-\item{height_twips}{Displayed height in twips.}
-\item{align}{Horizontal alignment: \code{"center"}, \code{"left"}, or \code{"right"}.}
+\item{width_twips}{Displayed width in twips.  \code{NULL} = full writable width.}
+\item{height_twips}{Displayed height in twips.  \code{NULL} = derived from aspect ratio.}
+\item{align}{Horizontal alignment: \code{"center"} (default), \code{"left"}, or \code{"right"}.}
 }
 \value{
-An \code{R6ClassGenerator} object.
+An S3 object of class \code{rtfplot}.
 }
+\seealso{\code{\link{rtf_figures}}, \code{\link{generate_rtfreport}}}
 \examples{
 \dontrun{
-  plot_obj <- rtfplot$new("figure.png")
+  plot_obj <- rtfplot("figure.png")
 }
 }

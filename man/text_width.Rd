@@ -29,7 +29,8 @@ auto_col_widths(
   \code{"courier"}, or \code{"arial"}.  Unknown values fall back to
   Courier New.}
 \item{size_half_points}{Font size in \strong{half-points} (the unit used by
-  RTF and \code{rtfreport$new()}).  Default \code{18} = 9 pt.}
+  RTF and the document's \code{default_format$font_size_half_points}).
+  Default \code{18} = 9 pt.}
 \item{df}{A \code{data.frame} whose columns are sized.}
 \item{col_header}{Optional character vector of column header labels.  When
   supplied, header text is included in the width calculation alongside
@@ -79,7 +80,7 @@ w_hdr <- auto_col_widths(df,
 
 # Use in rtftable
 \dontrun{
-  tbl <- rtftable$new(df, column_widths_twips = auto_col_widths(df))
+  tbl <- rtftable(df, column_widths_twips = auto_col_widths(df))
 }
 }
 \seealso{\code{\link{rtftable}}}

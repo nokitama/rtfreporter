@@ -103,13 +103,13 @@ hdr <- rtf_header(
 )
 
 # --- Using borders in rtftable -----------------------------------------------
-tbl <- rtftable$new(
+tbl <- rtftable(
   data   = data.frame(A = 1:3, B = letters[1:3]),
   border = rtf_border_tfl()
 )
 
 # Custom table border
-tbl2 <- rtftable$new(
+tbl2 <- rtftable(
   data   = data.frame(X = 1:2),
   border = rtf_table_border(
     header   = rtf_border_box(),

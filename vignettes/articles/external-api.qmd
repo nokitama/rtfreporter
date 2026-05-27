@@ -18,24 +18,23 @@ format:
 ---
 
 ::: {.callout-note}
-このドキュメントは **外部インターフェース仕様書** です。内部 R6 クラスの詳細は
+このドキュメントは **外部インターフェース仕様書** です。内部 S3 クラスの詳細は
 [内部クラス設計書](internal-design.qmd) を参照してください。
 :::
 
 # 概要
 
 `rtfreporter` は臨床試験向け RTF レポート（テーブル・リスティング・フィギュア、TFL）を
-生成する R パッケージです。公開 API は **S3 関数のみ** です。内部実装に使用する R6
-クラスは NAMESPACE から公開されません。
+生成する R パッケージです。v0.0.19 以降、**公開・内部とも全クラスが S3** に統一されています（`Imports: R6` も DESCRIPTION から削除）。
 
 ## 基本方針
 
 | 方針 | 内容 |
 |---|---|
-| **公開 API は S3 のみ** | `$new()` は公開しない |
+| **すべて S3** | 公開・内部とも `structure(list(...), class = ...)` の plain list |
 | **twips 統一** | 寸法はすべて twips（フォントサイズ依存計算なし） |
-| **依存なし** | r2rtf / reporter に依存しない完全独立実装 |
-| **R6 は内部のみ** | 可変参照セマンティクスは内部で利用、外部には不変 S3 を提示 |
+| **依存なし** | r2rtf / reporter / R6 に依存しない完全独立実装 |
+| **関数型・不変** | パイプ API は immutable composition、新コピーを返す |
 
 ---
 
@@ -157,8 +156,8 @@ rtf_tables(
 - `tables` の各要素は **1ページ＝1コンテンツ** に対応します。1ページに表と図を併置するような multi-content 構成はサポートしません。
 - 各要素は次のいずれかでなければなりません:
   - `data.frame` — `rtf_tables()` の書式引数が既定値として適用されます。
-  - `rtftable()` の戻り値（`rtftable_r6`）— 自身の設定が優先されます。
-  - `rtfplot()` の戻り値（`rtfplot_r6`）。
+  - `rtftable()` の戻り値（S3 クラス `rtftable`）— 自身の設定が優先されます。
+  - `rtfplot()` の戻り値（S3 クラス `rtfplot`）。
 - 書式引数（`col_rel_width`, `border`, `row_height_twips` ...）は **bare data.frame 要素にのみ** 適用されます。`rtftable()` で構築済みの要素には影響しません。
 
 **例:**
@@ -537,27 +536,27 @@ default_cell_padding_right_twips = 72L
 
 ---
 
-# 共有スタイル `rtf_table_style` (R6)
+# 共有スタイル `rtf_table_style` (S3)
 
-複数の表で共通の書式テンプレートを使いたい場合に **R6** で実装されているスタイルクラス。1 度作って多くの `rtftable()` から参照するパターン:
+複数の表で共通の書式テンプレートを使いたい場合のスタイルレコード。1 度作って多くの `rtftable()` に渡すパターン:
 
 ```r
 tfl <- rtf_table_style_tfl()               # 既製の TFL プリセット
 
 tbls <- lapply(dfs, function(df) rtftable(df, style = tfl))
-
-# テーマを後から変えると、それ以降に作る表に反映される
-tfl$header_bold <- TRUE
 ```
 
-非破壊的に派生させたい場合は `style$clone_with(field = value, ...)`:
+スタイルの値は **各 `rtftable()` がコンストラクタ時点でスナップショット** します。スタイル側を後から書き換えても、すでに構築済みの table には反映されません（v0.0.19 で R6 → S3 統一に伴い変更）。テーマを切り替えたい場合は派生スタイルを作り直して新しい table に渡してください。
+
+非破壊的に派生させたい場合は `rtf_table_style_with(style, field = value, ...)`:
 
 ```r
-heavy <- tfl$clone_with(header_bold = TRUE,
-                         border_last_row = rtf_border(bottom = rtf_border_side("thick", 30L)))
+heavy <- rtf_table_style_with(tfl,
+            header_bold     = TRUE,
+            border_last_row = rtf_border(bottom = rtf_border_side("thick", 30L)))
 ```
 
-`style$as_table_border()` で R6 → S3 `rtf_table_border` 変換。
+内部的には `.style_to_table_border(style)` で `rtf_table_border` に変換されます（非公開ヘルパー）。
 
 ## 列単位の罫線（col_spec[[j]]$border）
 
@@ -577,7 +576,7 @@ rtftable(df,
 zone 罫線と列罫線の per-cell マージ:
 `effective[j] = zone_header_border × col_spec[[j]]$border`（後者が優先）。
 
-設計判断（R6 vs S3）は [LEARNING.md](../LEARNING.md) を参照。
+S3 統一アーキテクチャと R6 を廃止した理由は [LEARNING.md](../LEARNING.md) を参照。
 
 ---
 
@@ -704,8 +703,8 @@ assemble_rtf(input_files, output_file, overwrite = FALSE)
 
 | 決定事項 | 日付 | 内容 |
 |---|---|---|
-| 公開 API: S3 のみ | 2026-05-22 | R6 は NAMESPACE から除外 |
-| 可変性: R6 可変、S3 不変 | 2026-05-22 | コピーコストを避けつつ安全な API を提供 |
+| 全クラス S3 統一 | 2026-05-27 (v0.0.19) | 内部 R6（`rtfreport_r6` 等）も含め全て S3 へ。`Imports: R6` 削除。R6 メソッドチェインは `rtf_border_with()` / `rtf_table_style_with()` 等の S3 関数に置換 |
+| 公開 API: S3 のみ | 2026-05-22 | `$new()` 系を公開しない（以後 S3 化により自然に達成） |
 | `add_section()` 廃止 | 2026-05-22 | セクションは `rtf_section(page=N)` で指定 |
 | r2rtf / reporter 非依存 | 設計時 | 完全独立実装（既存 RTF パッケージのコードを流用しない） |
 | フォントサイズ依存計算なし | 設計時 | すべての寸法は twips で明示指定 |

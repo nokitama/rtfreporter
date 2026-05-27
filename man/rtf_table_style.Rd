@@ -2,84 +2,9 @@
 % Please edit documentation in r/rtf_table_style.R
 \name{rtf_table_style}
 \alias{rtf_table_style}
-\title{Shared table style (R6)}
-\description{
-Holds a bundle of table-wide formatting defaults — borders, alignment,
-bold, cell padding — that can be **shared by many tables** by passing
-the same instance to multiple `rtftable()` calls.  Because the object
-is an R6 reference, mutating it (e.g. `style$header_bold <- TRUE`)
-propagates to every table that references it at render time.
-}
-\details{
-For an immutable derivation, call `style$clone_with(...)` which returns
-a fresh copy with selected fields replaced.
-}
-\examples{
-\dontrun{
-# Define once
-tfl_style <- rtf_table_style$new(
-  border_header   = rtf_border(top = rtf_border_side(), bottom = rtf_border_side()),
-  border_last_row = rtf_border(bottom = rtf_border_side()),
-  header_bold     = FALSE,
-  header_align    = NULL    # inherit data alignment
-)
-
-# Apply to many tables
-tbls <- lapply(dfs, function(df) rtftable(df, style = tfl_style))
-
-# Tweak the theme; every referencing table picks it up at render time
-tfl_style$header_bold <- TRUE
-}
-
-}
-\section{Public fields}{
-\if{html}{\out{<div class="r6-fields">}}
-\describe{
-\item{\code{border_header, border_spanning, border_body, border_first_row, border_last_row}}{[rtf_border()] objects (or `NULL`) controlling each zone of the table.}
-
-\item{\code{header_align, header_bold, header_italic}}{Defaults for column-header
-row formatting.  `header_align = NULL` means "inherit `align`".}
-
-\item{\code{align, bold, italic}}{Defaults for data-row formatting.}
-
-\item{\code{cell_padding_left_twips, cell_padding_right_twips}}{Cell padding
-(twips) used by both column-header and data cells.}
-
-\item{\code{row_height_twips}}{Row height (twips); `NULL` = font-aware default.}
-}
-\if{html}{\out{</div>}}
-}
-\section{Active bindings}{
-\if{html}{\out{<div class="r6-active-bindings">}}
-\describe{
-\item{\code{border_header, border_spanning, border_body, border_first_row, border_last_row}}{[rtf_border()] objects (or `NULL`) controlling each zone of the table.}
-
-\item{\code{header_align, header_bold, header_italic}}{Defaults for column-header
-row formatting.  `header_align = NULL` means "inherit `align`".}
-
-\item{\code{align, bold, italic}}{Defaults for data-row formatting.}
-
-\item{\code{cell_padding_left_twips, cell_padding_right_twips}}{Cell padding
-(twips) used by both column-header and data cells.}
-}
-\if{html}{\out{</div>}}
-}
-\section{Methods}{
-\subsection{Public methods}{
-\itemize{
-\item \href{#method-rtf_table_style-new}{\code{rtf_table_style$new()}}
-\item \href{#method-rtf_table_style-clone_with}{\code{rtf_table_style$clone_with()}}
-\item \href{#method-rtf_table_style-as_table_border}{\code{rtf_table_style$as_table_border()}}
-\item \href{#method-rtf_table_style-print}{\code{rtf_table_style$print()}}
-\item \href{#method-rtf_table_style-clone}{\code{rtf_table_style$clone()}}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-rtf_table_style-new"></a>}}
-\if{latex}{\out{\hypertarget{method-rtf_table_style-new}{}}}
-\subsection{Method \code{new()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{rtf_table_style$new(
+\title{Shared table style}
+\usage{
+rtf_table_style(
   border_header = NULL,
   border_spanning = NULL,
   border_body = NULL,
@@ -95,52 +20,45 @@ row formatting.  `header_align = NULL` means "inherit `align`".}
   cell_padding_left_twips = NULL,
   cell_padding_right_twips = NULL,
   row_height_twips = NULL
-)}\if{html}{\out{</div>}}
+)
+}
+\arguments{
+\item{border_header, border_spanning, border_body, border_first_row, border_last_row}{[rtf_border()] objects (or `NULL`) controlling each zone of the table.}
+
+\item{header_align, header_bold, header_italic}{Defaults for column-header
+row formatting.  `header_align = NULL` means "inherit `align`".}
+
+\item{align, bold, italic, underline}{Defaults for data-row formatting.}
+
+\item{cell_padding_left_twips, cell_padding_right_twips}{Cell padding
+(twips) used by both column-header and data cells.}
+
+\item{row_height_twips}{Row height (twips); `NULL` = font-aware default.}
+}
+\value{
+A list of class `"rtf_table_style"`.
+}
+\description{
+Bundles table-wide formatting defaults — borders, alignment, bold, cell
+padding, row height — into a single record that can be passed as the
+`style =` argument of [rtftable()].  Each `rtftable()` call snapshots the
+style fields it needs at construction time, so the style object behaves
+like an immutable template.
+}
+\details{
+Use [rtf_table_style_with()] (or simply construct a fresh style) to
+derive a variant.
+}
+\examples{
+\dontrun{
+tfl_style <- rtf_table_style(
+  border_header   = rtf_border(top = rtf_border_side(), bottom = rtf_border_side()),
+  border_last_row = rtf_border(bottom = rtf_border_side()),
+  header_bold     = FALSE,
+  header_align    = NULL    # inherit data alignment
+)
+
+tbls <- lapply(dfs, function(df) rtftable(df, style = tfl_style))
 }
 
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-rtf_table_style-clone_with"></a>}}
-\if{latex}{\out{\hypertarget{method-rtf_table_style-clone_with}{}}}
-\subsection{Method \code{clone_with()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{rtf_table_style$clone_with(...)}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-rtf_table_style-as_table_border"></a>}}
-\if{latex}{\out{\hypertarget{method-rtf_table_style-as_table_border}{}}}
-\subsection{Method \code{as_table_border()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{rtf_table_style$as_table_border()}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-rtf_table_style-print"></a>}}
-\if{latex}{\out{\hypertarget{method-rtf_table_style-print}{}}}
-\subsection{Method \code{print()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{rtf_table_style$print(...)}\if{html}{\out{</div>}}
-}
-
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-rtf_table_style-clone"></a>}}
-\if{latex}{\out{\hypertarget{method-rtf_table_style-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{rtf_table_style$clone(deep = FALSE)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
-}
-}
 }

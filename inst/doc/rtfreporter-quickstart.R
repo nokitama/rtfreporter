@@ -338,14 +338,14 @@ library(magrittr)
 #   rtf_footnotes(list(NULL, "Source: ADSL."))
 
 ## ----style-theme--------------------------------------------------------------
-# tfl <- rtf_table_style_tfl()   # built-in TFL preset (R6)
+# tfl <- rtf_table_style_tfl()   # built-in TFL preset
 # 
-# # Hand the same instance to many tables
+# # Hand the same record to many tables
 # tables <- lapply(list(df_demog, df_demog, df_demog),
 #                   function(df) rtftable(df, style = tfl, row_height_twips = 280L))
 # 
 # # Non-mutating derivation
-# heavy_tfl <- tfl$clone_with(
+# heavy_tfl <- rtf_table_style_with(tfl,
 #   border_last_row = rtf_border(bottom = rtf_border_side("double", 20L))
 # )
 

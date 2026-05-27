@@ -6,7 +6,49 @@ All notable changes to rtfreporter are documented in this file. Changes are reco
 
 ## v0.1.0 (TBD - when ready for public release)
 
-> **Status**: Currently in development as v0.0.18. Will be released as v0.1.0 when complete.
+> **Status**: Currently in development as v0.0.19. Will be released as v0.1.0 when complete.
+
+### 🔴 Breaking Changes (v0.0.19) — R6 removed; full S3 architecture
+
+Every internal R6 class has been replaced with a plain S3 list and the
+`Imports: R6` dependency dropped.  Rationale: the R6 features the
+package used (in-place mutation, chained builders, shared mutable
+themes) were either snapshotted away at construction time or used at
+exactly one internal call site — none of them survived to the rendered
+output.  The S3 design is simpler, `dput()`-able, and serialises
+cleanly with `saveRDS()`.
+
+User-facing class names:
+
+| Before (R6)        | After (S3)   |
+|--------------------|--------------|
+| `rtftable_r6`      | `rtftable`   |
+| `rtfplot_r6`       | `rtfplot`    |
+| `rtfreport_r6`     | `rtfreport`  |
+| `rtf_border` (R6)  | `rtf_border` (S3 — class name unchanged) |
+| `rtf_table_style` (R6) | `rtf_table_style` (S3 — class name unchanged) |
+
+API surface changes:
+
+* Method chains (`b$set_top()`, `b$with_top()`, `b$apply_override()`,
+  `b$override()`) → removed.  Use `rtf_border_with(b, top = ...)` for
+  non-mutating derivation.
+* `style$clone_with(...)` → replaced by `rtf_table_style_with(style, ...)`.
+* `rtf_table_style$new(...)` → call `rtf_table_style(...)` as a function.
+* `rtftable_r6$new(...)` / `rtfplot_r6$new(...)` → call `rtftable()` /
+  `rtfplot()` (public wrappers were already in place).
+* The internal pipe-adapter renamed: `.pipe_doc_to_r6_report()` →
+  `.pipe_doc_to_rtfreport()`.
+* `inherits(x, "rtftable_r6")` / `inherits(x, "rtfplot_r6")` /
+  `inherits(x, "rtfreport_r6")` → use `"rtftable"` / `"rtfplot"` /
+  `"rtfreport"`.
+* The "share a style; mutate it; every existing table reflects the
+  change" behaviour is gone — it never worked consistently anyway.
+  Build a new style with `rtf_table_style_with()` and hand it to new
+  tables.
+
+`LEARNING.md` rewritten to describe the unified S3 design and the
+reasoning behind retiring R6.
 
 ### 🔴 Breaking Changes (v0.0.18) — data section has no default borders
 
