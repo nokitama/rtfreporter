@@ -8,19 +8,63 @@ template:
     base_font: {google: "Source Sans 3"}
     heading_font: {google: "Source Sans 3"}
     code_font: {google: "JetBrains Mono"}
+  opengraph:
+    twitter:
+      creator: "@ichirio"
+      site: "@ichirio"
+      card: summary
+
+# Development-version banner: the package is pre-v0.1.0, so every push
+# overwrites the published docs.  Versioned history will start once
+# v0.1.0 is tagged.
+development:
+  mode: release
+  version_label: warning
+  version_tooltip: >
+    Development version (pre-v0.1.0).  API may change in
+    backwards-incompatible ways before v0.1.0.
 
 home:
   title: "rtfreporter — Clinical RTF Reporting Toolkit for R"
   description: >
-    Standalone R toolkit for generating RTF Tables, Listings and Figures
-    (TFLs) for clinical trial deliverables. Pure S3, no external
-    dependencies.
+    Standalone R toolkit for generating Rich Text Format (RTF) Tables,
+    Listings and Figures (TFLs) for clinical trial deliverables.  Pure
+    S3 architecture; no dependency on r2rtf, reporter, or any other RTF
+    library; works on any modern R out of the box.
   strip_header: true
+  sidebar:
+    structure: [links, license, community, citation, authors, dev]
+    components:
+      community:
+        title: Community
+        text: |
+          [Open an issue](https://github.com/ichirio/rtfreporter/issues/new)
+          ·
+          [Browse issues](https://github.com/ichirio/rtfreporter/issues)
+          ·
+          [Discussions (TBD)](https://github.com/ichirio/rtfreporter/discussions)
+          ·
+          [Contributing](https://github.com/ichirio/rtfreporter/blob/main/CONTRIBUTING.md)
+      dev:
+        title: Dev status
+        text: |
+          [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+          [![R-CMD-check](https://github.com/ichirio/rtfreporter/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/ichirio/rtfreporter/actions/workflows/R-CMD-check.yaml)
+          [![pkgdown](https://github.com/ichirio/rtfreporter/actions/workflows/pkgdown.yaml/badge.svg)](https://github.com/ichirio/rtfreporter/actions/workflows/pkgdown.yaml)
+          [![Codecov](https://codecov.io/gh/ichirio/rtfreporter/graph/badge.svg)](https://app.codecov.io/gh/ichirio/rtfreporter)
+
+          - Pre-v0.1.0 development; API may break.
+          - Targets v0.1.0 for first public GitHub release.
+          - Targets CRAN and pharmaverse listing after a few v0.x cycles.
   links:
-    - text: Browse source code
+    - text: Browse source on GitHub
       href: https://github.com/ichirio/rtfreporter
-    - text: Report a bug
+    - text: Open / triage issues
       href: https://github.com/ichirio/rtfreporter/issues
+    - text: Release notes (NEWS.md)
+      href: news/index.html
+    - text: License (MIT)
+      href: https://github.com/ichirio/rtfreporter/blob/main/LICENSE.md
 
 navbar:
   structure:
@@ -30,10 +74,15 @@ navbar:
     intro:
       text: Get started
       href: articles/rtfreporter-quickstart.html
+    reference:
+      text: Reference
+      href: reference/index.html
     articles:
       text: Articles
       menu:
         - text: "Tutorials"
+        - text: "Quickstart"
+          href: articles/rtfreporter-quickstart.html
         - text: "Pipe API guide"
           href: articles/rtfreporter-pipes.html
         - text: "Class systems — S3 vs R6"
@@ -44,6 +93,9 @@ navbar:
           href: articles/external-api.html
         - text: "Internal class design (S3)"
           href: articles/internal-design.html
+    news:
+      text: Changelog
+      href: news/index.html
     github:
       icon: fab fa-github
       href: https://github.com/ichirio/rtfreporter
@@ -52,18 +104,21 @@ navbar:
 footer:
   structure:
     left:  [developed_by, built_with]
-    right: [package]
+    right: [package, version, license]
   components:
-    package: "rtfreporter · MIT licensed"
+    package: "[rtfreporter](https://github.com/ichirio/rtfreporter)"
+    version: "v{{version}}"
+    license: "[MIT licensed](https://github.com/ichirio/rtfreporter/blob/main/LICENSE.md)"
 
 reference:
   - title: Pipe-composition API
     desc: >
-      Primary user-facing API. Build a document by piping
+      Primary user-facing API.  Build a document by piping
       `rtf_document()` through section / content / format calls, then
       render with `generate_rtfreport()`.
     contents:
       - rtf_document
+      - print.rtf_document
       - rtf_config
       - rtf_section
       - rtf_tables
@@ -89,7 +144,7 @@ reference:
       Convert a [gt::gt()] table (or a plain data.frame / tibble — or
       a list of either) into a list of data.frames sized for one RTF
       page each, ready for `rtf_tables()`.  S3-generic so new table
-      object types can plug in via one method.
+      object types (e.g. rtables, sft) can plug in via one method.
     contents:
       - paginate
 
@@ -97,7 +152,7 @@ reference:
     desc: >
       Multi-row column headers with optional spanning cells expressed
       uniformly via `pos = 1` or `pos = c(2, 5)`.  Top-level spanning
-      now works without a separate `spanning_header` argument.
+      works without a separate `spanning_header` argument.
     contents:
       - col_cell
       - rtf_col_header
@@ -164,12 +219,23 @@ articles:
       - rtfreporter-pipes
       - class-systems
 
+  - title: Worked examples
+    navbar: ~
+    contents:
+      - articles/example-demog
+      - articles/example-lab
+
   - title: Specification
     navbar: ~
     contents:
       - articles/external-api
       - articles/internal-design
 
+# News configuration:
+# Until v0.1.0 we are publishing every dev release as one rolling section
+# ("Development version").  Once v0.1.0 ships the section breakdown
+# below will be updated to show per-version history.
 news:
+  one_page: true
   releases:
-    - text: "Development version"
+    - text: "Development version (pre-v0.1.0)"
