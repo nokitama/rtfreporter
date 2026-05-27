@@ -29,6 +29,13 @@ export(add_col_header_row)
 S3method(print, rtf_col_cell)
 S3method(print, rtf_col_header)
 
+# Pagination of external table objects → per-page data.frames (v0.0.22+)
+export(paginate)
+S3method(paginate, default)
+S3method(paginate, data.frame)
+S3method(paginate, list)
+S3method(paginate, gt_tbl)
+
 # Blank-row spec constructors
 export(blank_rows_by_change)
 export(blank_rows_by_rule)

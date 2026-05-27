@@ -84,6 +84,15 @@ reference:
       - rtf_header
       - update_header_row
 
+  - title: External table-object pagination
+    desc: >
+      Convert a [gt::gt()] table (or a plain data.frame / tibble — or
+      a list of either) into a list of data.frames sized for one RTF
+      page each, ready for `rtf_tables()`.  S3-generic so new table
+      object types can plug in via one method.
+    contents:
+      - paginate
+
   - title: Unified column-header API
     desc: >
       Multi-row column headers with optional spanning cells expressed

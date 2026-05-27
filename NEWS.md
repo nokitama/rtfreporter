@@ -1,5 +1,49 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.22
+
+### New features
+
+* **`paginate()` — unified table-object to per-page data.frame list**
+  ([#2](https://github.com/ichirio/rtfreporter/issues/2)).  Single S3
+  entry point that converts a [gt::gt()] table, a plain `data.frame`,
+  or a `list` of either into a list of data.frames sized for one
+  RTF page each, ready to be passed to `rtf_tables()`.
+
+  Splitting strategies:
+
+  - `split = "none"` (default) — pass through as a single page.
+  - `split = "rows"` — manual force-split at the row indices in
+    `split_rows`.
+  - `split = "group_safe"` — pack whole groups onto each page; spill on
+    overflow.  A single group larger than `max_rows` is force-split
+    with `(Cont.)` continuation rows.
+  - `split = "group_force"` — cut every `max_rows`; when a cut lands
+    inside a group, the next page begins with a `<label> (Cont.)`
+    header row whose summary value cells are blanked out.
+
+  Groups are either auto-detected from leading-whitespace indentation
+  on the first column (default) or specified explicitly via
+  `group_col =`.
+
+  Blank-row positions can be supplied as an integer vector, as the
+  keyword `"between_groups"` (auto-inserts a blank between detected
+  groups), or as a `list(...)` combining both.  Positions are
+  attached as an `rtf_blank_rows` attribute on each returned
+  data.frame and consumed automatically by
+  `rtftable(read_attributes = TRUE)`.
+
+  Extending to a new table-object type is one S3 method:
+
+  ```r
+  paginate.your_class <- function(x, ...) {
+    df <- ...extract a data.frame from x...
+    paginate.data.frame(df, ...)
+  }
+  ```
+
+  Added to `Suggests:`: `gt (>= 0.9.0)`.
+
 ## rtfreporter 0.0.21
 
 ### New features
