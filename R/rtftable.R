@@ -120,15 +120,26 @@
 
 # Normalize the col_header argument into a list whose elements are either:
 #   * character vector — a regular label row (one entry per data column)
-#   * list of list(from, to, label, underline) — a spanning row
+#   * list of list(from, to, label, ...) — a spanning row (renderer's form)
 #
-# Backward-compatible inputs accepted:
-#   NULL                       → NULL (renderer uses names(df))
-#   character(n)               → list of one label row
-#   "A | B | C"  (single str)  → split on '|', wrapped as one label row
-#   list of mixed              → already in canonical form; pass through
-.normalize_col_header_rows <- function(col_header) {
+# Accepted inputs (in order of detection):
+#   NULL                                        → NULL (renderer uses names(df))
+#   character(n)                                → list of one label row
+#   "A | B | C"   (single string)               → split on '|', single row
+#   rtf_col_header object                       → unclass; list of rows
+#   list, top-level all cell specs              → wrap as a single row
+#   list of mixed rows (label / spanning / pos) → multi-row
+#
+# `ncol_df` is required when any row uses the new pos-style cell spec
+# (it is needed to validate ranges and to fill gaps with empty cells).
+.normalize_col_header_rows <- function(col_header, ncol_df = NULL) {
   if (is.null(col_header)) return(NULL)
+
+  # rtf_col_header object → list of rows (still tagged by class for outer
+  # callers; here we strip it so the per-row loop below treats it as data).
+  if (inherits(col_header, "rtf_col_header")) {
+    col_header <- unclass(col_header)
+  }
 
   # Pipe-delimited string shorthand.
   if (is.character(col_header) && length(col_header) == 1L &&
@@ -138,67 +149,104 @@
   if (is.character(col_header)) {
     return(list(col_header))
   }
-  if (is.list(col_header)) {
-    # Validate each element is a label-row (character) or spanning row
-    # (list of list(from, to, label, ...)).
-    out <- lapply(col_header, function(row) {
-      if (is.character(row)) return(row)
-      if (is.list(row) && length(row) > 0L &&
-          is.list(row[[1L]]) && !is.null(row[[1L]]$from)) {
-        return(row)   # spanning row, leave as-is
-      }
-      stop("Each col_header element must be a character vector or a list of ",
-           "spanning specs (list(from, to, label, underline)).", call. = FALSE)
-    })
-    return(out)
+  if (!is.list(col_header)) {
+    stop("`col_header` must be NULL, character, or a list.", call. = FALSE)
   }
-  stop("`col_header` must be NULL, character, or a list.", call. = FALSE)
+
+  # Auto-detect: a bare list of cell specs at the top level means a single
+  # row of cells, not multiple rows.  Wrap it so the row loop sees one row.
+  if (length(col_header) > 0L &&
+      all(vapply(col_header, .is_cell_spec, logical(1L)))) {
+    col_header <- list(col_header)
+  }
+
+  lapply(col_header, function(row) {
+    if (is.character(row)) return(row)
+    if (!is.list(row) || length(row) == 0L) {
+      stop("Each col_header row must be a character vector or a non-empty ",
+           "list of cell specs.", call. = FALSE)
+    }
+    if (.is_cell_spec(row[[1L]])) {
+      if (!is.null(row[[1L]]$pos)) {
+        if (is.null(ncol_df)) {
+          stop("Internal: ncol_df required to normalize pos-style rows.",
+               call. = FALSE)
+        }
+        return(.pos_row_to_spans(row, ncol_df))
+      }
+      if (!is.null(row[[1L]]$from)) {
+        return(row)   # legacy spanning row, leave as-is
+      }
+    }
+    stop("Each col_header element must be a character vector, a list of ",
+         "col_cell()/pos-spec cells, or a list of spanning specs ",
+         "(list(from, to, label, ...)).", call. = FALSE)
+  })
 }
 
 # Predicate: is `x` a canonical "header rows list" — every element being
-# either a character vector (label row) or a spanning row
-# (list of list(from, to, label, ...))?
+# either a character vector (label row) or a spanning / pos-cell row
+# (list whose first element has $from or $pos)?
 .is_header_rows_list <- function(x) {
   if (!is.list(x) || length(x) == 0L) return(FALSE)
   all(vapply(x, function(row) {
     is.character(row) ||
       (is.list(row) && length(row) > 0L &&
-         is.list(row[[1L]]) && !is.null(row[[1L]]$from))
+         is.list(row[[1L]]) &&
+         (!is.null(row[[1L]]$from) || !is.null(row[[1L]]$pos)))
   }, logical(1L)))
 }
 
 # Normalize col_header for multi-DF mode.
 # Returns a list of length n_dfs, each element is a normalized col_header
 # (NULL or a list whose elements are label rows / spanning rows).
-.normalize_multi_col_header <- function(col_header, n_dfs) {
+# `ncol_df` is required when any row uses pos-style cells.
+.normalize_multi_col_header <- function(col_header, n_dfs, ncol_df = NULL) {
   if (is.null(col_header)) return(rep(list(NULL), n_dfs))
+
+  # rtf_col_header instance is treated as a shared header for all DFs.
+  if (inherits(col_header, "rtf_col_header")) {
+    h <- .normalize_col_header_rows(col_header, ncol_df)
+    return(rep(list(h), n_dfs))
+  }
 
   # Plain character → shared single label row for all DFs.
   if (is.character(col_header)) {
-    h <- .normalize_col_header_rows(col_header)
+    h <- .normalize_col_header_rows(col_header, ncol_df)
     return(rep(list(h), n_dfs))
   }
 
   if (!is.list(col_header)) {
-    stop("`col_header` must be NULL, a character vector, or a list.", call. = FALSE)
+    stop("`col_header` must be NULL, a character vector, or a list.",
+         call. = FALSE)
+  }
+
+  # A bare list of cell specs is a single row — same handling as the
+  # single-DF normalizer.
+  if (length(col_header) > 0L &&
+      all(vapply(col_header, .is_cell_spec, logical(1L)))) {
+    h <- .normalize_col_header_rows(col_header, ncol_df)
+    return(rep(list(h), n_dfs))
   }
 
   .is_per_df_spec <- function(x) {
-    is.null(x) || is.character(x) || .is_header_rows_list(x)
+    is.null(x) || inherits(x, "rtf_col_header") ||
+      is.character(x) || .is_header_rows_list(x)
   }
 
   if (length(col_header) == n_dfs &&
       all(vapply(col_header, .is_per_df_spec, logical(1L)))) {
-    # Per-DF specs.
-    return(lapply(col_header, .normalize_col_header_rows))
+    return(lapply(col_header,
+                   function(h) .normalize_col_header_rows(h, ncol_df)))
   }
 
   # Otherwise treat as shared multi-row header.
   if (!.is_header_rows_list(col_header)) {
     stop("Multi-row col_header must contain only character vectors and ",
-         "spanning specs (list of list(from, to, label, ...)).", call. = FALSE)
+         "cell-spec rows (col_cell()/pos-spec, or list(from, to, ...)).",
+         call. = FALSE)
   }
-  h <- .normalize_col_header_rows(col_header)
+  h <- .normalize_col_header_rows(col_header, ncol_df)
   rep(list(h), n_dfs)
 }
 
@@ -301,7 +349,7 @@
     # Normalize col_header to a list whose elements are either:
     #   - character vector  (regular label row)
     #   - list of list(from, to, label, underline)  (spanning row)
-    col_hdr_one <- .normalize_col_header_rows(col_header)
+    col_hdr_one <- .normalize_col_header_rows(col_header, ncol(data))
 
     cs <- .normalize_col_spec(
       col_spec, ncol(data), names(data),
@@ -329,7 +377,8 @@
            call. = FALSE)
     }
     data_list    <- data
-    col_hdr_list <- .normalize_multi_col_header(col_header, length(data))
+    col_hdr_list <- .normalize_multi_col_header(col_header, length(data),
+                                                  ncol_df = ncols_all[1L])
 
     ref_ncol  <- ncols_all[1L]
     ref_names <- names(data[[1L]])

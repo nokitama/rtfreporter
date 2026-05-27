@@ -2,6 +2,42 @@
 
 ## rtfreporter 0.0.21
 
+### New features
+
+* **Unified column-header API.** Multi-row column headers can now be
+  written in a single uniform form using `pos =` cell specs, regardless
+  of whether the top-most row is a spanning row or a plain label row.
+  Previously the first row had to use either `col_header` (no spanning)
+  or `spanning_header` (separate argument); now spanning at every level
+  (including the first) is expressed the same way.
+
+  - `col_cell(pos, label, ...)` — one cell.  `pos = 1` is a single
+    column; `pos = c(2, 5)` spans data columns 2–5.  Positions always
+    refer to the underlying data columns.
+  - `rtf_col_header(row1, row2, ...)` — collect rows top-to-bottom.
+  - `add_col_header_row(hdr, row, .position = c("bottom", "top"))` —
+    incremental builder.
+
+  Example:
+
+  ```r
+  rtftable(df, col_header = rtf_col_header(
+    list(col_cell(1, ""), col_cell(c(2, 5), "Treatment")),
+    list(col_cell(1, ""),
+         col_cell(c(2, 3), "Drug A"),
+         col_cell(c(4, 5), "Drug B")),
+    c("Item", "N", "Mean", "N", "Mean")
+  ))
+  ```
+
+  A bare list of `col_cell()`s is auto-wrapped as a single header row,
+  so `col_header = list(col_cell(1, "Item"), col_cell(c(2, 3), "M (SD)"))`
+  works.
+
+  All previously-accepted forms (`c("A", "B", "C")`, mixed lists with
+  `list(from, to, label, ...)` specs, and the standalone
+  `spanning_header =` argument) continue to work unchanged.
+
 ### Default changes (potentially visible to existing reports)
 
 * **Cell padding default lowered to 0 twips** (was 72 twips ≈ 0.05 inch

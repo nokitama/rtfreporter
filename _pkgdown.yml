@@ -84,6 +84,16 @@ reference:
       - rtf_header
       - update_header_row
 
+  - title: Unified column-header API
+    desc: >
+      Multi-row column headers with optional spanning cells expressed
+      uniformly via `pos = 1` or `pos = c(2, 5)`.  Top-level spanning
+      now works without a separate `spanning_header` argument.
+    contents:
+      - col_cell
+      - rtf_col_header
+      - add_col_header_row
+
   - title: Borders
     desc: Border specifications for cells, rows and table zones.
     contents:

@@ -22,6 +22,13 @@ export(rtf_footer)
 export(update_header_row)
 export(update_footer_row)
 
+# Unified column-header API (v0.0.21+) — pos = 1 / pos = c(2, 5) cells
+export(col_cell)
+export(rtf_col_header)
+export(add_col_header_row)
+S3method(print, rtf_col_cell)
+S3method(print, rtf_col_header)
+
 # Blank-row spec constructors
 export(blank_rows_by_change)
 export(blank_rows_by_rule)

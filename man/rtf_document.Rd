@@ -17,7 +17,8 @@ rtf_document(
 \item{color_table}{Optional color table. Default: c("#000000")}
 
 \item{page}{Optional page settings (orientation, dimensions, margins).
-Default: landscape letter 11x8.5", margins 0.75/0.5"}
+Default: landscape letter 11x8.5", margins 0.9 inch
+(top/bottom) and 0.6 inch (left/right).}
 
 \item{default_format}{Optional document-wide default formatting.}
 }
