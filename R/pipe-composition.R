@@ -23,7 +23,8 @@
 #' @param font_table Optional font table. Default: list(list(name = "Courier"))
 #' @param color_table Optional color table. Default: c("#000000")
 #' @param page Optional page settings (orientation, dimensions, margins).
-#'             Default: landscape letter 11x8.5", margins 0.75/0.5"
+#'             Default: landscape letter 11x8.5", margins 0.9 inch
+#'             (top/bottom) and 0.6 inch (left/right).
 #' @param default_format Optional document-wide default formatting.
 #'
 #' @return An rtf_document object (S3 class) with structure:
@@ -45,10 +46,10 @@ rtf_document <- function(font_table = NULL, color_table = NULL, page = NULL,
       orientation = "landscape",
       width_in = 11,
       height_in = 8.5,
-      margin_top_in = 0.75,
-      margin_bottom_in = 0.75,
-      margin_left_in = 0.5,
-      margin_right_in = 0.5
+      margin_top_in = 0.9,
+      margin_bottom_in = 0.9,
+      margin_left_in = 0.6,
+      margin_right_in = 0.6
     )
   }
 
@@ -203,8 +204,8 @@ rtf_tables <- function(doc, tables,
                         row_height_exact = FALSE,
                         header_row_height_twips = NULL,
                         blank_row_height_twips = NULL,
-                        cell_padding_left_twips = 72L,
-                        cell_padding_right_twips = 72L,
+                        cell_padding_left_twips = 0L,
+                        cell_padding_right_twips = 0L,
                         cell_valign = "bottom",
                         titles = NULL,
                         footnotes = NULL,

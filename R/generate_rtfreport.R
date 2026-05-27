@@ -1216,10 +1216,10 @@
       orientation         = ps$orientation        %||% "landscape",
       width_twips         = .in_to_twips(ps$width_in        %||% 11),
       height_twips        = .in_to_twips(ps$height_in       %||% 8.5),
-      margin_left_twips   = .in_to_twips(ps$margin_left_in  %||% 0.5),
-      margin_right_twips  = .in_to_twips(ps$margin_right_in %||% 0.5),
-      margin_top_twips    = .in_to_twips(ps$margin_top_in   %||% 0.75),
-      margin_bottom_twips = .in_to_twips(ps$margin_bottom_in %||% 0.75)
+      margin_left_twips   = .in_to_twips(ps$margin_left_in  %||% 0.6),
+      margin_right_twips  = .in_to_twips(ps$margin_right_in %||% 0.6),
+      margin_top_twips    = .in_to_twips(ps$margin_top_in   %||% 0.9),
+      margin_bottom_twips = .in_to_twips(ps$margin_bottom_in %||% 0.9)
     ))
   }
   if (!is.null(pipe_doc$document$default_format)) {

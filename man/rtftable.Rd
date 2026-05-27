@@ -111,9 +111,10 @@ rtftable(
 \item{blank_row_height_twips}{Height of blank separator rows in twips.
   \code{NULL} (default) uses \code{row_height_twips}.}
 
-\item{cell_padding_left_twips}{Left cell padding in twips (default 72 ≈ 0.05 in).}
+\item{cell_padding_left_twips}{Left cell padding in twips (default 0 since
+v0.0.21; cell content sits flush against the cell border).}
 
-\item{cell_padding_right_twips}{Right cell padding in twips (default 72).}
+\item{cell_padding_right_twips}{Right cell padding in twips (default 0).}
 
 \item{cell_valign}{Vertical cell alignment: \code{"bottom"} (default),
   \code{"top"}, or \code{"center"}.}

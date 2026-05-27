@@ -69,8 +69,9 @@
 #' @param row_height_exact Logical. `TRUE` = exact (clipped); `FALSE` = minimum.
 #' @param header_row_height_twips Row height for column-header rows.
 #' @param blank_row_height_twips Row height for blank separator rows.
-#' @param cell_padding_left_twips Left cell padding in twips (default 72).
-#' @param cell_padding_right_twips Right cell padding in twips (default 72).
+#' @param cell_padding_left_twips Left cell padding in twips (default 0
+#'   since v0.0.21; cell content sits flush against the cell border).
+#' @param cell_padding_right_twips Right cell padding in twips (default 0).
 #' @param cell_valign Vertical alignment: `"bottom"` (default), `"top"`,
 #'   or `"center"`.
 #'
@@ -105,7 +106,7 @@ rtftable <- function(data, col_header = NULL, col_header_align = NULL,
                      table_width_pct = NULL, table_align = "left",
                      row_height_twips = NULL, row_height_exact = FALSE,
                      header_row_height_twips = NULL, blank_row_height_twips = NULL,
-                     cell_padding_left_twips = 72L, cell_padding_right_twips = 72L,
+                     cell_padding_left_twips = 0L, cell_padding_right_twips = 0L,
                      cell_valign = "bottom") {
   .new_rtftable(
     data                        = data,

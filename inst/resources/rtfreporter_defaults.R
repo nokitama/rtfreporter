@@ -46,8 +46,11 @@ rtfreporter_defaults <- list(
   default_row_height_twips_min = 180L,
 
   # ── Default left / right cell padding ───────────────────────────────────
-  # Applied to all cells in headers, footers, tables, and footnotes when
-  # no explicit padding is supplied.  72 twips = 0.05 inch ≈ 1 mm.
-  default_cell_padding_left_twips  = 72L,
-  default_cell_padding_right_twips = 72L
+  # Applied to all table-shaped cells (page header / page footer / content
+  # table) when the caller does not supply an explicit value.  Default 0L:
+  # cell content sits flush against the cell border, matching the typical
+  # clinical TFL look.  Set to e.g. 72L (= 0.05 inch ≈ 1 mm) for a small
+  # internal padding.
+  default_cell_padding_left_twips  = 0L,
+  default_cell_padding_right_twips = 0L
 )

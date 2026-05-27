@@ -1,5 +1,21 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.21
+
+### Default changes (potentially visible to existing reports)
+
+* **Cell padding default lowered to 0 twips** (was 72 twips ≈ 0.05 inch
+  on both sides).  Header, footer and content-table cells now sit flush
+  against the cell border by default, matching the typical clinical
+  TFL look.  Callers who want the old behaviour can opt in:
+  `rtftable(..., cell_padding_left_twips = 72L, cell_padding_right_twips = 72L)`.
+  Reflected in `inst/resources/rtfreporter_defaults.R`.
+* **Document margins enlarged ~20%** to give a little more breathing
+  room around the writable area:
+    * top / bottom: 0.75 inch → **0.9 inch**
+    * left / right: 0.5 inch → **0.6 inch**
+  Callers passing explicit page metrics are unaffected.
+
 ## rtfreporter 0.0.20
 
 ### Infrastructure

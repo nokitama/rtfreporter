@@ -26,8 +26,8 @@ test_that("standalone spanning_header inherits right alignment from col_spec", {
       list(from = 4, to = 5, label = "Drug B (N=30)", underline = TRUE)
     ))
   txt <- .render_tbl(tbl)
-  expect_match(txt, "\\\\qr\\\\li72\\\\ri72 \\\\ul Drug A \\(N=30\\)")
-  expect_match(txt, "\\\\qr\\\\li72\\\\ri72 \\\\ul Drug B \\(N=30\\)")
+  expect_match(txt, "\\\\qr\\\\li0\\\\ri0 \\\\ul Drug A \\(N=30\\)")
+  expect_match(txt, "\\\\qr\\\\li0\\\\ri0 \\\\ul Drug B \\(N=30\\)")
 })
 
 test_that("inline spanning row inside col_header inherits alignment", {
@@ -51,8 +51,8 @@ test_that("inline spanning row inside col_header inherits alignment", {
       list(col = 5, align = "right")
     ))
   txt <- .render_tbl(tbl)
-  expect_match(txt, "\\\\qr\\\\li72\\\\ri72 \\\\ul Drug A")
-  expect_match(txt, "\\\\qr\\\\li72\\\\ri72 \\\\ul Drug B")
+  expect_match(txt, "\\\\qr\\\\li0\\\\ri0 \\\\ul Drug A")
+  expect_match(txt, "\\\\qr\\\\li0\\\\ri0 \\\\ul Drug B")
 })
 
 test_that("a spanning cell takes the leftmost covered column's alignment", {
@@ -69,7 +69,7 @@ test_that("a spanning cell takes the leftmost covered column's alignment", {
       list(from = 2, to = 4, label = "Mixed", underline = TRUE)
     ))
   txt <- .render_tbl(tbl)
-  expect_match(txt, "\\\\ql\\\\li72\\\\ri72 \\\\ul Mixed")
+  expect_match(txt, "\\\\ql\\\\li0\\\\ri0 \\\\ul Mixed")
 })
 
 test_that("explicit sp$align overrides the inheritance", {
@@ -91,7 +91,7 @@ test_that("explicit sp$align overrides the inheritance", {
            align = "center")
     ))
   txt <- .render_tbl(tbl)
-  expect_match(txt, "\\\\qc\\\\li72\\\\ri72 \\\\ul Forced Center")
+  expect_match(txt, "\\\\qc\\\\li0\\\\ri0 \\\\ul Forced Center")
 })
 
 test_that("spanning cell inherits alignment when col_spec is not user-supplied", {
@@ -102,5 +102,5 @@ test_that("spanning cell inherits alignment when col_spec is not user-supplied",
     ))
   txt <- .render_tbl(tbl)
   # Default col_spec align = "left" → spanning inherits "left".
-  expect_match(txt, "\\\\ql\\\\li72\\\\ri72 \\\\ul All")
+  expect_match(txt, "\\\\ql\\\\li0\\\\ri0 \\\\ul All")
 })

@@ -143,7 +143,7 @@ update_footer_row <- function(footer, row, content) {
 #' @param cell_padding_left_twips,cell_padding_right_twips Integer cell padding
 #'   on the left / right side of each header (or footer) cell, matching the
 #'   content-table convention. `NULL` (default) reads from
-#'   `inst/resources/rtfreporter_defaults.R` (72L for both).
+#'   `inst/resources/rtfreporter_defaults.R` (0L for both since v0.0.21).
 #' @param top_border **Deprecated.** Use `border = rtf_border_top()` or
 #'   `border = NULL` instead.
 #'
@@ -245,10 +245,10 @@ rtf_footer <- function(rows,
       orientation         = "landscape",
       width_twips         = .in_to_twips(11),
       height_twips        = .in_to_twips(8.5),
-      margin_top_twips    = .in_to_twips(0.75),
-      margin_bottom_twips = .in_to_twips(0.75),
-      margin_left_twips   = .in_to_twips(0.5),
-      margin_right_twips  = .in_to_twips(0.5)
+      margin_top_twips    = .in_to_twips(0.9),
+      margin_bottom_twips = .in_to_twips(0.9),
+      margin_left_twips   = .in_to_twips(0.6),
+      margin_right_twips  = .in_to_twips(0.6)
     )
   }
   if (is.null(default_format)) {
