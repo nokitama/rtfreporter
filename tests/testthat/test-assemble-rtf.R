@@ -387,6 +387,136 @@ test_that("toc = NULL + cover = NULL is byte-identical to the legacy behaviour",
                    readLines(out_new, warn = FALSE))
 })
 
+# ──────── Static {PAGE} / {TOTAL_PAGES} preservation ──────────────────────
+
+# Same shape as .write_demo_rtf() but uses the STATIC tokens that are
+# baked in at render time (per-section page number / per-file total).
+.write_static_pageno_rtf <- function(title, n_pages = 2L) {
+  doc <- rtf_document()
+  doc <- rtf_section(doc, page = 1, secinfo = list(
+    header = rtf_header(rows = list(
+      c(l = "Protocol RTF-101",
+        r = "Page {PAGE} of {TOTAL_PAGES}")    # <- static, not AUTO
+    )),
+    footer = rtf_footer(c(c = "Confidential"))
+  ))
+  # n_pages tables -> n_pages output pages
+  tbls <- replicate(n_pages,
+                    data.frame(A = 1:2, B = c("x", "y"),
+                                stringsAsFactors = FALSE),
+                    simplify = FALSE)
+  doc <- rtf_tables(doc, tbls,
+                    titles = lapply(seq_along(tbls),
+                                     function(i) c(sprintf("%s p%d", title, i))))
+  f <- tempfile(fileext = ".rtf")
+  generate_rtfreport(doc, f, overwrite = TRUE)
+  f
+}
+
+test_that("static {TOTAL_PAGES} bakes into source AS-IS and survives assembly", {
+  # `{PAGE}` and `{TOTAL_PAGES}` resolve as:
+  #   {PAGE}        -> \chpgn          (DYNAMIC, like AUTO_PAGE)
+  #   {TOTAL_PAGES} -> integer literal (STATIC, baked in at render time)
+  # So per-file totals freeze at the source file's own page count and
+  # are wrong (but stable) after assembly.  This is the documented
+  # "static tokens reflect only the source file" behaviour.
+  f1 <- .write_static_pageno_rtf("FileA", n_pages = 2L)
+  f2 <- .write_static_pageno_rtf("FileB", n_pages = 3L)
+  on.exit(unlink(c(f1, f2)), add = TRUE)
+
+  txt1 <- paste(readLines(f1, warn = FALSE), collapse = "\n")
+  txt2 <- paste(readLines(f2, warn = FALSE), collapse = "\n")
+  # Each source file has its own TOTAL_PAGES baked into the header text.
+  expect_match(txt1, "of 2")
+  expect_match(txt2, "of 3")
+  # And carries \chpgn for the dynamic per-page number.
+  expect_match(txt1, "\\\\chpgn")
+
+  out <- tempfile(fileext = ".rtf"); on.exit(unlink(out), add = TRUE)
+  assemble_rtf(c(f1, f2), out, overwrite = TRUE)
+  joined <- paste(readLines(out, warn = FALSE), collapse = "\n")
+
+  # Both per-file static totals stay verbatim in the assembled output.
+  expect_match(joined, "of 2")
+  expect_match(joined, "of 3")
+  # The dynamic \chpgn is also preserved (viewer recomputes per page).
+  expect_match(joined, "\\\\chpgn")
+})
+
+test_that("static {TOTAL_PAGES} numbers survive when cover / toc are added", {
+  f1 <- .write_static_pageno_rtf("X", n_pages = 2L)
+  f2 <- .write_static_pageno_rtf("Y", n_pages = 4L)
+  on.exit(unlink(c(f1, f2)), add = TRUE)
+
+  out <- tempfile(fileext = ".rtf"); on.exit(unlink(out), add = TRUE)
+  assemble_rtf(c(f1, f2), out,
+               cover = list(title = "Demo"),
+               toc   = c("Entry A", "Entry B"),
+               toc_page_numbering = "roman",
+               overwrite = TRUE)
+  joined <- paste(readLines(out, warn = FALSE), collapse = "\n")
+
+  # The static "of 2" / "of 4" baked into the source files is still
+  # verbatim in the assembled output — even though we added a cover
+  # page, a TOC, and Roman page numbering on top.
+  expect_match(joined, "of 2")
+  expect_match(joined, "of 4")
+})
+
+# ──────── PDF outline markers (\outlinelevel) for the bookmark panel ──────
+
+test_that("toc-enabled assembly emits \\outlinelevel paragraphs (PDF outline panel)", {
+  f1 <- .write_demo_rtf("X"); f2 <- .write_demo_rtf("Y")
+  on.exit(unlink(c(f1, f2)), add = TRUE)
+  out <- tempfile(fileext = ".rtf"); on.exit(unlink(out), add = TRUE)
+  assemble_rtf(c(f1, f2), out,
+               toc       = c("Table A", "Table B"),
+               overwrite = TRUE)
+  txt <- paste(readLines(out, warn = FALSE), collapse = "\n")
+  expect_match(txt, "\\\\outlinelevel0")
+  # One outline paragraph per source file when toc is given
+  expect_identical(length(gregexpr("\\\\outlinelevel0", txt)[[1L]]), 2L)
+  expect_match(txt, "Table A")
+  expect_match(txt, "Table B")
+})
+
+test_that("outline labels fall back to basename when a file has no toc_entry", {
+  f1 <- .write_demo_rtf("X"); f2 <- .write_demo_rtf("Y")
+  # Rename so we can spot the basename in the output
+  f2b <- file.path(dirname(f2), "fallback_label_42.rtf")
+  file.rename(f2, f2b)
+  on.exit(unlink(c(f1, f2b)), add = TRUE)
+  out <- tempfile(fileext = ".rtf"); on.exit(unlink(out), add = TRUE)
+  assemble_rtf(c(f1, f2b), out,
+               toc = list(toc_entry("Only entry for first", file = f1)),
+               overwrite = TRUE)
+  txt <- paste(readLines(out, warn = FALSE), collapse = "\n")
+  expect_match(txt, "Only entry for first")
+  expect_match(txt, "fallback_label_42")
+})
+
+test_that("toc = NULL emits no \\outlinelevel paragraphs (clean legacy output)", {
+  f1 <- .write_demo_rtf("X"); f2 <- .write_demo_rtf("Y")
+  on.exit(unlink(c(f1, f2)), add = TRUE)
+  out <- tempfile(fileext = ".rtf"); on.exit(unlink(out), add = TRUE)
+  assemble_rtf(c(f1, f2), out, overwrite = TRUE)
+  txt <- paste(readLines(out, warn = FALSE), collapse = "\n")
+  expect_false(grepl("\\\\outlinelevel", txt))
+})
+
+test_that("AUTO_PAGE source files keep their dynamic field codes after assembly", {
+  # The existing .write_demo_rtf() uses {AUTO_PAGE} / {AUTO_TOTAL_PAGES}.
+  # Verify both field codes are still present in the assembled output so
+  # the viewer can recompute them.
+  f1 <- .write_demo_rtf("Auto A"); f2 <- .write_demo_rtf("Auto B")
+  on.exit(unlink(c(f1, f2)), add = TRUE)
+  out <- tempfile(fileext = ".rtf"); on.exit(unlink(out), add = TRUE)
+  assemble_rtf(c(f1, f2), out, overwrite = TRUE)
+  joined <- paste(readLines(out, warn = FALSE), collapse = "\n")
+  expect_match(joined, "\\\\chpgn")               # \chpgn for AUTO_PAGE
+  expect_match(joined, "NUMPAGES")                # NUMPAGES field
+})
+
 test_that("TOC label characters get RTF-escaped (backslash, braces, unicode)", {
   f1 <- .write_demo_rtf("X"); f2 <- .write_demo_rtf("Y")
   on.exit(unlink(c(f1, f2)), add = TRUE)

@@ -1,5 +1,35 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.31
+
+### `assemble_rtf()` — PDF outline / bookmark panel support
+
+When `toc` is supplied, `assemble_rtf()` now also emits a tiny
+`\outlinelevel0` paragraph next to each per-file bookmark.  RTF
+viewers ignore it for display purposes (1-pt font, no surrounding
+spacing), but RTF→PDF converters such as **LibreOffice** translate
+the `\outlinelevel` mark into a real **PDF outline entry** — i.e.,
+the bookmark panel on the left edge of an Adobe Reader / Word
+window.  This makes the assembled deliverable navigable in PDF
+form, satisfying a common eCTD leaf-file expectation.
+
+The outline label is taken from the corresponding `toc_entry()`'s
+`label` when present; otherwise it falls back to
+`sub(".rtf$", "", basename(file))`.  `toc = NULL` emits no outline
+paragraphs (output is unchanged from v0.0.30).
+
+### Static `{TOTAL_PAGES}` documented + tested across assembly
+
+Tests now lock the two distinct token semantics in
+`assemble_rtf()`:
+
+* **`{AUTO_PAGE}` / `{AUTO_TOTAL_PAGES}` / `{PAGE}`** — all emit
+  RTF *dynamic field codes* (`\chpgn` and `NUMPAGES`).  They
+  recompute correctly across the assembled document.
+* **`{TOTAL_PAGES}`** — baked into the source as a literal integer
+  at render time.  After assembly it still reflects only the
+  source file's own page count (the documented limitation).
+
 ## rtfreporter 0.0.30
 
 ### `assemble_rtf()` — multi-level TOC, auto-extraction, cover page, page numbering

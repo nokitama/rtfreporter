@@ -46,13 +46,30 @@
 }
 
 # Inject `{\*\bkmkstart NAME}{\*\bkmkend NAME}` right after the first
-# \sectd of `content`.
-.insert_bookmark <- function(content, bookmark_name) {
+# \sectd of `content`.  Optionally also emits a `\outlinelevel<N>`
+# paragraph carrying `outline_label` so PDF converters (LibreOffice,
+# Word) expose the section in the PDF outline / bookmark panel — the
+# eCTD-recommended navigation aid.  The paragraph uses 1-pt font + a
+# hidden-text run so it does not occupy visible space.
+.insert_bookmark <- function(content, bookmark_name,
+                              outline_label = NULL, outline_level = 0L) {
   sectd_idx <- which(trimws(content) == "\\sectd")[1L]
   if (is.na(sectd_idx)) return(content)
-  bkmk <- sprintf("{\\*\\bkmkstart %s}{\\*\\bkmkend %s}",
-                  bookmark_name, bookmark_name)
-  c(content[1L:sectd_idx], bkmk,
+  inserts <- character(0)
+  inserts <- c(inserts,
+    sprintf("{\\*\\bkmkstart %s}{\\*\\bkmkend %s}",
+            bookmark_name, bookmark_name))
+  if (!is.null(outline_label) && nzchar(outline_label)) {
+    # \outlinelevelN -> LibreOffice maps to PDF outline entry.
+    # Tiny visible text (\fs2 = 1pt) so LO recognises it as a heading
+    # paragraph (hidden \v ... \v0 runs are skipped by the outline
+    # builder).  \sa0\sb0 + \fi0\li0\ri0 keep the paragraph's footprint
+    # negligible: ~1 pixel tall, no surrounding spacing.
+    inserts <- c(inserts,
+      sprintf("\\pard\\plain\\fs2\\sa0\\sb0\\outlinelevel%d %s\\par",
+              as.integer(outline_level), .toc_escape(outline_label)))
+  }
+  c(content[1L:sectd_idx], inserts,
     if (sectd_idx < length(content)) content[(sectd_idx + 1L):length(content)]
     else character(0))
 }
@@ -507,7 +524,8 @@ assemble_rtf <- function(input_files, output_file, overwrite = FALSE,
   use_cover   <- !is.null(cover)
 
   # Build bookmarks for files referenced by any TOC entry.
-  bookmarks <- character(length(input_files))
+  bookmarks            <- character(length(input_files))
+  file_outline_labels  <- vector("list", length(input_files))
   if (use_toc) {
     bookmarks <- paste0(bookmark_prefix, .sanitize_bookmark(input_files))
     if (anyDuplicated(bookmarks)) {
@@ -516,6 +534,24 @@ assemble_rtf <- function(input_files, output_file, overwrite = FALSE,
       for (d in dups) {
         idx <- which(bookmarks == d)
         bookmarks[idx] <- paste0(d, "_", seq_along(idx))
+      }
+    }
+    # Map each input file -> its TOC entry label (used as the PDF
+    # outline-entry text).  If a file is not referenced by any
+    # toc_entry(), fall back to basename(file) so the PDF outline
+    # still shows a useful name.
+    for (e in toc_entries) {
+      if (e$type == "entry" && !is.na(e$file_idx)) {
+        if (is.null(file_outline_labels[[e$file_idx]])) {
+          file_outline_labels[[e$file_idx]] <- e$label
+        }
+      }
+    }
+    for (i in seq_along(file_outline_labels)) {
+      if (is.null(file_outline_labels[[i]])) {
+        file_outline_labels[[i]] <- sub("\\.rtf$", "",
+                                        basename(input_files[i]),
+                                        ignore.case = TRUE)
       }
     }
   }
@@ -551,7 +587,8 @@ assemble_rtf <- function(input_files, output_file, overwrite = FALSE,
       tail_lines <- .insert_pgnrestart(tail_lines)
     }
     if (use_toc) {
-      tail_lines <- .insert_bookmark(tail_lines, bookmarks[1L])
+      tail_lines <- .insert_bookmark(tail_lines, bookmarks[1L],
+                                      outline_label = file_outline_labels[[1L]])
     }
     body <- c(head_lines, front_matter, "\\sect", tail_lines)
   }
@@ -561,7 +598,8 @@ assemble_rtf <- function(input_files, output_file, overwrite = FALSE,
     content <- .rtf_extract_section_content(readLines(input_files[i],
                                                        warn = FALSE))
     if (use_toc) {
-      content <- .insert_bookmark(content, bookmarks[i])
+      content <- .insert_bookmark(content, bookmarks[i],
+                                   outline_label = file_outline_labels[[i]])
     }
     body <- c(body, "\\sect", content)
   }
