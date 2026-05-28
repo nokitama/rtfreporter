@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="554" viewBox="0 0 480 554"><metadata><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Description><dc:creator>RealFaviconGenerator</dc:creator><dc:source>https://realfavicongenerator.net</dc:source></rdf:Description></rdf:RDF></metadata><defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2a6aa1"></stop>
+      <stop offset="100%" stop-color="#143a5b"></stop>
+    </linearGradient>
+    <clipPath id="hex">
+      <polygon points="240,8 472,143 472,411 240,546 8,411 8,143"></polygon>
+    </clipPath>
+  </defs><polygon points="240,8 472,143 472,411 240,546 8,411 8,143" fill="url(#bg)" stroke="#0d2840" stroke-width="14"></polygon><g clip-path="url(#hex)" opacity="0.13" fill="white">
+    <!-- back sheet -->
+    <rect x="158" y="172" width="184" height="232" rx="8" ry="8"></rect>
+    <!-- middle sheet (offset) -->
+    <rect x="143" y="162" width="184" height="232" rx="8" ry="8"></rect>
+    <!-- front sheet (most offset) -->
+    <rect x="128" y="152" width="184" height="232" rx="8" ry="8"></rect>
+  </g><g clip-path="url(#hex)" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.45">
+    <!-- column-header bracket (top double rule) -->
+    <line x1="148" y1="186" x2="292" y2="186"></line>
+    <line x1="148" y1="216" x2="292" y2="216"></line>
+    <!-- data rows -->
+    <line x1="148" y1="248" x2="248" y2="248" opacity="0.55"></line>
+    <line x1="148" y1="272" x2="262" y2="272" opacity="0.55"></line>
+    <line x1="148" y1="296" x2="238" y2="296" opacity="0.55"></line>
+    <line x1="148" y1="320" x2="270" y2="320" opacity="0.55"></line>
+    <!-- table bottom rule -->
+    <line x1="148" y1="356" x2="292" y2="356"></line>
+  </g><text x="240" y="448" text-anchor="middle" font-family="Source Sans 3, Helvetica, Arial, sans-serif" font-size="62" font-weight="700" fill="white" letter-spacing="-1">rtfreporter</text><text x="240" y="494" text-anchor="middle" font-family="Source Sans 3, Helvetica, Arial, sans-serif" font-size="20" font-weight="400" fill="#cfe1f2" letter-spacing="3">CLINICAL · TFL · RTF</text></svg>

@@ -31,7 +31,8 @@ home:
     Listings and Figures (TFLs) for clinical trial deliverables.  Pure
     S3 architecture; no dependency on r2rtf, reporter, or any other RTF
     library; works on any modern R out of the box.
-  strip_header: true
+  # Keep README's H1 (which contains the logo image) on the home page.
+  strip_header: false
   sidebar:
     structure: [links, license, community, citation, authors, dev]
     components:
@@ -80,19 +81,31 @@ navbar:
     articles:
       text: Articles
       menu:
-        - text: "Tutorials"
+        # ── For package users (primary) ────────────────────────────────
+        - text: "For package users"
         - text: "Quickstart"
           href: articles/rtfreporter-quickstart.html
         - text: "Pipe API guide"
           href: articles/rtfreporter-pipes.html
-        - text: "Class systems — S3 vs R6"
-          href: articles/class-systems.html
+        # ── Worked clinical examples ────────────────────────────────────
         - text: -------
-        - text: "Specification"
+        - text: "Worked clinical examples"
+        - text: "Demographics table"
+          href: articles/example-demog.html
+        - text: "Lab summary"
+          href: articles/example-lab.html
+        # ── Specification / internals (advanced) ────────────────────────
+        - text: -------
+        - text: "Specification & internals"
         - text: "External API specification"
           href: articles/external-api.html
         - text: "Internal class design (S3)"
           href: articles/internal-design.html
+        # ── For R-language learners (de-emphasised, separate section) ──
+        - text: -------
+        - text: "For R-language learners"
+        - text: "S3 vs R6 — a hands-on tour"
+          href: articles/class-systems.html
     news:
       text: Changelog
       href: news/index.html
@@ -104,10 +117,13 @@ navbar:
 footer:
   structure:
     left:  [developed_by, built_with]
-    right: [package, version, license]
+    right: [package, license]
   components:
-    package: "[rtfreporter](https://github.com/ichirio/rtfreporter)"
-    version: "v{{version}}"
+    # pkgdown 2.x does NOT interpolate {{version}} in footer components;
+    # to avoid showing a literal "{{version}}" we drop it here and rely
+    # on the pkgdown version-label badge in the navbar (configured via
+    # `development.version_label`).
+    package: "[rtfreporter](https://github.com/ichirio/rtfreporter) (development version)"
     license: "[MIT licensed](https://github.com/ichirio/rtfreporter/blob/main/LICENSE.md)"
 
 reference:
@@ -211,25 +227,40 @@ reference:
     contents:
       - rtf_format-deprecated
 
+# Articles index page (/articles/).  Grouped so users land on the
+# tutorial first; learner-focused material sits at the bottom.
 articles:
-  - title: Tutorials
+  - title: For package users
+    desc: >
+      Practical guides for generating RTF deliverables.  Start with the
+      Quickstart, then dive into the Pipe API guide.
     navbar: ~
     contents:
       - rtfreporter-quickstart
       - rtfreporter-pipes
-      - class-systems
 
-  - title: Worked examples
+  - title: Worked clinical examples
+    desc: End-to-end recipes for typical clinical TFL deliverables.
     navbar: ~
     contents:
       - articles/example-demog
       - articles/example-lab
 
-  - title: Specification
+  - title: Specification & internals
+    desc: Reference material for advanced users and contributors.
     navbar: ~
     contents:
       - articles/external-api
       - articles/internal-design
+
+  - title: For R-language learners
+    desc: >
+      Side material that uses rtfreporter's own implementation as a
+      teaching example for R's class systems.  Not required reading
+      for package users.
+    navbar: ~
+    contents:
+      - class-systems
 
 # News configuration:
 # Until v0.1.0 we are publishing every dev release as one rolling section

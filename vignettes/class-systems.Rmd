@@ -27,7 +27,7 @@ library(rtfreporter)
 
 ------------------------------------------------------------------------
 
-## TL;DR — the rule
+## In one sentence
 
 > **Default to S3.  Reach for R6 only when reference semantics genuinely
 > change what the API can do.**
@@ -200,7 +200,7 @@ A small decision tree:
 
 ------------------------------------------------------------------------
 
-## 3. S3 method dispatch in action — the `plot()` methods
+## 3. S3 method dispatch in action: the `plot()` methods
 
 Beyond `print()`, the package exposes a small `plot()` family that
 takes advantage of S3 dispatch to give you a fast pre-render
