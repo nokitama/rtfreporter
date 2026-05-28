@@ -216,9 +216,14 @@ paginate.gt_tbl <- function(x, ...) {
          "Install it with `install.packages(\"gt\")`.",
          call. = FALSE)
   }
-  body <- as.data.frame(gt::extract_body(x, output = "rtf"))
-  # Non-breaking spaces from gt -> regular spaces, so indentation detection
-  # via leading-space works against the body cells.
+  # gt::extract_body() returns a tibble.  Keep it AS a tibble (do NOT
+  # force as.data.frame): downstream the per-page chunks retain tibble
+  # class, which matches the gt-native workflow.  paginate.data.frame()
+  # dispatches on this just fine because tibble inherits from data.frame.
+  body <- gt::extract_body(x, output = "rtf")
+  # Non-breaking spaces from gt -> regular spaces, so indent-based
+  # group detection works against the body cells.  (gt emits U+00A0
+  # for padding / indenting by default.)  `[<-` preserves tibble class.
   body[] <- lapply(body, function(col) {
     if (is.character(col)) gsub("\u00a0", " ", col, fixed = TRUE) else col
   })
@@ -269,6 +274,12 @@ paginate.data.frame <- function(x,
   group_idx <- .resolve_group_col(group_col, x)
   info      <- .compute_group_info(x, group_idx)
 
+  # Preserve the input's class chain (so a tibble in → tibbles out).
+  # We re-apply this to each chunk at the end because some internal
+  # operations (rbind() with mixed inputs, row-index subsetting with
+  # `[`) can intermittently strip non-data.frame classes.
+  input_class <- class(x)
+
   # Step 1: split into raw chunks
   chunks <- switch(split,
     none         = list(x),
@@ -285,6 +296,8 @@ paginate.data.frame <- function(x,
   n_pages <- length(chunks)
   lapply(seq_along(chunks), function(i) {
     chunk <- chunks[[i]]
+    # Restore the input's class chain so tibble-ness survives.
+    class(chunk) <- input_class
     rownames(chunk) <- NULL
     pos <- .resolve_pagewise_blanks(blank_rows, chunk, group_idx)
     if (isTRUE(blank_row_first)) pos <- c(0L,             pos)

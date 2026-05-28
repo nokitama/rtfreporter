@@ -1,5 +1,22 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.24
+
+### `paginate()` — preserve the input's class chain (tibble in → tibble out)
+
+* `paginate(<gt_tbl>)` no longer down-grades the extracted body to a
+  plain `data.frame`.  Since `gt::extract_body()` returns a tibble
+  and gt-based workflows are tibble-native, every returned page is
+  now also a tibble (`tbl_df` / `tbl` / `data.frame`).
+* `paginate(<tibble>)` likewise returns tibbles on every page,
+  including pages that came out of the group-force continuation path
+  (where an internal `rbind()` would otherwise drop the tibble class).
+* `paginate(<data.frame>)` still returns plain data.frames, as
+  before.
+
+Implementation: the input's `class()` chain is captured once and
+re-applied to each returned chunk after the splitter has finished.
+
 ## rtfreporter 0.0.23
 
 ### `paginate()` enhancements

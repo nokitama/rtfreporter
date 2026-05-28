@@ -213,3 +213,49 @@ test_that("paginate(gt_tbl) accepts split / max_rows pass-through", {
   expect_length(res, 2L)
   expect_equal(nrow(res[[1L]]), 3L)
 })
+
+# ──────── Class preservation: tibble in → tibble out ──────────────────────
+
+test_that("paginate(gt_tbl) returns tibbles (gt is tibble-native)", {
+  skip_if_not_installed("gt")
+  skip_if_not_installed("tibble")
+  df <- data.frame(
+    label = c("A", "  a1", "  a2", "B", "  b1"),
+    v     = 1:5,
+    stringsAsFactors = FALSE
+  )
+  g  <- gt::gt(df)
+  res <- paginate(g, max_rows = 3L, split = "group_safe")
+  expect_gte(length(res), 1L)
+  for (chunk in res) {
+    expect_s3_class(chunk, "tbl_df")
+    expect_s3_class(chunk, "data.frame")
+  }
+})
+
+test_that("paginate(tibble) preserves the tibble class on every chunk", {
+  skip_if_not_installed("tibble")
+  tb <- tibble::tibble(
+    label = c("A", "  a1", "  a2", "  a3",
+              "B", "  b1", "  b2"),
+    v     = 1:7
+  )
+  res <- paginate(tb, max_rows = 3L, split = "group_force",
+                   blank_rows      = "between_groups",
+                   blank_row_first = TRUE,
+                   blank_row_end   = TRUE)
+  for (chunk in res) {
+    expect_s3_class(chunk, "tbl_df")
+    expect_false(identical(class(chunk), "data.frame"),
+                 info = paste(class(chunk), collapse = "/"))
+  }
+})
+
+test_that("paginate(data.frame) still returns plain data.frames (not tibbles)", {
+  df <- data.frame(label = c("A", "  a", "B", "  b"),
+                    v = 1:4, stringsAsFactors = FALSE)
+  res <- paginate(df, max_rows = 2L, split = "group_safe")
+  for (chunk in res) {
+    expect_identical(class(chunk), "data.frame")
+  }
+})
