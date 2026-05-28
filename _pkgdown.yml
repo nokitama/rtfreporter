@@ -178,6 +178,9 @@ reference:
       object types (e.g. rtables, sft) can plug in via one method.
     contents:
       - paginate
+      - set_blank_rows
+      - format_count_pct
+      - realign_count_pct
 
   - title: Unified column-header API
     desc: >

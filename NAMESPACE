@@ -36,6 +36,13 @@ S3method(paginate, data.frame)
 S3method(paginate, list)
 S3method(paginate, gt_tbl)
 
+# Blank-row attribute helper (used by paginate(), also standalone)
+export(set_blank_rows)
+
+# Count / percent display-width formatters
+export(format_count_pct)
+export(realign_count_pct)
+
 # Blank-row spec constructors
 export(blank_rows_by_change)
 export(blank_rows_by_rule)

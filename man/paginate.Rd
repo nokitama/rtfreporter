@@ -26,6 +26,7 @@ paginate(x, ...)
   blank_rows = NULL,
   blank_row_first = FALSE,
   blank_row_end = FALSE,
+  align_count_pct = FALSE,
   ...
 )
 }
@@ -105,6 +106,12 @@ group, including the first row of every page".}
 also gets a blank row at the **bottom** (after the page's last
 data row).  Useful when the last row needs visual separation
 from the page footer.}
+
+\item{align_count_pct}{Logical (default `FALSE`).  When `TRUE`, every character column
+other than column 1 is passed through [realign_count_pct()]
+before splitting.  Cells matching `"n (xx.x)"` are re-padded to
+a uniform display width so they line up in a monospaced
+renderer; non-matching cells are returned unchanged.}
 }
 \value{
 A list of data.frames (tibbles if the input was a tibble or

@@ -153,6 +153,13 @@
 #'   data row).  Useful when the last row needs visual separation
 #'   from the page footer.
 #'
+#' @param align_count_pct
+#'   Logical (default `FALSE`).  When `TRUE`, every character column
+#'   other than column 1 is passed through [realign_count_pct()]
+#'   before splitting.  Cells matching `"n (xx.x)"` are re-padded to
+#'   a uniform display width so they line up in a monospaced
+#'   renderer; non-matching cells are returned unchanged.
+#'
 #' @param ...
 #'   Method-specific extras.  Currently unused by all built-in
 #'   methods; reserved for future extensions.
@@ -356,6 +363,7 @@ paginate.data.frame <- function(x,
                                  blank_rows       = NULL,
                                  blank_row_first  = FALSE,
                                  blank_row_end    = FALSE,
+                                 align_count_pct  = FALSE,
                                  ...) {
   split <- match.arg(split)
 
@@ -365,6 +373,14 @@ paginate.data.frame <- function(x,
   }
   if (split == "rows" && is.null(split_rows)) {
     stop("`split_rows` is required when split = \"rows\".", call. = FALSE)
+  }
+
+  # Optional digit-alignment pass: rewrite character columns (cols 2..N)
+  # that match the "n (xx.x)" clinical pattern to a uniform display width
+  # via realign_count_pct().  Done BEFORE splitting so all chunks
+  # inherit the cleaned-up cells.
+  if (isTRUE(align_count_pct)) {
+    x <- .realign_count_pct_df(x)
   }
 
   group_idx <- .resolve_group_col(group_col, x)
@@ -385,11 +401,8 @@ paginate.data.frame <- function(x,
     by_value     = .split_by_value  (x, info, max_rows, cont_label, group_idx)
   )
 
-  # Step 2: attach blank-row positions + paginate meta to each chunk.
-  # Order of position sources (all unioned, then sorted + deduped):
-  #   * blank_rows = ... (integer / "between_groups" / list combination)
-  #   * blank_row_first = TRUE → position 0  (blank BEFORE first data row)
-  #   * blank_row_end   = TRUE → position nrow(chunk) (blank AFTER last)
+  # Step 2: attach blank-row positions (via the standalone helper
+  # set_blank_rows()) + paginate meta on each chunk.
   n_pages     <- length(chunks)
   chunk_names <- names(chunks)        # may be NULL for non-named splits
   out <- lapply(seq_along(chunks), function(i) {
@@ -397,12 +410,11 @@ paginate.data.frame <- function(x,
     # Restore the input's class chain so tibble-ness survives.
     class(chunk) <- input_class
     rownames(chunk) <- NULL
-    pos <- .resolve_pagewise_blanks(blank_rows, chunk, group_idx)
-    if (isTRUE(blank_row_first)) pos <- c(0L,             pos)
-    if (isTRUE(blank_row_end))   pos <- c(pos, nrow(chunk))
-    pos <- sort(unique(as.integer(pos)))
-    pos <- pos[pos >= 0L & pos <= nrow(chunk)]
-    if (length(pos) > 0L) attr(chunk, "rtf_blank_rows") <- pos
+    chunk <- set_blank_rows(chunk,
+                             blank_rows      = blank_rows,
+                             blank_row_first = blank_row_first,
+                             blank_row_end   = blank_row_end,
+                             group_col       = group_col)
     attr(chunk, "rtf_paginate_meta") <- list(
       strategy    = split,
       page_index  = i,

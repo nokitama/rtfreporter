@@ -1,5 +1,40 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.26
+
+### New utility functions extracted from `paginate()`
+
+* **`format_count_pct(count, pct, pct_unit, nbsp)`** — produces
+  uniform-width `"n (xx.x)"` strings from numeric `count` and `pct`
+  vectors.  Port of the reference helper from Issue \#2 (clinical
+  TFL column alignment).  Four width branches:
+  count-only when count is `NA` or `0`, `n (100)` at exactly 100%,
+  one-digit pct gets an extra space (`n  (X.Y)`), two-digit pct
+  uses `n (XX.Y)`.  Padding spaces become NBSP (`U+00A0`) by
+  default so RTF / Word does not collapse them.
+
+* **`realign_count_pct(strings, nbsp)`** — same width policy but
+  starting from already-formatted strings (e.g. those `gt` emits
+  in the rendered body).  Cells matching `"n (xx.x)"` are parsed
+  and reformatted; non-matching cells pass through unchanged.
+
+* **`set_blank_rows(df, blank_rows, blank_row_first, blank_row_end,
+  group_col)`** — exposes the blank-row attribute logic that
+  `paginate()` had internally.  Takes ONE data.frame (already at
+  page size), resolves the blank spec, and writes the result onto
+  `attr(df, "rtf_blank_rows")` for `rtftable(read_attributes = TRUE)`
+  to consume.  Use this when you already do your own paging and only
+  need the blank-row mechanism.
+
+### `paginate()` integration
+
+* `paginate(..., align_count_pct = TRUE)` runs
+  `realign_count_pct()` on every character column other than column 1
+  *before* splitting, so every page inherits the cleaned-up cells.
+  Default is `FALSE` (no automatic rewriting).
+* Internally, `paginate()` now delegates the per-page blank-row
+  work to `set_blank_rows()`; the two APIs cannot drift apart.
+
 ## rtfreporter 0.0.25
 
 ### `paginate()` — list-name propagation, `split = "by_value"`, clearer help
