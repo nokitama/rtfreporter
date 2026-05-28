@@ -53,8 +53,26 @@ aside .dev a img {
   vertical-align: middle;
 }
 
-/* Sidebar section titles: slightly more breathing room between groups.    */
-aside h2 {
-  font-size: 1.05rem;
-  margin-top: 1.25rem;
+/* ----------------------------------------------------------------------------
+   Sidebar section titles: BOLD + slightly larger + small-caps tracking,
+   with a thin accent rule below so the eye picks up each group quickly.
+   The navy accent colour matches the bslib `primary` so the headings
+   feel of-a-piece with the navbar.
+   ---------------------------------------------------------------------------- */
+aside h2,
+aside .section h2 {
+  font-size: 1.20rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em;
+  color: #1f4e79;                       /* matches navbar `primary` */
+  margin-top: 1.75rem;
+  margin-bottom: 0.55rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 2px solid #d8e2ec;
+  line-height: 1.25;
+}
+
+/* First sidebar heading: no extra top margin (it's already at the top). */
+aside > div:first-child h2 {
+  margin-top: 0;
 }
