@@ -71,53 +71,106 @@
 #' `paginate.<class>()` method -- see `vignette("paginate")` for an
 #' example.
 #'
-#' @param x A supported table object (`gt_tbl`, `data.frame`/tibble, or a
-#'   `list` of those).
-#' @param max_rows Integer.  Maximum body rows per page.  Required for any
-#'   `split` mode other than `"none"`.
-#' @param split Splitting strategy: `"none"` (default), `"rows"`,
-#'   `"group_safe"`, or `"group_force"`.  See **Splitting strategies** in
-#'   the package vignette.
-#' @param split_rows Integer vector of 1-based row indices at which to
-#'   start new pages.  Only used when `split = "rows"`.
-#' @param group_col Column name or 1-based index identifying the group.
-#'   `NULL` (default) auto-detects groups from **leading-space
-#'   indentation** on column 1 — a row whose first column starts with
-#'   a non-space character opens a new top-level group; rows whose
-#'   first column starts with whitespace are sub-rows of the current
-#'   group.  Sub-rows can themselves carry deeper indentation
-#'   (sub-sub-rows etc.) — only the top-level rows act as group
-#'   boundaries, so a multi-indent block is treated as ONE group for
-#'   splitting and blank-row insertion.
-#' @param cont_label Suffix appended to the group label on continuation
-#'   pages (only used by group-aware splits).  Default `" (Cont.)"`.
-#' @param blank_rows Blank-row specification applied *within* each
-#'   page.  Resolved positions are stored as the page's
-#'   `rtf_blank_rows` attribute, which `rtftable(read_attributes =
-#'   TRUE)` consumes.  Accepts:
-#'   * `NULL` (default) -- no blank rows added from this argument.
-#'   * integer vector -- positions (`0` = before first data row;
-#'     `k` = after data row `k`).
-#'   * `"between_groups"` -- auto-insert a blank row at every group
-#'     transition within the page (same indent-based group detection
-#'     as the split modes).
-#'   * `list(...)` of any of the above -- union of positions.
-#' @param blank_row_first Logical, default `FALSE`.  When `TRUE`,
-#'   *every* returned page also gets a blank row at the top (position
-#'   `0`).  Combined with `blank_rows = "between_groups"` this gives
-#'   the "blank before each group, including the first on every page"
-#'   pattern that clinical TFL layouts often want.
-#' @param blank_row_end Logical, default `FALSE`.  When `TRUE`,
-#'   *every* returned page also gets a blank row at the bottom (after
-#'   the page's last data row).  Useful when the last data row needs
-#'   visual separation from the page footer.
-#' @param ... Method-specific extras.
+#' @param x
+#'   A supported table object: a `gt_tbl` (from [gt::gt()]), a plain
+#'   `data.frame` / tibble, or a `list` of either.  List names are
+#'   propagated to the output (one input → one page keeps the input
+#'   name; one input → many pages produces `name.1`, `name.2`, ...).
 #'
-#' @return A list of data.frames, one per page.  Each carries:
+#' @param max_rows
+#'   Integer.  Maximum body rows allowed per page.  **Required** for
+#'   any `split` mode other than `"none"`.  When `split = "by_value"`
+#'   it is optional (`NULL` = never force-split a group; otherwise a
+#'   group that exceeds `max_rows` is internally split with `(Cont.)`).
+#'
+#' @param split
+#'   Page-splitting strategy.  One of:
+#'
+#'   * `"none"` (default) — return the whole input as a single page.
+#'   * `"rows"` — force-split at the explicit row indices in
+#'     `split_rows`.
+#'   * `"group_safe"` — pack whole groups onto each page; spill
+#'     to the next page when the current group would overflow
+#'     `max_rows`.  A single group that on its own exceeds
+#'     `max_rows` is force-split with `(Cont.)` continuation rows.
+#'   * `"group_force"` — force-split every `max_rows` rows; when the
+#'     cut lands inside a group, insert a `(Cont.)` header row at
+#'     the top of the next page repeating the group label without
+#'     the summary value.
+#'   * `"by_value"` — **one page per detected group**, never packed.
+#'     Each returned page is named by the group's label, so a
+#'     downstream `rtf_tables(pages, auto_section = TRUE)` builds one
+#'     RTF section per value (e.g. one section per study visit).
+#'     Falls back to `"group_force"` *within* a group when it
+#'     exceeds `max_rows`.
+#'
+#' @param split_rows
+#'   Integer vector of 1-based row indices at which to start a new
+#'   page.  Only used when `split = "rows"`.
+#'
+#' @param group_col
+#'   Identifies the column whose values define the groups.  One of:
+#'
+#'   * `NULL` (default) — **indent-based detection**.  A row whose
+#'     first column starts with a non-space character opens a new
+#'     top-level group; rows whose first column starts with
+#'     whitespace are sub-rows of the current group.  Sub-rows can
+#'     themselves carry deeper indentation (sub-sub-rows etc.); only
+#'     top-level rows act as group boundaries.
+#'   * a character column name — RLE on `df[[name]]`.  Consecutive
+#'     identical values become one group; the value is the group
+#'     label (used by `split = "by_value"` as the page name).
+#'   * a 1-based integer column index — same as the character form.
+#'
+#' @param cont_label
+#'   Suffix appended to the group label on continuation pages.
+#'   Default `" (Cont.)"`.  Only relevant when a group is force-split
+#'   (`split = "group_force"`, `"group_safe"` overflow, or
+#'   `"by_value"` overflow).
+#'
+#' @param blank_rows
+#'   Blank-row specification applied **within** each page.  Resolved
+#'   positions are stored as the page's `rtf_blank_rows` attribute,
+#'   which `rtftable(read_attributes = TRUE)` consumes.  Accepts:
+#'
+#'   * `NULL` (default) — no blank rows added from this argument.
+#'   * integer vector — explicit positions (`0` = before first data
+#'     row; `k` = after data row `k`).
+#'   * `"between_groups"` — auto-insert a blank at every group
+#'     transition within the page (same indent-based detection as
+#'     the split modes).
+#'   * a `list(...)` combining any of the above (positions unioned).
+#'
+#' @param blank_row_first
+#'   Logical (default `FALSE`).  When `TRUE`, every returned page
+#'   also gets a blank row at the **top** (position `0`).  Combine
+#'   with `blank_rows = "between_groups"` to get "blank before each
+#'   group, including the first row of every page".
+#'
+#' @param blank_row_end
+#'   Logical (default `FALSE`).  When `TRUE`, every returned page
+#'   also gets a blank row at the **bottom** (after the page's last
+#'   data row).  Useful when the last row needs visual separation
+#'   from the page footer.
+#'
+#' @param ...
+#'   Method-specific extras.  Currently unused by all built-in
+#'   methods; reserved for future extensions.
+#'
+#' @return
+#'   A list of data.frames (tibbles if the input was a tibble or
+#'   `gt_tbl`), one element per page.  Each element carries:
+#'
 #'   * `attr(., "rtf_blank_rows")` -- integer positions consumed by
 #'     [rtftable()] when `read_attributes = TRUE`.
 #'   * `attr(., "rtf_paginate_meta")` -- list with `strategy`,
-#'     `page_index`, `total_pages`, `group_col`.
+#'     `page_index`, `total_pages`, `group_col`, `page_name`.
+#'
+#'   When `split = "by_value"` -- or when the caller passed a *named*
+#'   `list` and no splitting happened -- each element ALSO carries
+#'   the group label as its `names()` entry.  Pass the resulting list
+#'   directly to `rtf_tables(pages, auto_section = TRUE)` to get one
+#'   RTF section per page name.
 #'
 #' @examples
 #' # -------------------------------------------------------------------------
@@ -188,6 +241,32 @@
 #' # -------------------------------------------------------------------------
 #' pages <- paginate(df, max_rows = 30, split = "group_safe",
 #'                    group_col = "Visit")     # RLE on the Visit column
+#'
+#' # -------------------------------------------------------------------------
+#' # 6. split = "by_value": one page per group value, named by the value
+#' # -------------------------------------------------------------------------
+#' df <- data.frame(
+#'   visit = c("Week 1","Week 1","Week 2","Week 2","Week 4"),
+#'   val   = c(10, 11, 20, 22, 30)
+#' )
+#' pages <- paginate(df, split = "by_value", group_col = "visit")
+#' names(pages)                 # "Week 1", "Week 2", "Week 4"
+#'
+#' # Hand straight to rtf_tables(auto_section = TRUE) — one RTF section
+#' # per visit, with the visit name as the section heading.
+#' doc <- rtf_document() |>
+#'   rtf_section(secinfo = list(header = my_hdr)) |>
+#'   rtf_tables(pages, auto_section = TRUE)
+#'
+#' # -------------------------------------------------------------------------
+#' # 7. Named list input: names round-trip through paginate()
+#' # -------------------------------------------------------------------------
+#' pages_in <- list(
+#'   "Table 14.1.1" = tibble::tibble(x = 1:3),
+#'   "Table 14.2.1" = tibble::tibble(x = 4:6)
+#' )
+#' pages <- paginate(pages_in)              # no split, names preserved
+#' names(pages)                              # "Table 14.1.1" "Table 14.2.1"
 #' }
 #'
 #' @export
@@ -231,15 +310,31 @@ paginate.gt_tbl <- function(x, ...) {
 }
 
 
-# -- list method -- recurse + concatenate -------------------------------------
+# -- list method -- recurse + concatenate + propagate names -------------------
 
 #' @rdname paginate
 #' @export
 paginate.list <- function(x, ...) {
   if (length(x) == 0L) return(list())
+  in_names <- names(x)
   out <- list()
   for (i in seq_along(x)) {
     chunks <- paginate(x[[i]], ...)
+    if (!is.null(in_names) && nzchar(in_names[i])) {
+      base <- in_names[i]
+      if (length(chunks) == 1L) {
+        # No real split — input name carries through 1-to-1.
+        names(chunks) <- base
+      } else if (is.null(names(chunks)) ||
+                  all(!nzchar(names(chunks) %||% ""))) {
+        # Real split (group_force, group_safe, rows) — suffix .1 .2 ...
+        names(chunks) <- paste0(base, ".", seq_along(chunks))
+      } else {
+        # Inner split already named chunks (e.g. by_value) — namespace
+        # them under the input list name: "doc.group1", "doc.group2".
+        names(chunks) <- paste0(base, ".", names(chunks))
+      }
+    }
     out <- c(out, chunks)
   }
   out
@@ -253,7 +348,8 @@ paginate.list <- function(x, ...) {
 paginate.data.frame <- function(x,
                                  max_rows    = NULL,
                                  split       = c("none", "rows",
-                                                  "group_safe", "group_force"),
+                                                  "group_safe", "group_force",
+                                                  "by_value"),
                                  split_rows  = NULL,
                                  group_col   = NULL,
                                  cont_label  = " (Cont.)",
@@ -285,7 +381,8 @@ paginate.data.frame <- function(x,
     none         = list(x),
     rows         = .split_by_rows(x, split_rows),
     group_safe   = .split_group_safe (x, info, max_rows, cont_label, group_idx),
-    group_force  = .split_group_force(x, info, max_rows, cont_label, group_idx)
+    group_force  = .split_group_force(x, info, max_rows, cont_label, group_idx),
+    by_value     = .split_by_value  (x, info, max_rows, cont_label, group_idx)
   )
 
   # Step 2: attach blank-row positions + paginate meta to each chunk.
@@ -293,8 +390,9 @@ paginate.data.frame <- function(x,
   #   * blank_rows = ... (integer / "between_groups" / list combination)
   #   * blank_row_first = TRUE → position 0  (blank BEFORE first data row)
   #   * blank_row_end   = TRUE → position nrow(chunk) (blank AFTER last)
-  n_pages <- length(chunks)
-  lapply(seq_along(chunks), function(i) {
+  n_pages     <- length(chunks)
+  chunk_names <- names(chunks)        # may be NULL for non-named splits
+  out <- lapply(seq_along(chunks), function(i) {
     chunk <- chunks[[i]]
     # Restore the input's class chain so tibble-ness survives.
     class(chunk) <- input_class
@@ -309,10 +407,14 @@ paginate.data.frame <- function(x,
       strategy    = split,
       page_index  = i,
       total_pages = n_pages,
-      group_col   = group_col
+      group_col   = group_col,
+      page_name   = if (!is.null(chunk_names)) chunk_names[i] else NULL
     )
     chunk
   })
+  # Carry chunk names through `lapply` (which otherwise drops them).
+  if (!is.null(chunk_names)) names(out) <- chunk_names
+  out
 }
 
 
@@ -426,6 +528,43 @@ paginate.data.frame <- function(x,
       }
     }
     pos <- end + 1L
+  }
+  result
+}
+
+# One chunk per detected group, NEVER packed.  Each chunk is named by
+# the group's label (col-1 indent text when group_col = NULL, else the
+# value of df[[group_col]]).  When a group exceeds `max_rows` (and
+# max_rows is set) it is force-split with .split_group_force() and the
+# resulting sub-chunks get suffixed names "<label>.1", "<label>.2", ...
+.split_by_value <- function(df, info, max_rows, cont_label, group_idx) {
+  if (nrow(df) == 0L) return(list(df))
+  gid <- ifelse(is.na(info$id), 0L, info$id)
+  unique_gids <- unique(gid)
+
+  result <- list()
+  for (g in unique_gids) {
+    rows  <- which(gid == g)
+    g_n   <- length(rows)
+    chunk <- df[rows, , drop = FALSE]
+    label <- info$label[rows][1L]
+    if (!nzchar(label)) label <- paste0("group_", g)
+
+    if (!is.null(max_rows) && g_n > max_rows) {
+      sub_info <- list(id      = info$id[rows],
+                       label   = info$label[rows],
+                       headers = info$headers[rows])
+      sub <- .split_group_force(chunk, sub_info, max_rows,
+                                 cont_label, group_idx)
+      sub_names <- if (length(sub) == 1L) label
+                   else paste0(label, ".", seq_along(sub))
+      names(sub) <- sub_names
+      result <- c(result, sub)
+    } else {
+      one <- list(chunk)
+      names(one) <- label
+      result <- c(result, one)
+    }
   }
   result
 }

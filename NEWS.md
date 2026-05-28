@@ -1,5 +1,39 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.25
+
+### `paginate()` — list-name propagation, `split = "by_value"`, clearer help
+
+* **Named-list inputs round-trip through `paginate()`.**  When the
+  input is a `list` whose elements have names, those names are now
+  carried through to the output:
+
+    * input → 1 page  → the chunk keeps the input name
+    * input → many pages → chunks named `<name>.1`, `<name>.2`, …
+    * unnamed input → no name (as before)
+
+  So `paginate(list("Table 14.1.1" = tbl1, "Table 14.2.1" = tbl2))`
+  returns a 2-element named list, and the names flow on to
+  `rtf_tables(pages, auto_section = TRUE)` if you choose to use it.
+
+* **New `split = "by_value"` mode.**  One page per detected group,
+  *never* packed.  Each returned page is named by the group's label
+  (the indented col-1 text when `group_col = NULL`, otherwise the
+  value of `df[[group_col]]`).  Combine with
+  `rtf_tables(pages, auto_section = TRUE)` to render one RTF section
+  per group value (e.g. one section per study visit).  A group that
+  exceeds `max_rows` is internally force-split with `(Cont.)` and
+  the sub-chunks get suffixed names (`<label>.1`, `<label>.2`, …).
+
+* The page-name (when present) is also surfaced in
+  `attr(., "rtf_paginate_meta")$page_name` for programmatic access.
+
+* **`?paginate` reference page reformatted.**  Each `@param` now
+  stands on its own paragraph with enumeration bullets where
+  appropriate, instead of running together as a single dense block.
+  Two new worked examples (sections 6–7) show the `"by_value"` mode
+  and the named-list round-trip.
+
 ## rtfreporter 0.0.24
 
 ### `paginate()` — preserve the input's class chain (tibble in → tibble out)
