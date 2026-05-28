@@ -1,5 +1,68 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.28
+
+### Coverage lift — Phase 1 of 3 (67% → 73%)
+
+Backfill of the four files that were at 0% coverage:
+
+* `R/assemble_rtf.R` (0% → **95%**) — five new tests cover the
+  happy path (2-file and N-file concatenation), input-count
+  validation, missing-file detection, overwrite guard, and
+  rejection of non-rtfreporter RTFs (no `\sectd`).
+* `R/rtfplot.R` (0% → **56%**) — six new tests cover construction
+  from a PNG, propagation of `width_twips` / `height_twips` /
+  `align`, file-not-found / unsupported-extension errors,
+  invalid-align rejection, and end-to-end embedding into a
+  generated RTF via `rtf_figures()` (checking the output contains
+  `\pict` and `\pngblip`).  A 74-byte hand-rolled 1x1 RGB PNG is
+  constructed inside the test, so no graphics device is required.
+* `R/text_width.R` (0% → **93%**) — eleven new tests cover
+  `text_width_in()` (length parity, NA handling, linear scaling
+  with character count, scaling with `size_half_points`, font
+  variants including unknown-font fallback) and `auto_col_widths()`
+  (per-column integer widths, exact scaling to `table_width_twips`,
+  header-text inclusion, `min_col_width_twips` floor, pipe-string
+  header).
+* `R/zzz.R` (0% → **100%**) — four new tests cover the `.onLoad`
+  hook's namespace presence, its idempotent re-invocation, the
+  populated `.rtf_theme_class` R6 generator after package load,
+  and the no-op re-init via `.init_rtf_theme_class()`.
+
+Per-file post-Phase-1 coverage:
+
+  R/wrappers.R                   100%
+  R/zzz.R                        100%
+  R/assemble_rtf.R                95%
+  R/plot.R                        94%
+  R/text_width.R                  93%
+  R/format_count_pct.R            93%
+  R/set_blank_rows.R              92%
+  R/paginate.R                    90%
+  R/blank_rows.R                  78%
+  R/generate_rtfreport.R          77%
+  R/pipe-composition.R            75%
+  R/rtf_table_style.R             75%
+  R/rtftable.R                    66%
+  R/rtfreport.R                   62%
+  R/col_header.R                  59%
+  R/rtfplot.R                     56%
+  R/rtf_border.R                  52%
+  R/rtf_theme.R                   15%
+  TOTAL                          73.04%
+
+53 new test expectations; total **455 PASS** under `devtools::test()`.
+
+### Codecov floor locked at 70%
+
+`codecov.yml` switched the project-level status from
+`informational: true / target: auto` to `informational: false /
+target: 70%`.  Any PR that drops total coverage below 70% will now
+fail the CI check, preventing silent erosion as new features land.
+
+Phase 2 (target 80%) and Phase 3 (target 90%) will land closer to
+v0.1.0 / v0.2.x respectively.
+
 ## rtfreporter 0.0.27
 
 ### `format_count_pct()` — right-align the 100% branch
