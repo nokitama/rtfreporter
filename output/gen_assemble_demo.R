@@ -201,12 +201,22 @@ build_toc_for <- function(f1, f2, f3) {
   )
 }
 
+# English-locale date string ("29 May 2026"), independent of Sys.getlocale().
+# `format(Sys.Date(), "%B")` uses the system locale and produces e.g. "5月"
+# on a Japanese Windows -- mixing locales on a cover page looks odd.
+.fmt_date_en <- function(d = Sys.Date()) {
+  sprintf("%02d %s %d",
+          as.integer(format(d, "%d")),
+          month.name[as.integer(format(d, "%m"))],   # always English
+          as.integer(format(d, "%Y")))
+}
+
 # Standard cover-page spec used for the two showcase outputs.
 mk_cover <- function(label) {
   list(
     title    = "Study XYZ-001",
     subtitle = sprintf("Final Statistical Report - %s Page Numbers", label),
-    date     = format(Sys.Date(), "%d %B %Y"),
+    date     = .fmt_date_en(),
     version  = sprintf("v1.0 (%s demo)", label),
     meta     = c("Confidential - For Sponsor Use Only",
                  if (label == "AUTO")
