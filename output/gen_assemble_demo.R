@@ -1,17 +1,20 @@
 ## ============================================================================
 ##  Realistic multi-page TFL deliverable demos using assemble_rtf().
 ##
-##  Two separate runs to expose how the two header-token styles behave
-##  under assembly:
+##  Two header styles x two cover modes => four assembled outputs:
 ##
-##    AUTO  set:  every source RTF uses {AUTO_PAGE} / {AUTO_TOTAL_PAGES}
-##                -> dynamic fields; numbers RECOMPUTE across the
-##                   assembled document when opened in Word / Reader.
+##    AUTO   set, no  cover  (TOC only)  <- DEFAULT real-world layout
+##    AUTO   set, with cover (full)      <- showcase of all features
+##    STATIC set, no  cover  (TOC only)  <- DEFAULT real-world layout
+##    STATIC set, with cover (full)      <- showcase of all features
 ##
-##    STATIC set: every source RTF uses {PAGE} / {TOTAL_PAGES}
-##                -> integer literals baked in at render time;
-##                   numbers DO NOT recompute and reflect only the
-##                   source file's own page count.
+##  Header tokens:
+##    AUTO    : {AUTO_PAGE} / {AUTO_TOTAL_PAGES}
+##              -> dynamic fields; numbers RECOMPUTE across the assembled
+##                 document when opened in Word / Reader.
+##    STATIC  : {PAGE} / {TOTAL_PAGES}
+##              -> integer literals baked in at render time; numbers
+##                 reflect only the source file's own page count.
 ##
 ##  PDF conversion via headless LibreOffice is run on each assembled
 ##  RTF when soffice.exe is on the standard install path.
@@ -183,11 +186,46 @@ convert_to_pdf <- function(rtf) {
   }
 }
 
+# Build the multi-level TOC for a given set of 3 input files.
+build_toc_for <- function(f1, f2, f3) {
+  list(
+    toc_heading("EFFICACY ANALYSES", level = 1),
+    toc_entry  ("Table 14.1.1 Demographics and Baseline Characteristics",
+                file = f1, level = 2),
+    toc_heading("SAFETY ANALYSES",   level = 1),
+    toc_entry  ("Table 14.2.1 Adverse Events Summary",
+                file = f2, level = 2),
+    toc_heading("LISTINGS",          level = 1),
+    toc_entry  ("Listing 16.1 Subject Disposition",
+                file = f3, level = 2)
+  )
+}
+
+# Standard cover-page spec used for the two showcase outputs.
+mk_cover <- function(label) {
+  list(
+    title    = "Study XYZ-001",
+    subtitle = sprintf("Final Statistical Report - %s Page Numbers", label),
+    date     = format(Sys.Date(), "%d %B %Y"),
+    version  = sprintf("v1.0 (%s demo)", label),
+    meta     = c("Confidential - For Sponsor Use Only",
+                 if (label == "AUTO")
+                   "Page numbers recompute across the document"
+                 else
+                   "Page numbers reflect each source file only")
+  )
+}
+
+report_size <- function(path) {
+  cat(sprintf("RTF: %s  (%d bytes)\n", basename(path),
+              as.integer(file.info(path)$size)))
+}
+
 ## ──────────────────────────────────────────────────────────────────────────
-##  RUN 1 — AUTO set (dynamic page numbers)
+##  RUN 1 — AUTO sources (dynamic page numbers)
 ## ──────────────────────────────────────────────────────────────────────────
 
-cat("\n=== RUN 1: AUTO (dynamic page numbers) ===\n\n")
+cat("\n=== RUN 1: AUTO source files (dynamic page numbers) ===\n\n")
 
 hdr_auto <- rtf_header(rows = list(
   c(l = "Protocol XYZ-001", r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
@@ -201,44 +239,40 @@ f2_auto <- build_deliverable(hdr_auto, ae_pages,    titles_ae,
 f3_auto <- build_deliverable(hdr_auto, listing_pages, titles_listing,
                               path = file.path(out_dir, "auto_l16_1_disposition.rtf"))
 
-final_auto <- file.path(out_dir, "auto_assembled_full.rtf")
+## (1a) Default real-world layout: TOC only, NO cover
+cat("[1a] AUTO, TOC only, no cover (DEFAULT layout)\n")
+final_auto_default <- file.path(out_dir, "auto_assembled_default.rtf")
 assemble_rtf(
   input_files = c(f1_auto, f2_auto, f3_auto),
-  output_file = final_auto,
-  cover = list(
-    title    = "Study XYZ-001",
-    subtitle = "Final Statistical Report - AUTO Page Numbers",
-    date     = format(Sys.Date(), "%d %B %Y"),
-    version  = "v1.0 (AUTO demo)",
-    meta     = c("Confidential - For Sponsor Use Only",
-                 "Page numbers recompute across the document")
-  ),
-  toc = list(
-    toc_heading("EFFICACY ANALYSES", level = 1),
-    toc_entry  ("Table 14.1.1 Demographics and Baseline Characteristics",
-                file = f1_auto, level = 2),
-    toc_heading("SAFETY ANALYSES",   level = 1),
-    toc_entry  ("Table 14.2.1 Adverse Events Summary",
-                file = f2_auto, level = 2),
-    toc_heading("LISTINGS",          level = 1),
-    toc_entry  ("Listing 16.1 Subject Disposition",
-                file = f3_auto, level = 2)
-  ),
+  output_file = final_auto_default,
+  toc                = build_toc_for(f1_auto, f2_auto, f3_auto),
   toc_title          = "Table of Contents",
   toc_leader         = "dot",
   toc_page_numbering = "roman",
   overwrite          = TRUE
 )
-cat("RTF:\n  ", final_auto, "  (",
-    file.info(final_auto)$size, " bytes)\n", sep = "")
-cat("PDF:\n")
-convert_to_pdf(final_auto)
+report_size(final_auto_default); convert_to_pdf(final_auto_default)
+
+## (1b) Full showcase: with cover
+cat("\n[1b] AUTO, TOC + cover (full showcase)\n")
+final_auto_full <- file.path(out_dir, "auto_assembled_full.rtf")
+assemble_rtf(
+  input_files = c(f1_auto, f2_auto, f3_auto),
+  output_file = final_auto_full,
+  cover              = mk_cover("AUTO"),
+  toc                = build_toc_for(f1_auto, f2_auto, f3_auto),
+  toc_title          = "Table of Contents",
+  toc_leader         = "dot",
+  toc_page_numbering = "roman",
+  overwrite          = TRUE
+)
+report_size(final_auto_full); convert_to_pdf(final_auto_full)
 
 ## ──────────────────────────────────────────────────────────────────────────
-##  RUN 2 — STATIC set (frozen integer page numbers)
+##  RUN 2 — STATIC sources (frozen integer page numbers)
 ## ──────────────────────────────────────────────────────────────────────────
 
-cat("\n=== RUN 2: STATIC (frozen integer page numbers) ===\n\n")
+cat("\n=== RUN 2: STATIC source files (frozen integer page numbers) ===\n\n")
 
 hdr_static <- rtf_header(rows = list(
   c(l = "Protocol XYZ-001", r = "Page {PAGE} of {TOTAL_PAGES}"),
@@ -252,37 +286,33 @@ f2_static <- build_deliverable(hdr_static, ae_pages, titles_ae,
 f3_static <- build_deliverable(hdr_static, listing_pages, titles_listing,
                                 path = file.path(out_dir, "static_l16_1_disposition.rtf"))
 
-final_static <- file.path(out_dir, "static_assembled_full.rtf")
+## (2a) Default real-world layout: TOC only, NO cover
+cat("[2a] STATIC, TOC only, no cover (DEFAULT layout)\n")
+final_static_default <- file.path(out_dir, "static_assembled_default.rtf")
 assemble_rtf(
   input_files = c(f1_static, f2_static, f3_static),
-  output_file = final_static,
-  cover = list(
-    title    = "Study XYZ-001",
-    subtitle = "Final Statistical Report - STATIC Page Numbers",
-    date     = format(Sys.Date(), "%d %B %Y"),
-    version  = "v1.0 (STATIC demo)",
-    meta     = c("Confidential - For Sponsor Use Only",
-                 "Page numbers reflect each source file only")
-  ),
-  toc = list(
-    toc_heading("EFFICACY ANALYSES", level = 1),
-    toc_entry  ("Table 14.1.1 Demographics and Baseline Characteristics",
-                file = f1_static, level = 2),
-    toc_heading("SAFETY ANALYSES",   level = 1),
-    toc_entry  ("Table 14.2.1 Adverse Events Summary",
-                file = f2_static, level = 2),
-    toc_heading("LISTINGS",          level = 1),
-    toc_entry  ("Listing 16.1 Subject Disposition",
-                file = f3_static, level = 2)
-  ),
+  output_file = final_static_default,
+  toc                = build_toc_for(f1_static, f2_static, f3_static),
   toc_title          = "Table of Contents",
   toc_leader         = "dot",
   toc_page_numbering = "roman",
   overwrite          = TRUE
 )
-cat("RTF:\n  ", final_static, "  (",
-    file.info(final_static)$size, " bytes)\n", sep = "")
-cat("PDF:\n")
-convert_to_pdf(final_static)
+report_size(final_static_default); convert_to_pdf(final_static_default)
+
+## (2b) Full showcase: with cover
+cat("\n[2b] STATIC, TOC + cover (full showcase)\n")
+final_static_full <- file.path(out_dir, "static_assembled_full.rtf")
+assemble_rtf(
+  input_files = c(f1_static, f2_static, f3_static),
+  output_file = final_static_full,
+  cover              = mk_cover("STATIC"),
+  toc                = build_toc_for(f1_static, f2_static, f3_static),
+  toc_title          = "Table of Contents",
+  toc_leader         = "dot",
+  toc_page_numbering = "roman",
+  overwrite          = TRUE
+)
+report_size(final_static_full); convert_to_pdf(final_static_full)
 
 cat("\n===\nFolder:", out_dir, "\n")

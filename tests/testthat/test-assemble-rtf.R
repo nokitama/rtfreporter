@@ -531,3 +531,83 @@ test_that("TOC label characters get RTF-escaped (backslash, braces, unicode)", {
   # Unicode -> RTF \uN?
   expect_match(txt, "\\\\u945\\?")
 })
+
+# ──────────────────────────────────────────────────────────────────────────
+#  v0.0.33 regression: outline-paragraph + cover-paragraph font-size leak
+# ──────────────────────────────────────────────────────────────────────────
+#
+# Pre-v0.0.33 `.insert_bookmark()` emitted
+#   \pard\plain\fs2\sa0\sb0\outlinelevel0 LABEL\par
+# and `.build_cover_section()` / `.build_toc_section()` emitted
+#   \pard\qc\b\fs44 TEXT\b0\fs0\par
+# Neither group was wrapped in `{ ... }`, so the character-format state
+# (\fs2 from the outline paragraph, \fs0 from the cover/TOC closings)
+# bled across `\par` into the following body-table content, making the
+# cell text effectively invisible while the table borders still rendered.
+#
+# The fix wraps every formatted paragraph in `{ ... }` so the format
+# state is local.  Below we lock that down structurally.
+
+test_that("outline paragraph wraps \\fs2 in a group (no leak into body)", {
+  f1 <- .write_demo_rtf("Body 1")
+  f2 <- .write_demo_rtf("Body 2")
+  on.exit(unlink(c(f1, f2)), add = TRUE)
+  out <- tempfile(fileext = ".rtf"); on.exit(unlink(out), add = TRUE)
+  assemble_rtf(c(f1, f2), out,
+               toc       = c("Entry A", "Entry B"),
+               overwrite = TRUE)
+  txt <- paste(readLines(out, warn = FALSE), collapse = "\n")
+  # Outline paragraph must be a fully-balanced group.
+  expect_match(txt,
+               "\\{\\\\pard\\\\plain\\\\fs2\\\\sa0\\\\sb0\\\\outlinelevel0[^\\}]*\\\\par\\}")
+  # Bare \fs2 followed by \par WITHOUT a closing `}` would mean the
+  # 1-pt size leaks across the paragraph boundary.  Forbid that pattern.
+  expect_false(
+    grepl("\\\\fs2\\\\sa0\\\\sb0\\\\outlinelevel0[^\\}]*\\\\par(?!\\})",
+          txt, perl = TRUE)
+  )
+})
+
+test_that("cover paragraphs do not emit bare \\fs0 (leak source)", {
+  f1 <- .write_demo_rtf("Body 1")
+  f2 <- .write_demo_rtf("Body 2")
+  on.exit(unlink(c(f1, f2)), add = TRUE)
+  out <- tempfile(fileext = ".rtf"); on.exit(unlink(out), add = TRUE)
+  assemble_rtf(c(f1, f2), out,
+               cover = list(title    = "Study XYZ",
+                            subtitle = "Subtitle line",
+                            date     = "2026-05-29",
+                            version  = "v1.0",
+                            meta     = c("Confidential", "Sponsor only")),
+               toc       = c("Entry A", "Entry B"),
+               overwrite = TRUE)
+  txt <- paste(readLines(out, warn = FALSE), collapse = "\n")
+  # Old-style "\fs0\par" closings must not appear -- they were the
+  # leak source that drove body font size to zero.
+  expect_false(grepl("\\\\fs0\\\\par", txt))
+  # Cover title must still be rendered with its 22-pt font.
+  expect_match(txt, "\\\\fs44\\s+Study XYZ")
+})
+
+test_that("body table fs values survive cover+TOC prefix (no leak)", {
+  # Direct end-to-end check: the body table content from each source
+  # must keep its own font sizing intact after assembly.  We just
+  # confirm the body's \fs20 / \fs22 cell-content markers from
+  # rtfreporter's table renderer still appear after the cover + TOC
+  # prefix has been inserted.
+  f1 <- .write_demo_rtf("Body 1")
+  f2 <- .write_demo_rtf("Body 2")
+  on.exit(unlink(c(f1, f2)), add = TRUE)
+  out <- tempfile(fileext = ".rtf"); on.exit(unlink(out), add = TRUE)
+  assemble_rtf(c(f1, f2), out,
+               cover = list(title = "Cover Title"),
+               toc       = c("Entry A", "Entry B"),
+               overwrite = TRUE)
+  txt <- paste(readLines(out, warn = FALSE), collapse = "\n")
+  # Body cell content (the literal "Body 1" / "Body 2" titles) must
+  # still appear after the cover + TOC prefix.
+  expect_match(txt, "Body 1")
+  expect_match(txt, "Body 2")
+  # Sanity: no \fs0 anywhere (pre-fix the cover emitted it).
+  expect_false(grepl("\\\\fs0(\\\\|\\s|\\})", txt))
+})

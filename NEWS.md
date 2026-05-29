@@ -1,5 +1,44 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.33
+
+### Bug fix: character-format leak from cover / TOC / outline paragraphs
+
+When `assemble_rtf()` was called with `cover = list(...)` or `toc = ...`,
+the front-matter paragraphs emitted bare character-format properties
+that bled across `\par` into the following body content:
+
+* `.insert_bookmark()` emitted `\pard\plain\fs2\sa0\sb0\outlinelevel0 LABEL\par`
+  — the `\fs2` (1-pt) outline-paragraph font carried forward into the
+  body table, shrinking every cell's text to invisible.
+* `.build_cover_section()` and `.build_toc_section()` emitted
+  `\pard\qc\b\fs44 TEXT\b0\fs0\par` — the closing `\fs0` (size 0)
+  similarly leaked.
+
+The visible symptom: assembled PDFs / RTFs rendered table **borders**
+correctly, but every cell appeared empty.  The pre-v0.0.31 (no-cover,
+no-outline) path was unaffected, which is why older outputs looked fine.
+
+Every formatted paragraph in `.insert_bookmark()`, `.build_cover_section()`,
+and `.build_toc_section()` is now wrapped in an RTF `{ ... }` group, so
+its character-format state is local and cannot bleed into adjacent
+content.  Regression tests in `tests/testthat/test-assemble-rtf.R`
+lock the fix down structurally.
+
+### Demo script — both no-cover and with-cover variants
+
+`output/gen_assemble_demo.R` now produces **four** assembled outputs:
+
+* `auto_assembled_default.{rtf,pdf}`   — AUTO sources, TOC only (no cover)
+* `auto_assembled_full.{rtf,pdf}`      — AUTO sources, cover + TOC
+* `static_assembled_default.{rtf,pdf}` — STATIC sources, TOC only (no cover)
+* `static_assembled_full.{rtf,pdf}`    — STATIC sources, cover + TOC
+
+The "default" variants reflect the common eCTD deliverable layout
+where a cover page is *not* attached and the TOC alone serves as the
+front matter.  No change to `assemble_rtf()`'s own default — `cover = NULL`
+has always been the default.
+
 ## rtfreporter 0.0.32
 
 ### Bug fix: `{PAGE}` is now a STATIC integer (was incorrectly dynamic)

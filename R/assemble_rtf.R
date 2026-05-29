@@ -49,8 +49,15 @@
 # \sectd of `content`.  Optionally also emits a `\outlinelevel<N>`
 # paragraph carrying `outline_label` so PDF converters (LibreOffice,
 # Word) expose the section in the PDF outline / bookmark panel — the
-# eCTD-recommended navigation aid.  The paragraph uses 1-pt font + a
-# hidden-text run so it does not occupy visible space.
+# eCTD-recommended navigation aid.  The paragraph uses 1-pt font so it
+# does not occupy visible space.
+#
+# CRITICAL: the whole outline paragraph is wrapped in `{ ... }` so the
+# character-format state (\fs2, \plain) is LOCAL to the group.  Without
+# the group, RTF carries character properties across `\par`, and the
+# 1-pt size leaks into the following body table — making all cell
+# contents invisible while leaving the borders intact.  See the v0.0.33
+# bug fix.
 .insert_bookmark <- function(content, bookmark_name,
                               outline_label = NULL, outline_level = 0L) {
   sectd_idx <- which(trimws(content) == "\\sectd")[1L]
@@ -62,11 +69,12 @@
   if (!is.null(outline_label) && nzchar(outline_label)) {
     # \outlinelevelN -> LibreOffice maps to PDF outline entry.
     # Tiny visible text (\fs2 = 1pt) so LO recognises it as a heading
-    # paragraph (hidden \v ... \v0 runs are skipped by the outline
-    # builder).  \sa0\sb0 + \fi0\li0\ri0 keep the paragraph's footprint
+    # paragraph.  \sa0\sb0 + \fi0\li0\ri0 keep the paragraph's footprint
     # negligible: ~1 pixel tall, no surrounding spacing.
+    # The outer { ... } scopes \plain\fs2 so it cannot bleed into the
+    # following content.
     inserts <- c(inserts,
-      sprintf("\\pard\\plain\\fs2\\sa0\\sb0\\outlinelevel%d %s\\par",
+      sprintf("{\\pard\\plain\\fs2\\sa0\\sb0\\outlinelevel%d %s\\par}",
               as.integer(outline_level), .toc_escape(outline_label)))
   }
   c(content[1L:sectd_idx], inserts,
@@ -259,45 +267,48 @@ toc_entry <- function(label, file = NULL, level = 2L) {
 .build_cover_section <- function(cover) {
   if (is.null(cover)) return(character())
 
+  # Each formatted paragraph is wrapped in `{ ... }` so its \fs / \b
+  # only applies inside that group.  Closing `\fs0\par` (used pre-
+  # v0.0.33) was leaking font-size-0 into following content.
   blocks <- c(
     "\\sectd\\sbkpage\\lndscpsxn",
     "\\pgwsxn15840\\pghsxn12240",
     "\\marglsxn864\\margrsxn864\\margtsxn1296\\margbsxn1296",
     # Push content vertically to roughly the upper third of the page
-    "\\pard\\fs18\\par\\pard\\fs18\\par\\pard\\fs18\\par"
+    "{\\pard\\fs18\\par}{\\pard\\fs18\\par}{\\pard\\fs18\\par}"
   )
 
   if (!is.null(cover$title) && nzchar(cover$title)) {
     blocks <- c(blocks,
-      sprintf("\\pard\\qc\\b\\fs44 %s\\b0\\fs0\\par",
+      sprintf("{\\pard\\qc\\b\\fs44 %s\\par}",
               .toc_escape(cover$title)),
-      "\\pard\\fs18\\par"
+      "{\\pard\\fs18\\par}"
     )
   }
   if (!is.null(cover$subtitle) && nzchar(cover$subtitle)) {
     blocks <- c(blocks,
-      sprintf("\\pard\\qc\\fs28 %s\\fs0\\par",
+      sprintf("{\\pard\\qc\\fs28 %s\\par}",
               .toc_escape(cover$subtitle)),
-      "\\pard\\fs18\\par"
+      "{\\pard\\fs18\\par}"
     )
   }
   if (!is.null(cover$date) && nzchar(cover$date)) {
     blocks <- c(blocks,
-      sprintf("\\pard\\qc\\fs22 %s\\fs0\\par",
+      sprintf("{\\pard\\qc\\fs22 %s\\par}",
               .toc_escape(cover$date))
     )
   }
   if (!is.null(cover$version) && nzchar(cover$version)) {
     blocks <- c(blocks,
-      sprintf("\\pard\\qc\\fs22 %s\\fs0\\par",
+      sprintf("{\\pard\\qc\\fs22 %s\\par}",
               .toc_escape(cover$version))
     )
   }
   if (!is.null(cover$meta) && length(cover$meta) > 0L) {
-    blocks <- c(blocks, "\\pard\\fs18\\par")
+    blocks <- c(blocks, "{\\pard\\fs18\\par}")
     for (line in cover$meta) {
       blocks <- c(blocks,
-        sprintf("\\pard\\qc\\fs20 %s\\fs0\\par",
+        sprintf("{\\pard\\qc\\fs20 %s\\par}",
                 .toc_escape(line))
       )
     }
@@ -333,13 +344,16 @@ toc_entry <- function(label, file = NULL, level = 2L) {
     decimal = "\\pgnrestart\\pgndec",
     none    = ""
   )
+  # Every paragraph below is wrapped in `{ ... }` so character format
+  # state (\fs / \b) cannot leak across paragraph boundaries into the
+  # following body content.  See v0.0.33 bug fix.
   lines <- c(
     paste0("\\sectd\\sbkpage\\lndscpsxn", pg_cmd),
     "\\pgwsxn15840\\pghsxn12240",
     "\\marglsxn864\\margrsxn864\\margtsxn1296\\margbsxn1296",
-    sprintf("\\pard\\qc\\b\\fs28 %s\\b0\\fs0\\par",
+    sprintf("{\\pard\\qc\\b\\fs28 %s\\par}",
             .toc_escape(toc_title)),
-    "\\pard\\fs18\\par"
+    "{\\pard\\fs18\\par}"
   )
 
   for (e in toc_entries) {
@@ -349,7 +363,7 @@ toc_entry <- function(label, file = NULL, level = 2L) {
     if (e$type == "heading") {
       # Heading -- bold, no leader, no page number.
       lines <- c(lines,
-        sprintf("\\pard%s\\b\\fs22 %s\\b0\\fs0\\par",
+        sprintf("{\\pard%s\\b\\fs22 %s\\par}",
                 indent_cmd, .toc_escape(e$label))
       )
       next
@@ -359,13 +373,13 @@ toc_entry <- function(label, file = NULL, level = 2L) {
     bm <- bookmarks[e$file_idx]
     txt <- .toc_escape(e$label)
     line <- sprintf(
-      paste0("\\pard%s\\tqr%s\\tx%d ",
+      paste0("{\\pard%s\\fs20\\tqr%s\\tx%d ",
              "{\\field{\\*\\fldinst HYPERLINK \\\\l \"%s\"}",
              "{\\fldrslt %s}}",
              "\\tab",
              "{\\field{\\*\\fldinst PAGEREF %s \\\\h}",
              "{\\fldrslt 1}}",
-             "\\par"),
+             "\\par}"),
       indent_cmd, leader_cmd, tab_pos, bm, txt, bm
     )
     lines <- c(lines, line)
