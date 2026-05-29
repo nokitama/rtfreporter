@@ -501,7 +501,7 @@ heavy_tfl <- rtf_table_style_with(tfl,
 )
 ```
 
-The S3 architecture is documented in [LEARNING.md](../LEARNING.md).
+The S3 architecture is documented in [`LEARNING.md`](https://github.com/ichirio/rtfreporter/blob/main/LEARNING.md) in the GitHub repository.
 
 ---
 

@@ -34,5 +34,5 @@ realign_count_pct(c("5 (33.3)", "12 (100.0)", "0 (0.0)",
 
 }
 \seealso{
-[format_count_pct()] for the numeric → string variant.
+[format_count_pct()] for the numeric -> string variant.
 }

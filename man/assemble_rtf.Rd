@@ -60,12 +60,13 @@ header (font / colour tables, page settings) is taken from the
 Page-number fields work correctly across the assembled document
 provided the header/footer text uses dynamic tokens:
 
-* `{AUTO_PAGE}` — per-page number rendered by the RTF viewer.
-* `{AUTO_TOTAL_PAGES}` — total page count rendered by the viewer
-  across all assembled files.
+* \code{\{AUTO_PAGE\}} -- per-page number rendered by the RTF viewer.
+* \code{\{AUTO_TOTAL_PAGES\}} -- total page count rendered by the
+  viewer across all assembled files.
 
-Static tokens (`{TOTAL_PAGES}`) reflect only the page count of the
-individual source file and will be wrong in the assembled output.
+Static tokens (\code{\{TOTAL_PAGES\}}) reflect only the page count
+of the individual source file and will be wrong in the assembled
+output.
 }
 \section{Cover page}{
 
@@ -109,9 +110,9 @@ calculated by the viewer when the file opens.
 `toc_page_numbering` controls how the TOC pages (and cover, if
 present) are numbered:
 
-* `"none"` (default) — Arabic numbering flows continuously from
-  the first page; if the source files use `{AUTO_PAGE}` the TOC
-  counts as page 1, 2, ...
+* `"none"` (default) -- Arabic numbering flows continuously from
+  the first page; if the source files use \code{\{AUTO_PAGE\}} the
+  TOC counts as page 1, 2, ...
 * `"roman"` — TOC pages use lowercase Roman numerals (`i`, `ii`,
   ...); body pages restart at `1`.
 * `"decimal"` — TOC pages use Arabic numerals starting at `1`;

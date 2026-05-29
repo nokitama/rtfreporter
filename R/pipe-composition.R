@@ -152,9 +152,10 @@ rtf_config <- function(doc, font_table = NULL, color_table = NULL, page = NULL,
 #' @param cell_padding_left_twips,cell_padding_right_twips,cell_valign Cell layout settings applied to bare `data.frame` elements. See [rtftable()] for details.
 #' @param titles `NULL` (default) or a list of length `length(tables)`. Each
 #'   element is a character vector -- one element per row of that page's
-#'   title.  Magic tokens `"{HALF_BLANK_ROW}"` and `"{BLANK_ROW}"` are
-#'   honoured.  Use `NULL` per element to fall back to the default
-#'   (`{HALF_BLANK_ROW}` -- one half-height blank row).
+#'   title.  Magic tokens \code{"\{HALF_BLANK_ROW\}"} and
+#'   \code{"\{BLANK_ROW\}"} are honoured.  Use `NULL` per element to
+#'   fall back to the default (\code{\{HALF_BLANK_ROW\}} -- one
+#'   half-height blank row).
 #' @param footnotes `NULL` (default) or a list of length `length(tables)`.
 #'   Same structure as `titles`; each element becomes one row in the
 #'   footnote block.  Magic tokens supported.
@@ -392,10 +393,11 @@ rtf_figures <- function(doc, figures,
 #' / [rtf_figures()].
 #'
 #' Each element is a character vector -- one element per row of the title
-#' block.  Magic tokens `"{HALF_BLANK_ROW}"` (half-height blank row) and
-#' `"{BLANK_ROW}"` (full-height blank row, equivalent to `""`) are honoured.
+#' block.  Magic tokens \code{"\{HALF_BLANK_ROW\}"} (half-height blank
+#' row) and \code{"\{BLANK_ROW\}"} (full-height blank row, equivalent
+#' to `""`) are honoured.
 #' Pass `NULL` for a single element to fall back to the default of one
-#' `{HALF_BLANK_ROW}` row above the content.
+#' \code{\{HALF_BLANK_ROW\}} row above the content.
 #'
 #' @param doc An rtf_document object.
 #' @param titles A list of length equal to the number of pages.

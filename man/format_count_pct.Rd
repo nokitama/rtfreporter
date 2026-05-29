@@ -19,9 +19,9 @@ one argument is length 1.}
 `"percent"` (`0..100`).}
 
 \item{nbsp}{Character used to replace the padding spaces.  Default
-`" "` (non-breaking space) so RTF / Word does not collapse
-leading whitespace.  Pass `" "` (regular space) for plain-text
-output.}
+is the non-breaking space (Unicode code point U+00A0) so that RTF
+and Word do not collapse leading whitespace.  Pass `" "` (regular
+space) for plain-text output.}
 }
 \value{
 Character vector the same length as `count` / `pct`.
@@ -29,7 +29,7 @@ Character vector the same length as `count` / `pct`.
 \description{
 Returns each pair `(count[i], pct[i])` as a padded `"n (xx.x)"`
 string suitable for monospaced clinical TFL alignment.  The four
-width branches match the convention in the rtfreporter Issue \#2
+width branches match the convention in the rtfreporter Issue #2
 reference helper.
 }
 \examples{

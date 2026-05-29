@@ -53,9 +53,10 @@ element must be one of:
 
 \item{titles}{`NULL` (default) or a list of length `length(tables)`. Each
 element is a character vector -- one element per row of that page's
-title.  Magic tokens `"{HALF_BLANK_ROW}"` and `"{BLANK_ROW}"` are
-honoured.  Use `NULL` per element to fall back to the default
-(`{HALF_BLANK_ROW}` -- one half-height blank row).}
+title.  Magic tokens \code{"\{HALF_BLANK_ROW\}"} and
+\code{"\{BLANK_ROW\}"} are honoured.  Use `NULL` per element to
+fall back to the default (\code{\{HALF_BLANK_ROW\}} -- one
+half-height blank row).}
 
 \item{footnotes}{`NULL` (default) or a list of length `length(tables)`.
 Same structure as `titles`; each element becomes one row in the

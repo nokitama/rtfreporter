@@ -16,7 +16,7 @@
 #        - output: same cells re-padded for equal width.  Non-matching
 #                  strings are passed through unchanged.
 #
-#  Width rules — every branch produces a 10-character string, and the
+#  Width rules -- every branch produces a 10-character string, and the
 #  closing parenthesis lands at column 10 so it lines up across rows:
 #
 #       count = NA or 0           ->  "%3d       "           (no paren)
@@ -33,7 +33,7 @@
 #'
 #' Returns each pair `(count[i], pct[i])` as a padded `"n (xx.x)"`
 #' string suitable for monospaced clinical TFL alignment.  The four
-#' width branches match the convention in the rtfreporter Issue \#2
+#' width branches match the convention in the rtfreporter Issue #2
 #' reference helper.
 #'
 #' @param count Integer / numeric vector of counts.  `NA` and `0`
@@ -45,9 +45,9 @@
 #' @param pct_unit Either `"fraction"` (default, `0..1`) or
 #'   `"percent"` (`0..100`).
 #' @param nbsp Character used to replace the padding spaces.  Default
-#'   `" "` (non-breaking space) so RTF / Word does not collapse
-#'   leading whitespace.  Pass `" "` (regular space) for plain-text
-#'   output.
+#'   is the non-breaking space (Unicode code point U+00A0) so that RTF
+#'   and Word do not collapse leading whitespace.  Pass `" "` (regular
+#'   space) for plain-text output.
 #'
 #' @return Character vector the same length as `count` / `pct`.
 #'
@@ -66,7 +66,7 @@
 #' @export
 format_count_pct <- function(count, pct,
                               pct_unit = c("fraction", "percent"),
-                              nbsp     = " ") {
+                              nbsp     = "\u00a0") {
   pct_unit <- match.arg(pct_unit)
   if (!is.numeric(count) || !is.numeric(pct)) {
     stop("`count` and `pct` must both be numeric.", call. = FALSE)
@@ -124,9 +124,9 @@ format_count_pct <- function(count, pct,
 #' realign_count_pct(c("5 (33.3)", "12 (100.0)", "0 (0.0)",
 #'                     "not a count", "1 (5.0)", "1 (50.0)"))
 #'
-#' @seealso [format_count_pct()] for the numeric → string variant.
+#' @seealso [format_count_pct()] for the numeric -> string variant.
 #' @export
-realign_count_pct <- function(x, nbsp = " ") {
+realign_count_pct <- function(x, nbsp = "\u00a0") {
   if (is.null(x) || length(x) == 0L) return(x)
   if (!is.character(x)) x <- as.character(x)
   out <- x
@@ -147,7 +147,7 @@ realign_count_pct <- function(x, nbsp = " ") {
 # Internal: apply realign_count_pct() to every character column of `df`
 # except the first column (which by clinical convention is the row label,
 # not a count cell).  Used by paginate(align_count_pct = TRUE).
-.realign_count_pct_df <- function(df, nbsp = " ") {
+.realign_count_pct_df <- function(df, nbsp = "\u00a0") {
   if (ncol(df) < 2L) return(df)
   df[, -1L] <- lapply(df[, -1L, drop = FALSE], function(col) {
     if (is.character(col)) realign_count_pct(col, nbsp = nbsp) else col
