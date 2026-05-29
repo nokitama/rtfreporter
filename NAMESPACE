@@ -16,6 +16,9 @@ S3method(print, rtf_document)
 export(rtftable)
 export(rtfplot)
 
+# gt integration (Phase A -- v0.0.38; see specs/gt-integration-spec.md)
+export(as_rtftable)
+
 # Header / footer constructors
 export(rtf_header)
 export(rtf_footer)

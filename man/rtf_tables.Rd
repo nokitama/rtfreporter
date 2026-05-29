@@ -31,7 +31,8 @@ rtf_tables(
   titles = NULL,
   footnotes = NULL,
   auto_section = FALSE,
-  section_label_align = "left"
+  section_label_align = "left",
+  read_gt = FALSE
 )
 }
 \arguments{
@@ -41,7 +42,12 @@ rtf_tables(
 element must be one of:
 - `data.frame`: simple table; the table-format arguments below apply.
 - `rtftable` object (from `rtftable()`): table with full formatting.
-- `rtfplot` object (from `rtfplot()`): embedded figure.}
+- `rtfplot` object (from `rtfplot()`): embedded figure.
+- `gt_tbl` object (from the gt package): converted via
+  `as.data.frame()` and treated like a `data.frame`. Pass
+  `read_gt = TRUE` (or a vector of tokens) to also pull through
+  gt's column labels, alignment, title/subtitle, and source notes.
+  See `read_gt` below.}
 
 \item{col_header, col_header_align, spanning_header, col_spec, border, blank_rows, read_attributes, style}{Per-table content settings applied to bare `data.frame` elements. See [rtftable()] for details.}
 
@@ -71,6 +77,22 @@ Default `FALSE`.}
 
 \item{section_label_align}{Alignment for the auto-appended section label row.
 One of `"left"` (default), `"center"`, or `"right"`.}
+
+\item{read_gt}{Controls extraction of metadata from any `gt_tbl`
+elements in `tables`.  Allowed values:
+* `FALSE` (default) -- treat `gt_tbl` items as bare data.frames
+  via `as.data.frame()`; ignore titles / labels / source notes.
+* `TRUE` -- pull through column labels, per-column alignment,
+  title + subtitle, and source notes (the four "shape-preserving"
+  attributes).
+* A character vector of tokens -- selective opt-in.  Supported
+  tokens: `"col_header"`, `"alignment"`, `"titles"`,
+  `"source_notes"`.  Future tokens (`"spanning"`, `"widths"`,
+  `"hidden"`, `"footnotes"`, `"stub"`) are recognised but warn
+  and are ignored until implemented.
+Explicit `rtf_tables()` / `rtf_titles()` / `rtf_footnotes()`
+values always override gt-extracted ones.  See [as_rtftable()]
+for the rtftable-level variant.}
 }
 \value{
 Modified rtf_document with appended contents.

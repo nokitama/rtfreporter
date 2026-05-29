@@ -146,6 +146,11 @@ rtf_config <- function(doc, font_table = NULL, color_table = NULL, page = NULL,
 #'   - `data.frame`: simple table; the table-format arguments below apply.
 #'   - `rtftable` object (from `rtftable()`): table with full formatting.
 #'   - `rtfplot` object (from `rtfplot()`): embedded figure.
+#'   - `gt_tbl` object (from the gt package): converted via
+#'     `as.data.frame()` and treated like a `data.frame`. Pass
+#'     `read_gt = TRUE` (or a vector of tokens) to also pull through
+#'     gt's column labels, alignment, title/subtitle, and source notes.
+#'     See `read_gt` below.
 #' @param col_rel_width,column_widths_twips,table_width_twips,table_width_pct_of_writable,table_width_pct,table_align Column-width and table-width settings applied to bare `data.frame` elements. See [rtftable()] for details.
 #' @param col_header,col_header_align,spanning_header,col_spec,border,blank_rows,read_attributes,style Per-table content settings applied to bare `data.frame` elements. See [rtftable()] for details.
 #' @param row_height_twips,row_height_exact,header_row_height_twips,blank_row_height_twips Row-height settings applied to bare `data.frame` elements. See [rtftable()] for details.
@@ -167,6 +172,21 @@ rtf_config <- function(doc, font_table = NULL, color_table = NULL, page = NULL,
 #'   Default `FALSE`.
 #' @param section_label_align Alignment for the auto-appended section label row.
 #'   One of `"left"` (default), `"center"`, or `"right"`.
+#' @param read_gt Controls extraction of metadata from any `gt_tbl`
+#'   elements in `tables`.  Allowed values:
+#'   * `FALSE` (default) -- treat `gt_tbl` items as bare data.frames
+#'     via `as.data.frame()`; ignore titles / labels / source notes.
+#'   * `TRUE` -- pull through column labels, per-column alignment,
+#'     title + subtitle, and source notes (the four "shape-preserving"
+#'     attributes).
+#'   * A character vector of tokens -- selective opt-in.  Supported
+#'     tokens: `"col_header"`, `"alignment"`, `"titles"`,
+#'     `"source_notes"`.  Future tokens (`"spanning"`, `"widths"`,
+#'     `"hidden"`, `"footnotes"`, `"stub"`) are recognised but warn
+#'     and are ignored until implemented.
+#'   Explicit `rtf_tables()` / `rtf_titles()` / `rtf_footnotes()`
+#'   values always override gt-extracted ones.  See [as_rtftable()]
+#'   for the rtftable-level variant.
 #'
 #' @return Modified rtf_document with appended contents.
 #'
@@ -211,7 +231,8 @@ rtf_tables <- function(doc, tables,
                         titles = NULL,
                         footnotes = NULL,
                         auto_section = FALSE,
-                        section_label_align = "left") {
+                        section_label_align = "left",
+                        read_gt = FALSE) {
   if (!inherits(doc, "rtf_document")) {
     stop("`doc` must be an rtf_document object", call. = FALSE)
   }
@@ -223,7 +244,8 @@ rtf_tables <- function(doc, tables,
   .is_content_item <- function(x) {
     is.data.frame(x) ||
       inherits(x, "rtftable") ||
-      inherits(x, "rtfplot")
+      inherits(x, "rtfplot") ||
+      .is_gt_tbl(x)
   }
 
   # Validate each page-level item: exactly one content per page.
@@ -231,21 +253,51 @@ rtf_tables <- function(doc, tables,
     item <- tables[[i]]
     if (!.is_content_item(item)) {
       stop("Item ", i,
-           " must be a data.frame, rtftable(), or rtfplot() object. ",
+           " must be a data.frame, rtftable(), rtfplot(), or gt_tbl object. ",
            "Each list element corresponds to exactly one page (one content).",
            call. = FALSE)
     }
   }
 
+  # -- gt_tbl handling: extract requested attributes (Phase A) ----------
+  # `read_gt` is normalised once; the resolved token vector is used both
+  # for per-table extraction and for the page-level title / source-note
+  # pull-through done after table promotion.
+  gt_tokens   <- .resolve_gt_tokens(read_gt)
+  gt_extracts <- vector("list", length(tables))
+  for (i in seq_along(tables)) {
+    if (.is_gt_tbl(tables[[i]])) {
+      gt_extracts[[i]] <- .gt_to_rtftable_kwargs(tables[[i]], tokens = gt_tokens)
+      # Replace the gt_tbl in `tables` with its rendered data.frame so
+      # the downstream loop treats it like a bare data.frame.
+      tables[[i]] <- gt_extracts[[i]]$data
+    }
+  }
+
   # Promote bare data.frames to rtftable using the supplied formatting args.
-  tables <- lapply(tables, function(item) {
+  # NB: iterate over indices (not items) so we can look up the matching
+  # gt_extracts slot per page.  We restore the original names() afterwards.
+  tables_names <- names(tables)
+  tables <- lapply(seq_along(tables), function(i) {
+    item <- tables[[i]]
     if (is.data.frame(item)) {
+      # If this slot originated from a gt_tbl, merge the extracted
+      # col_header / col_spec into the user-supplied arguments
+      # (user always wins).
+      gtx <- gt_extracts[[i]]
+      eff_col_header <- if (!is.null(col_header))    col_header
+                       else if (!is.null(gtx) && !is.null(gtx$col_header))
+                         gtx$col_header
+                       else NULL
+      eff_col_spec   <- if (!is.null(gtx) && !is.null(gtx$col_spec))
+                         .merge_col_spec(col_spec, gtx$col_spec)
+                       else col_spec
       .new_rtftable(
         data                        = item,
-        col_header                  = col_header,
+        col_header                  = eff_col_header,
         col_header_align            = col_header_align,
         spanning_header             = spanning_header,
-        col_spec                    = col_spec,
+        col_spec                    = eff_col_spec,
         border                      = border,
         blank_rows                  = blank_rows,
         read_attributes             = read_attributes,
@@ -268,6 +320,7 @@ rtf_tables <- function(doc, tables,
       item
     }
   })
+  names(tables) <- tables_names
 
   # When auto_section = TRUE, wrap each named item in an rtf_auto_section_item
   # sentinel so that .pipe_doc_to_r6_report() can build per-section headers.
@@ -303,6 +356,20 @@ rtf_tables <- function(doc, tables,
   }
   titles    <- .validate_parallel(titles,    length(tables), "titles")
   footnotes <- .validate_parallel(footnotes, length(tables), "footnotes")
+
+  # Pull through page-level GT-extracted blocks (title + subtitle ->
+  # titles[[i]]; source notes -> footnotes[[i]]) for any slot whose
+  # source was a gt_tbl.  User-supplied values always win.
+  for (i in seq_along(tables)) {
+    gtx <- gt_extracts[[i]]
+    if (is.null(gtx)) next
+    if (is.null(titles[[i]])    && !is.null(gtx$titles_block)) {
+      titles[[i]]    <- gtx$titles_block
+    }
+    if (is.null(footnotes[[i]]) && !is.null(gtx$footnotes_block)) {
+      footnotes[[i]] <- gtx$footnotes_block
+    }
+  }
 
   # Create copy and append
   doc_copy <- doc

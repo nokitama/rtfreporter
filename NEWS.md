@@ -1,5 +1,60 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.38
+
+### gt integration -- Phase A (preparing v0.1.0)
+
+This release lays down the first slice of the
+[gt](https://gt.rstudio.com) -> rtfreporter bridge described in
+`specs/gt-integration-spec.md`.  A `gt_tbl` can now be passed straight
+into `rtf_tables()`, and the package optionally reads four
+"shape-preserving" gt attributes:
+
+* **`col_header`** -- column labels from `gt_obj[["_boxhead"]]$column_label`
+* **`alignment`**  -- per-column alignment from
+  `gt_obj[["_boxhead"]]$column_align`
+* **`titles`**     -- title + subtitle from `gt_obj[["_heading"]]`,
+                      mapped to the page's `titles[[i]]` block
+* **`source_notes`** -- source notes from
+  `gt_obj[["_source_notes"]]`, mapped to the page's `footnotes[[i]]` block
+
+#### New API
+
+```r
+# Accept a gt_tbl directly; pull every Phase-A attribute through.
+doc |> rtf_tables(list(my_gt), read_gt = TRUE)
+
+# Selective opt-in.
+doc |> rtf_tables(list(my_gt), read_gt = c("col_header", "titles"))
+
+# Standalone wrapper (returns a plain rtftable).
+as_rtftable(my_gt, read = TRUE)
+```
+
+`read_gt = FALSE` (the new default) keeps every gt_tbl item treated as
+a bare data.frame via `as.data.frame()` -- backward-compatible with
+v0.0.37 code that already paginated gt's *rendered* table.
+
+#### Precedence
+
+Explicit `rtf_tables()` / `rtf_titles()` / `rtf_footnotes()` arguments
+always beat the gt-extracted values.  Per-column `col_spec` entries
+are deep-merged: a user-supplied `align = "left"` for column 1
+overrides gt's column 1 alignment but leaves gt's alignment in
+place for columns the user did not mention.
+
+#### Forward compatibility
+
+Tokens for Phase B (`"spanning"`, `"widths"`, `"hidden"`) and Phase C
+(`"footnotes"`, `"stub"`) are recognised today but currently emit a
+"not yet implemented" warning and are silently dropped.  Code written
+against the full token list will Just Work once those phases land.
+
+`gt` stays in `Suggests` -- the bridge guards with
+`requireNamespace("gt")` and raises a clear error if a `gt_tbl` is fed
+in without gt installed.  The 18 new tests in
+`tests/testthat/test-gt-adapter.R` skip cleanly when gt is absent.
+
 ## rtfreporter 0.0.37
 
 ### Bug fix: phantom rule under header on assembled file's first page
