@@ -1,5 +1,38 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.32
+
+### Bug fix: `{PAGE}` is now a STATIC integer (was incorrectly dynamic)
+
+Previously `{PAGE}` was substituted with RTF's `\chpgn` dynamic field —
+identical to `{AUTO_PAGE}`.  This contradicted the documented spec, which
+states that `{PAGE}` should be a **static** integer baked in at render
+time (the section's first-page number).  Effectively `{PAGE}` and
+`{AUTO_PAGE}` produced indistinguishable output, defeating the purpose of
+having two separate tokens.
+
+`generate_rtfreport()` now substitutes `{PAGE}` with the literal
+first-page number of the section being rendered.  Combined with the
+already-static `{TOTAL_PAGES}`, the documented `Page {PAGE} of
+{TOTAL_PAGES}` idiom now correctly emits e.g. `Page 1 of 3` as
+literal text.
+
+Token semantics — recap:
+
+| Token                 | Kind    | Resolves to                       |
+|-----------------------|---------|-----------------------------------|
+| `{AUTO_PAGE}`         | dynamic | `\chpgn` (per-page, viewer)       |
+| `{AUTO_TOTAL_PAGES}`  | dynamic | NUMPAGES field (viewer)           |
+| `{SECTION_PAGES}`     | dynamic | SECTIONPAGES field (viewer)       |
+| `{PAGE}`              | static  | section's first-page integer      |
+| `{TOTAL_PAGES}`       | static  | document total page integer       |
+
+A new `tests/testthat/test-page-tokens.R` file locks these semantics
+with 7 dedicated tests.  `output/gen_assemble_demo.R` was rewritten to
+produce two independent demo sets (an AUTO-only set and a STATIC-only
+set), each with its own TOC/cover/PDF — reflecting realistic deployment
+where a deliverable uses one numbering style throughout.
+
 ## rtfreporter 0.0.31
 
 ### `assemble_rtf()` — PDF outline / bookmark panel support

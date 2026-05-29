@@ -235,20 +235,31 @@
 # Replace page tokens, then RTF-escape.
 #
 # Token reference (after escaping, braces appear as \{ and \}):
-#   \{PAGE\} / \{AUTO_PAGE\}         -> \chpgn  (RTF dynamic per-page number)
-#   \{AUTO_TOTAL_PAGES\}             -> RTF NUMPAGES field  (dynamic, viewer-rendered)
-#   \{SECTION_PAGES\}                -> RTF SECTIONPAGES field (dynamic, viewer-rendered)
-#   \{TOTAL_PAGES\}                  -> static integer at render time (total pages in doc)
+#   \{AUTO_PAGE\}                    -> \chpgn  (RTF DYNAMIC per-page number;
+#                                        the viewer renders the actual page
+#                                        the user is looking at)
+#   \{AUTO_TOTAL_PAGES\}             -> RTF NUMPAGES field (DYNAMIC total,
+#                                        recomputed across the document)
+#   \{SECTION_PAGES\}                -> RTF SECTIONPAGES field (DYNAMIC,
+#                                        current section's page count)
+#   \{PAGE\}                         -> STATIC integer at render time
+#                                        (the section's first-page number)
+#   \{TOTAL_PAGES\}                  -> STATIC integer at render time
+#                                        (document total page count)
 #
-# NOTE: current_page is retained for signature compatibility but is no longer used.
+# The static tokens freeze at render time and stay verbatim through
+# downstream tooling (notably assemble_rtf, which never rewrites
+# numbers in the source files).  The AUTO_* tokens are recomputed
+# every time the RTF viewer opens the file, so they pick up the
+# correct numbers even after `assemble_rtf()` has concatenated
+# multiple deliverables.
 .render_tokens <- function(x, current_page = NULL, total_pages = NULL) {
   if (is.null(x)) return("")
   # Escape first; after escaping, { becomes \{ and } becomes \}, so
   # the token {PAGE} appears as \{PAGE\} and can be substituted safely.
   out <- .rtf_escape(x)
 
-  # Dynamic tokens -- rendered per-page by the RTF viewer.
-  out <- gsub("\\{PAGE\\}",      "\\chpgn ", out, fixed = TRUE)
+  # Dynamic per-page page number: viewer-rendered.
   out <- gsub("\\{AUTO_PAGE\\}", "\\chpgn ", out, fixed = TRUE)
 
   # Dynamic total-pages: RTF NUMPAGES field with static fallback count.
@@ -259,6 +270,12 @@
 
   # Dynamic section-pages: RTF SECTIONPAGES field.
   out <- gsub("\\{SECTION_PAGES\\}", cmds$fields$section_pages, out, fixed = TRUE)
+
+  # Static per-section page number: integer baked in at render time.
+  # `current_page` is the first-page number of the section being rendered.
+  if (!is.null(current_page)) {
+    out <- gsub("\\{PAGE\\}", as.character(current_page), out, fixed = TRUE)
+  }
 
   # Static total-pages: integer resolved at render time.
   if (!is.null(total_pages)) {

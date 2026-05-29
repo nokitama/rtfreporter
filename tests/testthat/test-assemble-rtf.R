@@ -413,37 +413,35 @@ test_that("toc = NULL + cover = NULL is byte-identical to the legacy behaviour",
   f
 }
 
-test_that("static {TOTAL_PAGES} bakes into source AS-IS and survives assembly", {
-  # `{PAGE}` and `{TOTAL_PAGES}` resolve as:
-  #   {PAGE}        -> \chpgn          (DYNAMIC, like AUTO_PAGE)
-  #   {TOTAL_PAGES} -> integer literal (STATIC, baked in at render time)
-  # So per-file totals freeze at the source file's own page count and
-  # are wrong (but stable) after assembly.  This is the documented
-  # "static tokens reflect only the source file" behaviour.
+test_that("static {PAGE}/{TOTAL_PAGES} both bake into source AS-IS and survive assembly", {
+  # As of v0.0.32, both {PAGE} and {TOTAL_PAGES} are STATIC integers
+  # baked in at render time.  Per-file totals freeze at the source
+  # file's own page count and are wrong (but stable) after assembly.
+  # This is the documented "static tokens reflect only the source file"
+  # behaviour.
   f1 <- .write_static_pageno_rtf("FileA", n_pages = 2L)
   f2 <- .write_static_pageno_rtf("FileB", n_pages = 3L)
   on.exit(unlink(c(f1, f2)), add = TRUE)
 
   txt1 <- paste(readLines(f1, warn = FALSE), collapse = "\n")
   txt2 <- paste(readLines(f2, warn = FALSE), collapse = "\n")
-  # Each source file has its own TOTAL_PAGES baked into the header text.
-  expect_match(txt1, "of 2")
-  expect_match(txt2, "of 3")
-  # And carries \chpgn for the dynamic per-page number.
-  expect_match(txt1, "\\\\chpgn")
+  # Each source file has BOTH the section's first-page number AND the
+  # document total baked in as literal integers.
+  expect_match(txt1, "Page 1 of 2")
+  expect_match(txt2, "Page 1 of 3")
+  # No dynamic field codes for these STATIC tokens.
+  expect_false(grepl("\\\\chpgn", txt1))
 
   out <- tempfile(fileext = ".rtf"); on.exit(unlink(out), add = TRUE)
   assemble_rtf(c(f1, f2), out, overwrite = TRUE)
   joined <- paste(readLines(out, warn = FALSE), collapse = "\n")
 
-  # Both per-file static totals stay verbatim in the assembled output.
-  expect_match(joined, "of 2")
-  expect_match(joined, "of 3")
-  # The dynamic \chpgn is also preserved (viewer recomputes per page).
-  expect_match(joined, "\\\\chpgn")
+  # Both per-file static literals stay verbatim in the assembled output.
+  expect_match(joined, "Page 1 of 2")
+  expect_match(joined, "Page 1 of 3")
 })
 
-test_that("static {TOTAL_PAGES} numbers survive when cover / toc are added", {
+test_that("static {PAGE}/{TOTAL_PAGES} numbers survive when cover / toc are added", {
   f1 <- .write_static_pageno_rtf("X", n_pages = 2L)
   f2 <- .write_static_pageno_rtf("Y", n_pages = 4L)
   on.exit(unlink(c(f1, f2)), add = TRUE)
@@ -456,11 +454,11 @@ test_that("static {TOTAL_PAGES} numbers survive when cover / toc are added", {
                overwrite = TRUE)
   joined <- paste(readLines(out, warn = FALSE), collapse = "\n")
 
-  # The static "of 2" / "of 4" baked into the source files is still
-  # verbatim in the assembled output — even though we added a cover
-  # page, a TOC, and Roman page numbering on top.
-  expect_match(joined, "of 2")
-  expect_match(joined, "of 4")
+  # The static "Page 1 of 2" / "Page 1 of 4" baked into the source
+  # files is still verbatim in the assembled output — even though we
+  # added a cover page, a TOC, and Roman page numbering on top.
+  expect_match(joined, "Page 1 of 2")
+  expect_match(joined, "Page 1 of 4")
 })
 
 # ──────── PDF outline markers (\outlinelevel) for the bookmark panel ──────

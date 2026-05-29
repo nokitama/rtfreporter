@@ -1,10 +1,20 @@
 ## ============================================================================
-##  Generate a realistic multi-page TFL deliverable using assemble_rtf().
-##  Includes:
-##    * 3 source RTFs, each with multiple pages
-##    * Both static {TOTAL_PAGES} and dynamic {AUTO_PAGE} pageno styles
-##    * Final assembled file with cover + multi-level TOC + Roman pages
-##    * Headless PDF conversion via LibreOffice (if soffice.exe is available)
+##  Realistic multi-page TFL deliverable demos using assemble_rtf().
+##
+##  Two separate runs to expose how the two header-token styles behave
+##  under assembly:
+##
+##    AUTO  set:  every source RTF uses {AUTO_PAGE} / {AUTO_TOTAL_PAGES}
+##                -> dynamic fields; numbers RECOMPUTE across the
+##                   assembled document when opened in Word / Reader.
+##
+##    STATIC set: every source RTF uses {PAGE} / {TOTAL_PAGES}
+##                -> integer literals baked in at render time;
+##                   numbers DO NOT recompute and reflect only the
+##                   source file's own page count.
+##
+##  PDF conversion via headless LibreOffice is run on each assembled
+##  RTF when soffice.exe is on the standard install path.
 ## ============================================================================
 
 suppressMessages(suppressWarnings(devtools::load_all(quiet = TRUE)))
@@ -12,20 +22,12 @@ suppressMessages(suppressWarnings(devtools::load_all(quiet = TRUE)))
 out_dir <- normalizePath("output/demo", mustWork = FALSE)
 if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
 
-## ── Headers / footers (mix the two pageno styles deliberately) ────────────
-hdr_auto <- rtf_header(rows = list(
-  c(l = "Protocol XYZ-001", r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
-  c(l = "Confidential",     r = "ACME Pharma")
-))
-hdr_static <- rtf_header(rows = list(
-  c(l = "Protocol XYZ-001", r = "Page {PAGE} of {TOTAL_PAGES}"),
-  c(l = "Confidential",     r = "ACME Pharma")
-))
+## ──────────────────────────────────────────────────────────────────────────
+##  Shared building blocks
+## ──────────────────────────────────────────────────────────────────────────
+
 ftr <- rtf_footer(c(c = "Source: ADaM ADSL"))
 
-## ──────────────────────────────────────────────────────────────────────────
-##  Source 1: Demographics by Treatment (3 pages, AUTO pageno)
-## ──────────────────────────────────────────────────────────────────────────
 mk_demog <- function(label) {
   data.frame(
     Characteristic = c(
@@ -36,21 +38,46 @@ mk_demog <- function(label) {
       "    Asian", "    Other",
       "  BMI, mean (SD)"
     ),
-    Placebo  = c("", "52.3 (12.1)", "51 (44, 60)",   "21 - 79",
-                  "", "16 (53.3)", "14 (46.7)",
-                  "", "24 (80.0)", "3 (10.0)", "2 ( 6.7)", "1 ( 3.3)",
-                  "27.4 (4.1)"),
-    Active   = c("", "54.1 (11.7)", "53 (45, 62)",   "24 - 78",
-                  "", "14 (46.7)", "16 (53.3)",
-                  "", "23 (76.7)", "4 (13.3)", "2 ( 6.7)", "1 ( 3.3)",
-                  "27.8 (3.9)"),
-    Total    = c("", "53.2 (11.9)", "52 (45, 61)",   "21 - 79",
-                  "", "30 (50.0)", "30 (50.0)",
-                  "", "47 (78.3)", "7 (11.7)", "4 ( 6.7)", "2 ( 3.3)",
-                  "27.6 (4.0)"),
+    Placebo = c("", "52.3 (12.1)", "51 (44, 60)",   "21 - 79",
+                "", "16 (53.3)", "14 (46.7)",
+                "", "24 (80.0)", "3 (10.0)", "2 ( 6.7)", "1 ( 3.3)",
+                "27.4 (4.1)"),
+    Active  = c("", "54.1 (11.7)", "53 (45, 62)",   "24 - 78",
+                "", "14 (46.7)", "16 (53.3)",
+                "", "23 (76.7)", "4 (13.3)", "2 ( 6.7)", "1 ( 3.3)",
+                "27.8 (3.9)"),
+    Total   = c("", "53.2 (11.9)", "52 (45, 61)",   "21 - 79",
+                "", "30 (50.0)", "30 (50.0)",
+                "", "47 (78.3)", "7 (11.7)", "4 ( 6.7)", "2 ( 3.3)",
+                "27.6 (4.0)"),
     stringsAsFactors = FALSE
   )
 }
+mk_ae <- function(rows) {
+  data.frame(
+    SOC_PT    = rows$pt,
+    Placebo_n = rows$pbo,
+    Active_n  = rows$act,
+    Total_n   = rows$tot,
+    stringsAsFactors = FALSE
+  )
+}
+mk_listing <- function(idx_start, n = 12) {
+  ids <- sprintf("XYZ-%03d", seq(idx_start, idx_start + n - 1L))
+  data.frame(
+    USUBJID = ids,
+    Status  = sample(c("Completed", "Withdrawn", "Discontinued"),
+                      n, replace = TRUE, prob = c(0.7, 0.2, 0.1)),
+    Reason  = sample(c("", "Adverse event", "Lost to follow-up",
+                       "Withdrew consent", "Protocol deviation"),
+                      n, replace = TRUE,
+                      prob = c(0.6, 0.1, 0.1, 0.1, 0.1)),
+    EndDate = format(seq.Date(as.Date("2026-01-15"), by = "day",
+                                length.out = n), "%Y-%m-%d"),
+    stringsAsFactors = FALSE
+  )
+}
+
 demo_pages <- list(
   mk_demog("Overall Population"),
   mk_demog("By Age <= 65 years"),
@@ -64,28 +91,12 @@ titles_demog <- list(
   c("Table 14.1.1 (continued)", "Demographics and Baseline Characteristics",
     "Safety Population - Age >  65")
 )
-doc1 <- rtf_document() |>
-  rtf_section(page = 1, secinfo = list(header = hdr_auto, footer = ftr)) |>
-  rtf_tables(demo_pages, titles = titles_demog,
-             footnotes = list(
-               "Percentages based on column N.  BMI = Body Mass Index.",
-               "Subjects aged 65 or younger at randomisation.",
-               "Subjects aged over 65 at randomisation."))
-f1 <- file.path(out_dir, "t14_1_1_demographics.rtf")
-generate_rtfreport(doc1, f1, overwrite = TRUE)
+fnotes_demog <- list(
+  "Percentages based on column N.  BMI = Body Mass Index.",
+  "Subjects aged 65 or younger at randomisation.",
+  "Subjects aged over 65 at randomisation."
+)
 
-## ──────────────────────────────────────────────────────────────────────────
-##  Source 2: Adverse Events (4 pages by SOC, AUTO pageno)
-## ──────────────────────────────────────────────────────────────────────────
-mk_ae <- function(rows) {
-  data.frame(
-    SOC_PT     = rows$pt,
-    Placebo_n  = rows$pbo,
-    Active_n   = rows$act,
-    Total_n    = rows$tot,
-    stringsAsFactors = FALSE
-  )
-}
 ae_pages <- list(
   mk_ae(list(
     pt  = c("ALL ADVERSE EVENTS",
@@ -124,111 +135,154 @@ titles_ae <- list(
   c("Table 14.2.4", "Adverse Events by SOC and PT (Investigations)",
     "Safety Population")
 )
-ae_footnote <- list(rep("Percentages based on safety population N=30 per arm.", 4))[[1]]
-doc2 <- rtf_document() |>
-  rtf_section(page = 1, secinfo = list(header = hdr_auto, footer = ftr)) |>
-  rtf_tables(ae_pages, titles = titles_ae,
-             footnotes = lapply(ae_footnote, identity))
-f2 <- file.path(out_dir, "t14_2_x_ae.rtf")
-generate_rtfreport(doc2, f2, overwrite = TRUE)
 
-## ──────────────────────────────────────────────────────────────────────────
-##  Source 3: Subject Disposition Listing (3 pages, STATIC pageno -- so we
-##  also exercise the {PAGE} / {TOTAL_PAGES} (static) code path).
-## ──────────────────────────────────────────────────────────────────────────
-mk_listing <- function(idx_start, n = 12) {
-  ids <- sprintf("XYZ-%03d", seq(idx_start, idx_start + n - 1L))
-  data.frame(
-    USUBJID  = ids,
-    Status   = sample(c("Completed", "Withdrawn", "Discontinued"),
-                       n, replace = TRUE, prob = c(0.7, 0.2, 0.1)),
-    Reason   = sample(c("", "Adverse event", "Lost to follow-up",
-                        "Withdrew consent", "Protocol deviation"),
-                       n, replace = TRUE,
-                       prob = c(0.6, 0.1, 0.1, 0.1, 0.1)),
-    EndDate  = format(seq.Date(as.Date("2026-01-15"), by = "day",
-                                length.out = n), "%Y-%m-%d"),
-    stringsAsFactors = FALSE
-  )
-}
 set.seed(42)
-list_pages <- list(mk_listing(1L), mk_listing(13L), mk_listing(25L))
-titles_list <- list(
+listing_pages <- list(mk_listing(1L), mk_listing(13L), mk_listing(25L))
+titles_listing <- list(
   c("Listing 16.1", "Subject Disposition", "All Randomized - Page 1 of 3"),
   c("Listing 16.1 (continued)", "Subject Disposition",
     "All Randomized - Page 2 of 3"),
   c("Listing 16.1 (continued)", "Subject Disposition",
     "All Randomized - Page 3 of 3")
 )
-doc3 <- rtf_document() |>
-  rtf_section(page = 1, secinfo = list(header = hdr_static, footer = ftr)) |>
-  rtf_tables(list_pages, titles = titles_list)
-f3 <- file.path(out_dir, "l16_1_disposition.rtf")
-generate_rtfreport(doc3, f3, overwrite = TRUE)
 
 ## ──────────────────────────────────────────────────────────────────────────
-##  Assemble: cover + multi-level TOC + Roman pages
+##  Build a single deliverable given a header style + filename
 ## ──────────────────────────────────────────────────────────────────────────
-final <- file.path(out_dir, "assembled_full_deliverable.rtf")
+build_deliverable <- function(header, pages, titles, footnotes = NULL,
+                              path) {
+  doc <- rtf_document() |>
+    rtf_section(page = 1, secinfo = list(header = header, footer = ftr)) |>
+    rtf_tables(pages, titles = titles, footnotes = footnotes)
+  generate_rtfreport(doc, path, overwrite = TRUE)
+  path
+}
+
+convert_to_pdf <- function(rtf) {
+  soffice <- Filter(file.exists, c(
+    "C:/Program Files/LibreOffice/program/soffice.exe",
+    "C:/Program Files (x86)/LibreOffice/program/soffice.exe"
+  ))[1L]
+  if (is.na(soffice) || !length(soffice)) {
+    cat("  (LibreOffice not found; PDF skipped)\n")
+    return(invisible(NA_character_))
+  }
+  pdf_path <- sub("\\.rtf$", ".pdf", rtf)
+  if (file.exists(pdf_path)) unlink(pdf_path)
+  system2(soffice,
+          args = c("--headless", "--convert-to",
+                   "pdf:writer_pdf_Export",
+                   "--outdir", shQuote(dirname(rtf)), shQuote(rtf)),
+          stdout = FALSE, stderr = FALSE)
+  if (file.exists(pdf_path)) {
+    cat(sprintf("  -> %s  (%d KB)\n", basename(pdf_path),
+                round(file.info(pdf_path)$size / 1024)))
+    pdf_path
+  } else {
+    cat("  (PDF conversion failed)\n"); invisible(NA_character_)
+  }
+}
+
+## ──────────────────────────────────────────────────────────────────────────
+##  RUN 1 — AUTO set (dynamic page numbers)
+## ──────────────────────────────────────────────────────────────────────────
+
+cat("\n=== RUN 1: AUTO (dynamic page numbers) ===\n\n")
+
+hdr_auto <- rtf_header(rows = list(
+  c(l = "Protocol XYZ-001", r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
+  c(l = "Confidential",     r = "ACME Pharma")
+))
+
+f1_auto <- build_deliverable(hdr_auto, demo_pages, titles_demog, fnotes_demog,
+                              file.path(out_dir, "auto_t14_1_1_demographics.rtf"))
+f2_auto <- build_deliverable(hdr_auto, ae_pages,    titles_ae,
+                              path = file.path(out_dir, "auto_t14_2_x_ae.rtf"))
+f3_auto <- build_deliverable(hdr_auto, listing_pages, titles_listing,
+                              path = file.path(out_dir, "auto_l16_1_disposition.rtf"))
+
+final_auto <- file.path(out_dir, "auto_assembled_full.rtf")
 assemble_rtf(
-  input_files = c(f1, f2, f3),
-  output_file = final,
+  input_files = c(f1_auto, f2_auto, f3_auto),
+  output_file = final_auto,
   cover = list(
     title    = "Study XYZ-001",
-    subtitle = "Final Statistical Report - TFL Package",
+    subtitle = "Final Statistical Report - AUTO Page Numbers",
     date     = format(Sys.Date(), "%d %B %Y"),
-    version  = "v1.0",
+    version  = "v1.0 (AUTO demo)",
     meta     = c("Confidential - For Sponsor Use Only",
-                 "Prepared by ACME Pharma Biostatistics")
+                 "Page numbers recompute across the document")
   ),
   toc = list(
-    toc_heading("EFFICACY ANALYSES",          level = 1),
+    toc_heading("EFFICACY ANALYSES", level = 1),
     toc_entry  ("Table 14.1.1 Demographics and Baseline Characteristics",
-                file = f1, level = 2),
-    toc_heading("SAFETY ANALYSES",            level = 1),
+                file = f1_auto, level = 2),
+    toc_heading("SAFETY ANALYSES",   level = 1),
     toc_entry  ("Table 14.2.1 Adverse Events Summary",
-                file = f2, level = 2),
-    toc_heading("LISTINGS",                   level = 1),
+                file = f2_auto, level = 2),
+    toc_heading("LISTINGS",          level = 1),
     toc_entry  ("Listing 16.1 Subject Disposition",
-                file = f3, level = 2)
+                file = f3_auto, level = 2)
   ),
   toc_title          = "Table of Contents",
   toc_leader         = "dot",
   toc_page_numbering = "roman",
   overwrite          = TRUE
 )
+cat("RTF:\n  ", final_auto, "  (",
+    file.info(final_auto)$size, " bytes)\n", sep = "")
+cat("PDF:\n")
+convert_to_pdf(final_auto)
 
 ## ──────────────────────────────────────────────────────────────────────────
-##  Headless PDF conversion via LibreOffice (if available).
+##  RUN 2 — STATIC set (frozen integer page numbers)
 ## ──────────────────────────────────────────────────────────────────────────
-soffice_candidates <- c(
-  "C:/Program Files/LibreOffice/program/soffice.exe",
-  "C:/Program Files (x86)/LibreOffice/program/soffice.exe"
+
+cat("\n=== RUN 2: STATIC (frozen integer page numbers) ===\n\n")
+
+hdr_static <- rtf_header(rows = list(
+  c(l = "Protocol XYZ-001", r = "Page {PAGE} of {TOTAL_PAGES}"),
+  c(l = "Confidential",     r = "ACME Pharma")
+))
+
+f1_static <- build_deliverable(hdr_static, demo_pages, titles_demog, fnotes_demog,
+                                file.path(out_dir, "static_t14_1_1_demographics.rtf"))
+f2_static <- build_deliverable(hdr_static, ae_pages, titles_ae,
+                                path = file.path(out_dir, "static_t14_2_x_ae.rtf"))
+f3_static <- build_deliverable(hdr_static, listing_pages, titles_listing,
+                                path = file.path(out_dir, "static_l16_1_disposition.rtf"))
+
+final_static <- file.path(out_dir, "static_assembled_full.rtf")
+assemble_rtf(
+  input_files = c(f1_static, f2_static, f3_static),
+  output_file = final_static,
+  cover = list(
+    title    = "Study XYZ-001",
+    subtitle = "Final Statistical Report - STATIC Page Numbers",
+    date     = format(Sys.Date(), "%d %B %Y"),
+    version  = "v1.0 (STATIC demo)",
+    meta     = c("Confidential - For Sponsor Use Only",
+                 "Page numbers reflect each source file only")
+  ),
+  toc = list(
+    toc_heading("EFFICACY ANALYSES", level = 1),
+    toc_entry  ("Table 14.1.1 Demographics and Baseline Characteristics",
+                file = f1_static, level = 2),
+    toc_heading("SAFETY ANALYSES",   level = 1),
+    toc_entry  ("Table 14.2.1 Adverse Events Summary",
+                file = f2_static, level = 2),
+    toc_heading("LISTINGS",          level = 1),
+    toc_entry  ("Listing 16.1 Subject Disposition",
+                file = f3_static, level = 2)
+  ),
+  toc_title          = "Table of Contents",
+  toc_leader         = "dot",
+  toc_page_numbering = "roman",
+  overwrite          = TRUE
 )
-soffice <- Filter(file.exists, soffice_candidates)[1L]
-final_pdf <- sub("\\.rtf$", ".pdf", final)
-
-if (length(soffice) && !is.na(soffice)) {
-  cat("\nConverting to PDF via LibreOffice...\n")
-  # Delete stale output so we know if conversion truly ran
-  if (file.exists(final_pdf)) unlink(final_pdf)
-  res <- system2(
-    soffice,
-    args = c("--headless", "--convert-to", "pdf:writer_pdf_Export",
-             "--outdir", shQuote(out_dir), shQuote(final)),
-    stdout = TRUE, stderr = TRUE
-  )
-  if (file.exists(final_pdf)) {
-    cat("PDF generated:\n  ", final_pdf, "\n",
-        sprintf("  (%d bytes)\n", file.info(final_pdf)$size), sep = "")
-  } else {
-    cat("PDF conversion FAILED.  Tool output:\n")
-    cat(paste(res, collapse = "\n"), "\n")
-  }
-} else {
-  cat("\nLibreOffice not found; skipping PDF conversion.\n")
-}
+cat("RTF:\n  ", final_static, "  (",
+    file.info(final_static)$size, " bytes)\n", sep = "")
+cat("PDF:\n")
+convert_to_pdf(final_static)
 
 cat("\n===\nFolder:", out_dir, "\n")
-cat("Final assembled RTF:\n  ", final,
-    sprintf("  (%d bytes)\n", file.info(final)$size), sep = "")
