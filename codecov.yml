@@ -7,13 +7,15 @@ comment: false
 # patch-level threshold.
 #
 # `range` controls the colour gradient on the README badge:
-#   * <= 80%  -> red -> orange
-#   *  80-95% -> yellow -> green
-#   * >= 95%  -> bright green
-# Tighter than Codecov's default `70...100` so that "90%+" actually
-# reads as green on the badge.
+#   * <= 70%  -> red
+#   *  70-90% -> red -> yellow -> green gradient
+#   * >= 90%  -> pure green
+# The high end is matched to our long-term target so anything at
+# "release-ready" coverage shows pure green on the badge, not the
+# `#97ca00` yellow-green that Codecov hands out for partial-gradient
+# values.
 coverage:
-  range: "80...95"
+  range: "70...90"
   status:
     project:
       default:
