@@ -259,6 +259,7 @@ articles:
     contents:
       - rtfreporter-quickstart
       - rtfreporter-pipes
+      - gt-integration
 
   - title: Worked clinical examples
     desc: End-to-end recipes for typical clinical TFL deliverables.
