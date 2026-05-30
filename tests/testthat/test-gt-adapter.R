@@ -10,10 +10,12 @@ test_that(".resolve_gt_tokens(FALSE / NULL) -> empty", {
   expect_identical(rtfreporter:::.resolve_gt_tokens(NULL),  character(0))
 })
 
-test_that(".resolve_gt_tokens(TRUE) -> Phase-A + Phase-B tokens", {
+test_that(".resolve_gt_tokens(TRUE) -> every implemented token", {
   tk <- rtfreporter:::.resolve_gt_tokens(TRUE)
+  # Phase A + Phase B + Phase C = 9 tokens (v0.0.40 ships all of them).
   expect_setequal(tk, c("col_header", "alignment", "titles", "source_notes",
-                        "spanning", "widths", "hidden"))
+                        "spanning", "widths", "hidden",
+                        "footnotes", "stub"))
 })
 
 test_that(".resolve_gt_tokens accepts a subset", {
@@ -21,22 +23,16 @@ test_that(".resolve_gt_tokens accepts a subset", {
   expect_setequal(tk, c("col_header", "titles"))
 })
 
-test_that(".resolve_gt_tokens warns on Phase-C tokens and silently drops them", {
-  # Phase B tokens are NOW implemented (v0.0.39); only Phase C remains
-  # in the warn-and-drop bucket.
-  expect_warning(
-    tk <- rtfreporter:::.resolve_gt_tokens(c("col_header", "footnotes",
-                                              "stub")),
-    "does not yet implement"
-  )
-  expect_setequal(tk, "col_header")
-})
-
-test_that(".resolve_gt_tokens accepts the Phase-B tokens with no warning", {
-  expect_silent(
-    tk <- rtfreporter:::.resolve_gt_tokens(c("spanning", "widths", "hidden"))
-  )
-  expect_setequal(tk, c("spanning", "widths", "hidden"))
+test_that(".resolve_gt_tokens accepts each token group without warnings", {
+  # All 9 tokens are implemented in v0.0.40 -- none of them should warn.
+  for (grp in list(
+    c("col_header", "alignment", "titles", "source_notes"),  # Phase A
+    c("spanning", "widths", "hidden"),                       # Phase B
+    c("footnotes", "stub")                                   # Phase C
+  )) {
+    expect_silent(tk <- rtfreporter:::.resolve_gt_tokens(grp))
+    expect_setequal(tk, grp)
+  }
 })
 
 test_that(".resolve_gt_tokens errors on unknown tokens", {
@@ -536,4 +532,208 @@ test_that("rtf_tables explicit column_widths_twips beats gt's widths", {
     rtf_tables(list(g), read_gt = "widths",
                column_widths_twips = c(5000L, 6000L))
   expect_identical(doc$contents[[1L]]$column_widths_twips, c(5000L, 6000L))
+})
+
+# ============================================================================
+# Phase C: footnotes, stub
+# ============================================================================
+
+# ──────── .extract_footnote_texts ─────────────────────────────────────────
+
+test_that(".extract_footnote_texts returns NULL when no footnotes are set", {
+  skip_if_not_installed("gt")
+  g <- gt::gt(head(mtcars, 1)[, "mpg", drop = FALSE])
+  expect_null(rtfreporter:::.extract_footnote_texts(g))
+})
+
+test_that(".extract_footnote_texts collects every gt footnote anchor", {
+  skip_if_not_installed("gt")
+  g <- gt::gt(head(mtcars, 2)[, c("mpg", "cyl")]) |>
+    gt::tab_footnote(footnote = "Note A",
+                     locations = gt::cells_column_labels(columns = mpg)) |>
+    gt::tab_footnote(footnote = gt::md("**Note B**"),
+                     locations = gt::cells_body(columns = cyl, rows = 1)) |>
+    gt::tab_footnote(footnote = "Standalone note")
+  out <- rtfreporter:::.extract_footnote_texts(g)
+  expect_length(out, 3L)
+  expect_true("Note A" %in% out)
+  expect_true("**Note B**" %in% out)         # markdown flattened to raw
+  expect_true("Standalone note" %in% out)
+})
+
+# ──────── .extract_stub_info ──────────────────────────────────────────────
+
+test_that(".extract_stub_info returns NULL when no stub features are used", {
+  skip_if_not_installed("gt")
+  g <- gt::gt(head(mtcars, 2)[, c("mpg", "cyl")])
+  expect_null(rtfreporter:::.extract_stub_info(g))
+})
+
+test_that(".extract_stub_info captures stubhead label + groupname + stub vars", {
+  skip_if_not_installed("gt")
+  df <- data.frame(
+    grp = c("A","A","B","B","C"),
+    sub = c("x","y","x","y","x"),
+    val = c(10,20,30,40,50)
+  )
+  g <- gt::gt(df, groupname_col = "grp", rowname_col = "sub") |>
+    gt::tab_stubhead(label = "Category")
+  info <- rtfreporter:::.extract_stub_info(g)
+  expect_identical(info$stubhead_label, "Category")
+  expect_identical(info$groupname_var,  "grp")
+  expect_identical(info$stub_var,       "sub")
+  expect_identical(info$group_id,       c("A","A","B","B","C"))
+  expect_identical(info$group_label,    c("A","A","B","B","C"))
+})
+
+# ──────── .interleave_group_rows ──────────────────────────────────────────
+
+test_that(".interleave_group_rows inserts a header row at every group change", {
+  df <- data.frame(item = c("x","y","z"), val = c(1L, 2L, 3L),
+                   stringsAsFactors = FALSE)
+  out <- rtfreporter:::.interleave_group_rows(df,
+                                               group_per_row = c("A","A","B"),
+                                               group_label_per_row = c("A","A","B"))
+  expect_identical(nrow(out), 5L)
+  expect_identical(out$item, c("A","x","y","B","z"))
+  expect_identical(out$val,  c("","1","2","","3"))    # other cols emptied
+})
+
+test_that(".interleave_group_rows is a no-op for empty input or mismatched lengths", {
+  df0 <- data.frame()
+  expect_identical(rtfreporter:::.interleave_group_rows(df0,
+                                                         character(0),
+                                                         character(0)), df0)
+  df1 <- data.frame(a = 1:3, b = c("x","y","z"), stringsAsFactors = FALSE)
+  expect_identical(
+    rtfreporter:::.interleave_group_rows(df1,
+                                          group_per_row = c("A","B"),  # wrong length
+                                          group_label_per_row = c("A","B")),
+    df1
+  )
+})
+
+# ──────── .gt_to_rtftable_kwargs Phase-C integration ──────────────────────
+
+test_that("kwargs('footnotes' + 'source_notes') puts footnotes ABOVE source notes", {
+  skip_if_not_installed("gt")
+  g <- gt::gt(head(mtcars, 1)[, "mpg", drop = FALSE]) |>
+    gt::tab_footnote(footnote = "FN1",
+                     locations = gt::cells_column_labels(columns = mpg)) |>
+    gt::tab_source_note("SRC1")
+  kw <- rtfreporter:::.gt_to_rtftable_kwargs(g,
+                                              tokens = c("footnotes",
+                                                          "source_notes"))
+  expect_identical(kw$footnotes_block, c("FN1", "SRC1"))
+})
+
+test_that("kwargs('footnotes' only) -> footnote texts only in block", {
+  skip_if_not_installed("gt")
+  g <- gt::gt(head(mtcars, 1)) |>
+    gt::tab_footnote(footnote = "FN1")
+  kw <- rtfreporter:::.gt_to_rtftable_kwargs(g, tokens = "footnotes")
+  expect_identical(kw$footnotes_block, "FN1")
+})
+
+test_that("kwargs('stub') drops the groupname_col + interleaves group rows", {
+  skip_if_not_installed("gt")
+  df <- data.frame(
+    grp = c("A","A","B","B","C"),
+    sub = c("x","y","x","y","x"),
+    val = c(10,20,30,40,50)
+  )
+  g <- gt::gt(df, groupname_col = "grp", rowname_col = "sub")
+  kw <- rtfreporter:::.gt_to_rtftable_kwargs(g, tokens = "stub")
+  # Data loses the groupname_col and gains 3 transition rows (one per
+  # unique group: A, B, C).
+  expect_identical(names(kw$data), c("sub", "val"))
+  expect_identical(nrow(kw$data), 8L)
+  expect_identical(kw$data$sub,
+                   c("A", "x", "y", "B", "x", "y", "C", "x"))
+})
+
+test_that("kwargs('stub' + 'col_header') applies stubhead label to col 1", {
+  skip_if_not_installed("gt")
+  df <- data.frame(grp = c("A","B"), sub = c("x","y"), val = c(1,2))
+  g <- gt::gt(df, groupname_col = "grp", rowname_col = "sub") |>
+    gt::cols_label(sub = "S", val = "V") |>
+    gt::tab_stubhead(label = "Stubhead")
+  kw <- rtfreporter:::.gt_to_rtftable_kwargs(g,
+                                              tokens = c("stub", "col_header"))
+  expect_identical(kw$col_header, c("Stubhead", "V"))
+})
+
+test_that("kwargs('stub') stubhead survives a spanner stack as the bottom-row label", {
+  skip_if_not_installed("gt")
+  df <- data.frame(grp = c("A","B"), sub = c("x","y"), val = c(1,2))
+  g <- gt::gt(df, groupname_col = "grp", rowname_col = "sub") |>
+    gt::cols_label(sub = "S", val = "V") |>
+    gt::tab_stubhead(label = "Stubhead") |>
+    gt::tab_spanner(label = "Joint", columns = c(sub, val))
+  kw <- rtfreporter:::.gt_to_rtftable_kwargs(g,
+                                              tokens = c("stub", "col_header",
+                                                          "spanning"))
+  # Two-row col_header; bottom row uses the stubhead label as col 1.
+  expect_length(kw$col_header, 2L)
+  expect_identical(kw$col_header[[2L]], c("Stubhead", "V"))
+})
+
+test_that("kwargs('stub' + 'hidden' together) drops both row_group and hidden cols", {
+  skip_if_not_installed("gt")
+  df <- data.frame(grp = c("A","B"), sub = c("x","y"),
+                    val = c(1,2), extra = c(99,99))
+  g <- gt::gt(df, groupname_col = "grp", rowname_col = "sub") |>
+    gt::cols_hide(extra)
+  kw <- rtfreporter:::.gt_to_rtftable_kwargs(g,
+                                              tokens = c("stub", "hidden"))
+  expect_identical(names(kw$data), c("sub", "val"))
+  expect_identical(nrow(kw$data), 4L)              # 2 data + 2 group rows
+})
+
+# ──────── as_rtftable() Phase-C end-to-end ────────────────────────────────
+
+test_that("as_rtftable() with read=TRUE materialises stub group rows into data", {
+  skip_if_not_installed("gt")
+  df <- data.frame(grp = c("A","A","B"), sub = c("x","y","z"), val = c(1,2,3))
+  g  <- gt::gt(df, groupname_col = "grp", rowname_col = "sub")
+  tbl <- as_rtftable(g, read = TRUE)
+  expect_identical(names(tbl$data), c("sub", "val"))
+  expect_identical(nrow(tbl$data), 5L)
+})
+
+# ──────── rtf_tables() Phase-C end-to-end ─────────────────────────────────
+
+test_that("rtf_tables(read_gt=TRUE) renders stub group rows + footnote block", {
+  skip_if_not_installed("gt")
+  df <- data.frame(grp = c("Grp1","Grp1","Grp2"),
+                    sub = c("Sub A","Sub B","Sub C"),
+                    val = c(10,20,30))
+  g <- gt::gt(df, groupname_col = "grp", rowname_col = "sub") |>
+    gt::cols_label(sub = "Stub", val = "Value") |>
+    gt::tab_stubhead(label = "Category") |>
+    gt::tab_footnote(footnote = "Footnote text") |>
+    gt::tab_source_note("Source text")
+
+  doc <- rtf_document() |>
+    rtf_section(page = 1, secinfo = list(header = NULL, footer = NULL)) |>
+    rtf_tables(list(g), read_gt = TRUE)
+
+  # col_header[1] = stubhead label
+  expect_identical(unlist(doc$contents[[1L]]$col_header[[1L]]),
+                   c("Category", "Value"))
+  # data has both group rows interleaved
+  expect_identical(doc$contents[[1L]]$data$sub,
+                   c("Grp1", "Sub A", "Sub B", "Grp2", "Sub C"))
+  # footnote block = (footnote text, then source text)
+  expect_identical(doc$footnotes[[1L]], c("Footnote text", "Source text"))
+
+  # End-to-end render and grep the body for the labels.
+  out <- tempfile(fileext = ".rtf"); on.exit(unlink(out), add = TRUE)
+  generate_rtfreport(doc, out, overwrite = TRUE)
+  txt <- paste(readLines(out, warn = FALSE), collapse = "\n")
+  expect_match(txt, "Category")
+  expect_match(txt, "Grp1")
+  expect_match(txt, "Sub A")
+  expect_match(txt, "Footnote text")
+  expect_match(txt, "Source text")
 })

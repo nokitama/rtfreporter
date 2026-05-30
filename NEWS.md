@@ -1,5 +1,53 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.40
+
+### gt integration -- Phase C (completes the v0.1.0 roadmap)
+
+Adds the final two `read_gt = ...` tokens from
+`specs/gt-integration-spec.md`.  Combined with Phase A (v0.0.38) and
+Phase B (v0.0.39), the GT bridge now supports **all nine** documented
+tokens.  `read_gt = TRUE` automatically expands to the full set.
+
+* **`"footnotes"`** -- table-level only.  Every `tab_footnote()`
+  text (regardless of its anchor: column label, body cell,
+  standalone, etc.) is flattened to plain text and prepended to the
+  page footnote block.  When `"source_notes"` is also active,
+  footnote texts come ABOVE source notes -- matching gt's vertical
+  layout.  **Cell-mark injection is deferred to a later release.**
+
+* **`"stub"`** -- two transformations:
+    1. The groupname column (`gt(df, groupname_col = ...)`,
+       boxhead `type == "row_group"`) is dropped from the data.
+       Group-transition rows are then interleaved into the body
+       wherever `_stub_df$group_id` changes; each transition row
+       carries the group label in the leftmost cell.
+    2. `tab_stubhead(label = ...)` is applied as the first
+       column's header label, overriding any cols_label value for
+       the stub column.
+
+  Combines cleanly with `"hidden"` (both can drop columns) and with
+  `"spanning"` (stubhead label lands on the bottom-row labels under
+  the spanner stack).
+
+### Vignette
+
+`vignettes/gt-integration.Rmd` walks through the full workflow: a
+quick-start, a TFL-style adverse-events example end-to-end (group
+rows + stubhead + spanners + footnotes + source note), and the
+explicit-argument precedence rules.
+
+### Test additions
+
+`tests/testthat/test-gt-adapter.R` gains 21 new tests for Phase C:
+the two new extractors individually, the row-interleaver, four
+`.gt_to_rtftable_kwargs()` integration paths (footnotes-only,
+footnotes+source_notes, stub+col_header, stub+spanning, stub+hidden),
+and one full end-to-end render with `read_gt = TRUE` that exercises
+every Phase A/B/C token at once.
+
+Full suite: 1092 PASS / 0 FAIL.
+
 ## rtfreporter 0.0.39
 
 ### gt integration -- Phase B

@@ -244,10 +244,11 @@ Add the more structural opt-ins:
 * `"widths"` (column_width -> column_widths_twips)
 * `"hidden"` (drop hidden columns from data)
 
-### Phase C -- v0.1.0 ship
+### Phase C -- v0.0.40 (shipped)
 
-* `"footnotes"` (table-level only; no cell-mark injection)
-* `"stub"` (basic stub column support)
+* `"footnotes"` (table-level only; cell-mark injection deferred)
+* `"stub"` (drops groupname_col, interleaves group rows, applies
+  stubhead label to col 1)
 * Vignette: `vignette("gt-integration", package = "rtfreporter")`
 * `pkgdown` reference section for `as_rtftable()` and `read_gt`.
 

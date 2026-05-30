@@ -22,14 +22,19 @@
 #  etc.  We never call gt's internal `dt_*_get()` functions -- the slot
 #  contract is stable and public-enough.
 #
-#  Phase A (this commit) reads four attributes:
-#    "col_header"   -- column labels  (from _boxhead$column_label)
-#    "alignment"    -- per-column align (from _boxhead$column_align)
-#    "titles"       -- title + subtitle (from _heading)
-#    "source_notes" -- source notes  (from _source_notes)
-#
-#  Phase B will add: spanning, widths, hidden.
-#  Phase C will add: footnotes (table-level), stub.
+#  Tokens recognised today (Phases A + B + C):
+#    "col_header"   -- column labels         (from _boxhead$column_label)
+#    "alignment"    -- per-column alignment   (from _boxhead$column_align)
+#    "titles"       -- title + subtitle      (from _heading)
+#    "source_notes" -- source notes          (from _source_notes)
+#    "spanning"     -- multi-level spanners  (from _spanners)
+#    "widths"       -- per-column widths      (from _boxhead$column_width)
+#    "hidden"       -- drop hidden columns   (boxhead$type == "hidden")
+#    "footnotes"    -- table-level footnotes  (from _footnotes; appended
+#                                              to the page footnote block
+#                                              alongside source_notes)
+#    "stub"         -- groupname_col rows + stubhead label
+#                       (from _stub_df, _stubhead, boxhead$type)
 #
 #  All markdown_text fields are flattened to their raw character form
 #  via as.character() -- v0.1.0 does not translate Markdown into
@@ -46,8 +51,19 @@
 # header rows (spanners).
 .GT_TOKENS_PHASE_B <- c("spanning", "widths", "hidden")
 
-# Phase C: footnotes (table-level only) and stub.  Still recognised but
-# warn-and-drop in this release.
+# Phase C (v0.0.40): table-level footnotes and stub support.
+#
+# "footnotes" is table-level only -- the texts are appended to the page's
+# footnote block, but no mark glyphs are injected into the body cells.
+# Cell-mark injection is deferred to a later release.
+#
+# "stub" supports two transformations:
+#   1. The groupname_col (boxhead type == "row_group") is dropped from
+#      the data and group-transition rows are interleaved into the body
+#      where _stub_df$group_id changes.  Each transition row carries
+#      the group label in the leftmost cell.
+#   2. _stubhead$label is used as the column-header label for the stub
+#      column (boxhead type == "stub") when col_header is also active.
 .GT_TOKENS_PHASE_C <- c("footnotes", "stub")
 .GT_TOKENS_ALL     <- c(.GT_TOKENS_PHASE_A,
                         .GT_TOKENS_PHASE_B,
@@ -63,8 +79,7 @@
 # tokens.  Returns character(0) when nothing is requested.
 .resolve_gt_tokens <- function(read_gt) {
   if (is.null(read_gt) || isFALSE(read_gt)) return(character(0))
-  if (isTRUE(read_gt))                       return(c(.GT_TOKENS_PHASE_A,
-                                                       .GT_TOKENS_PHASE_B))
+  if (isTRUE(read_gt))                       return(.GT_TOKENS_ALL)
   if (!is.character(read_gt)) {
     stop("`read_gt` must be FALSE/TRUE or a character vector of tokens.",
          call. = FALSE)
@@ -76,15 +91,7 @@
                  paste(sQuote(.GT_TOKENS_ALL), collapse = ", ")),
          call. = FALSE)
   }
-  not_yet <- intersect(read_gt, .GT_TOKENS_PHASE_C)
-  if (length(not_yet)) {
-    warning(sprintf(
-      "rtfreporter v0.0.x does not yet implement `read_gt` token(s): %s.  ",
-      paste(sQuote(not_yet), collapse = ", ")),
-      "These will be ignored for now.  Track at github.com/ichirio/rtfreporter.",
-      call. = FALSE)
-  }
-  intersect(read_gt, c(.GT_TOKENS_PHASE_A, .GT_TOKENS_PHASE_B))
+  read_gt
 }
 
 # Convert a value that might be markdown_text, list-of-1, or NULL into a
@@ -252,6 +259,93 @@
 }
 
 
+# ── Phase C extractors ───────────────────────────────────────────────────
+
+# Extract table-level footnote texts.  Returns a character vector (or
+# NULL when none are set).  All footnote anchors (column-label,
+# cell-level, table-level, etc.) are flattened into a single list of
+# texts -- cell-mark injection is out of scope for this release.
+.extract_footnote_texts <- function(gt_obj) {
+  fn <- gt_obj[["_footnotes"]]
+  if (is.null(fn) || !nrow(fn)) return(NULL)
+  # The `footnotes` column is a list; each entry may be character or
+  # markdown_text.  Flatten and concatenate same-anchor entries with " ".
+  out <- vapply(fn$footnotes, function(ft) {
+    if (is.null(ft) || !length(ft)) return(NA_character_)
+    v <- vapply(seq_along(ft),
+                function(i) .flatten_to_chr(ft[[i]]),
+                character(1L))
+    v <- v[!is.na(v)]
+    if (!length(v)) NA_character_ else paste(v, collapse = " ")
+  }, character(1L))
+  out <- out[!is.na(out)]
+  if (!length(out)) return(NULL)
+  unname(out)
+}
+
+# Extract stub-related info: stubhead label, the groupname column name
+# (boxhead type == "row_group"), and per-row group_id / group_label
+# vectors from _stub_df.  Returns NULL when no stub features are in use.
+.extract_stub_info <- function(gt_obj) {
+  boxh     <- gt_obj[["_boxhead"]]
+  stubhead <- gt_obj[["_stubhead"]]
+  stub_df  <- gt_obj[["_stub_df"]]
+
+  result <- list()
+  if (!is.null(stubhead) && !is.null(stubhead$label)) {
+    result$stubhead_label <- .flatten_to_chr(stubhead$label)
+  }
+  if (!is.null(boxh) && "type" %in% names(boxh)) {
+    groupname_var <- as.character(boxh$var)[boxh$type == "row_group"]
+    stub_var      <- as.character(boxh$var)[boxh$type == "stub"]
+    if (length(groupname_var)) result$groupname_var <- groupname_var[1L]
+    if (length(stub_var))      result$stub_var      <- stub_var[1L]
+  }
+  if (!is.null(stub_df) && nrow(stub_df) > 0L &&
+      "group_id" %in% names(stub_df)) {
+    gids <- as.character(stub_df$group_id)
+    if (!all(is.na(gids))) {
+      result$group_id <- gids
+      if ("group_label" %in% names(stub_df)) {
+        result$group_label <- vapply(stub_df$group_label,
+                                      .flatten_to_chr,
+                                      character(1L))
+      } else {
+        result$group_label <- gids
+      }
+    }
+  }
+  if (length(result)) result else NULL
+}
+
+# Insert group-transition rows into a data.frame.  Whenever
+# `group_per_row[i] != group_per_row[i-1]` (or i == 1), a fresh row is
+# inserted with `group_label_per_row[i]` in the first column and
+# empty strings (or NA cast to "") in every other column.
+.interleave_group_rows <- function(df, group_per_row, group_label_per_row) {
+  if (nrow(df) == 0L) return(df)
+  if (length(group_per_row) != nrow(df)) return(df)
+  prev <- NA_character_
+  pieces <- list()
+  for (i in seq_len(nrow(df))) {
+    g <- group_per_row[[i]]
+    if (!identical(g, prev)) {
+      header_row <- df[i, , drop = FALSE]
+      # First column gets the group label, every other column blanks.
+      for (j in seq_len(ncol(header_row))) {
+        header_row[1L, j] <- if (j == 1L) group_label_per_row[[i]] else ""
+      }
+      pieces[[length(pieces) + 1L]] <- header_row
+    }
+    pieces[[length(pieces) + 1L]] <- df[i, , drop = FALSE]
+    prev <- g
+  }
+  out <- do.call(rbind, pieces)
+  rownames(out) <- NULL
+  out
+}
+
+
 # ── Central mapping: gt_tbl + tokens -> list of rtftable kwargs +
 #    page-level titles / footnotes ─────────────────────────────────────
 
@@ -277,23 +371,36 @@
   # Always pull the rendered body -- this is the baseline data.frame.
   out$data <- as.data.frame(gt_obj, stringsAsFactors = FALSE)
 
-  # ---- "hidden": filter the data and shrink the boxhead alignment ----
-  # gt's `as.data.frame()` keeps hidden columns; we drop them here so
-  # every downstream extractor sees the same visible-only column space.
+  # ---- "hidden" and "stub": compute the effective visible mask ------
+  # gt's `as.data.frame()` keeps every column (including hidden ones
+  # and the groupname_col).  We compute a single visible mask that
+  # honours both tokens:
+  #
+  #   "hidden" active -> drop boxhead.type == "hidden"
+  #   "stub"   active -> drop boxhead.type == "row_group" (becomes
+  #                       interleaved group-transition rows; see below)
+  #
+  # The same mask is used by every downstream extractor so the
+  # extracted col_header / alignment / widths / spanner positions all
+  # align with the final, visible-only column space.
   hidden_active <- "hidden" %in% tokens
-  visible_mask  <- .extract_visible_mask(gt_obj)
-  if (is.null(visible_mask)) visible_mask <- rep(TRUE, ncol(out$data))
+  stub_active   <- "stub"   %in% tokens
+  boxh          <- gt_obj[["_boxhead"]]
+  raw_mask      <- .extract_visible_mask(gt_obj)
+  if (is.null(raw_mask)) raw_mask <- rep(TRUE, ncol(out$data))
 
-  if (hidden_active && !all(visible_mask)) {
-    boxh        <- gt_obj[["_boxhead"]]
+  drop_mask <- rep(FALSE, length(raw_mask))
+  if (hidden_active)                drop_mask <- drop_mask | !raw_mask
+  if (stub_active && !is.null(boxh) && "type" %in% names(boxh)) {
+    drop_mask <- drop_mask | (as.character(boxh$type) == "row_group")
+  }
+  visible_mask <- !drop_mask
+
+  if (any(drop_mask)) {
     keep_vars   <- as.character(boxh$var)[visible_mask]
     keep_in_df  <- intersect(keep_vars, names(out$data))
     out$data    <- out$data[, keep_in_df, drop = FALSE]
   }
-  # When `hidden` is NOT active, visible_mask is forced to all-TRUE so
-  # the downstream extractors (col_header, alignment, spanning) operate
-  # on the full column space.
-  if (!hidden_active) visible_mask <- rep(TRUE, length(visible_mask))
 
   # ---- "col_header": column labels (filtered by visible_mask) -------
   if ("col_header" %in% tokens) {
@@ -349,12 +456,50 @@
     }
   }
 
-  # ---- "titles" / "source_notes": page-level blocks ------------------
+  # ---- "stub": apply the stubhead label + interleave group rows -----
+  if (stub_active) {
+    stub <- .extract_stub_info(gt_obj)
+    if (!is.null(stub)) {
+      # (a) stubhead label -> first column header (only when we have
+      #     a col_header to override; we do not invent one).
+      if (!is.null(stub$stubhead_label) &&
+          !is.null(out$col_header)) {
+        if (is.character(out$col_header) && length(out$col_header) >= 1L) {
+          out$col_header[1L] <- stub$stubhead_label
+        } else if (is.list(out$col_header) && length(out$col_header) >= 1L) {
+          # Multi-row header (spanner case): the bottom row is the
+          # label vector.
+          bot <- out$col_header[[length(out$col_header)]]
+          if (is.character(bot) && length(bot) >= 1L) {
+            bot[1L] <- stub$stubhead_label
+            out$col_header[[length(out$col_header)]] <- bot
+          }
+        }
+      }
+      # (b) Interleave group-transition rows when _stub_df has a
+      #     non-NA group_id sequence.
+      if (!is.null(stub$group_id) &&
+          length(stub$group_id) == nrow(out$data)) {
+        out$data <- .interleave_group_rows(
+          out$data, stub$group_id, stub$group_label
+        )
+      }
+    }
+  }
+
+  # ---- "titles" / "source_notes" / "footnotes": page-level blocks ----
   if ("titles" %in% tokens) {
     out$titles_block <- .extract_titles(gt_obj)
   }
-  if ("source_notes" %in% tokens) {
-    out$footnotes_block <- .extract_source_notes(gt_obj)
+  src_notes <- if ("source_notes" %in% tokens)
+                 .extract_source_notes(gt_obj) else NULL
+  fn_texts  <- if ("footnotes" %in% tokens)
+                 .extract_footnote_texts(gt_obj) else NULL
+  if (!is.null(src_notes) || !is.null(fn_texts)) {
+    # Convention: footnote anchors come ABOVE source notes, matching
+    # gt's vertical layout (footnotes are typeset just under the
+    # table body; source notes appear lower).
+    out$footnotes_block <- c(fn_texts, src_notes)
   }
 
   out
