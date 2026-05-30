@@ -6,16 +6,19 @@ comment: false
 # new features land with their tests but we don't gate on a specific
 # patch-level threshold.
 #
-# `range` controls the colour gradient on the README badge:
-#   * <= 70%  -> red
-#   *  70-90% -> red -> yellow -> green gradient
-#   * >= 90%  -> pure green
-# The high end is matched to our long-term target so anything at
-# "release-ready" coverage shows pure green on the badge, not the
-# `#97ca00` yellow-green that Codecov hands out for partial-gradient
-# values.
+# `range` controls the colour gradient on the README badge.  We
+# use the industry-standard "60% acceptable / 85% high quality"
+# split that most public OSS repos adopt:
+#
+#   * <= 60%  -> red       (insufficient -- improvement needed)
+#   *  60-85% -> orange -> yellow -> green gradient
+#   * >= 85%  -> green     (release-ready quality)
+#
+# Reference points: tidyverse packages typically sit at 85-95%;
+# Google's internal standard is ~80%.  Anything above 85% is widely
+# accepted as a "trustworthy" package on its own merits.
 coverage:
-  range: "70...90"
+  range: "60...85"
   status:
     project:
       default:
