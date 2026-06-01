@@ -168,14 +168,15 @@ reference:
       - rtf_header
       - update_header_row
 
-  - title: External table-object pagination
+  - title: Table-object conversion & pagination
     desc: >
-      Convert a [gt::gt()] table (or a plain data.frame / tibble — or
-      a list of either) into a list of data.frames sized for one RTF
-      page each, ready for `rtf_tables()`.  S3-generic so new table
-      object types (e.g. rtables, sft) can plug in via one method.
+      Convert a table object — a [gt::gt()] table, a gtsummary table, an
+      rtables/tern `VTableTree`, or a plain data.frame / tibble (or a list
+      of any of these) — into a list of `rtftable()` objects, one per RTF
+      page, ready for `rtf_tables()`.  Reads the source's metadata and
+      paginates in a single call.
     contents:
-      - paginate
+      - as_rtftables
       - set_blank_rows
       - format_count_pct
       - realign_count_pct
@@ -233,6 +234,7 @@ reference:
   - title: Deprecated
     contents:
       - rtf_format-deprecated
+      - paginate
 
 # Articles index page (/articles/).  Grouped so users land on the
 # tutorial first; learner-focused material sits at the bottom.
