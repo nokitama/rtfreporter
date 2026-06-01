@@ -256,8 +256,11 @@ articles:
       - articles/example-demog
       - articles/example-lab
 
-  - title: Specification & internals
-    desc: Reference material for advanced users and contributors.
+  - title: 日本語ドキュメント (Japanese specs & design)
+    desc: >
+      Japanese-language reference material for advanced users and
+      contributors — the external-API specification and the internal
+      class-design document.  日本語の仕様書・設計書です。
     navbar: ~
     contents:
       - articles/external-api
