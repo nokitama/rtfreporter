@@ -20,6 +20,11 @@ format:
 ::: {.callout-note}
 このドキュメントは **内部設計書** です。外部公開 API（S3ラッパー関数）の仕様は
 [外部インターフェース仕様書](external-api.qmd) を参照してください。
+
+🌐 **English:** a high-level overview for contributors is in
+[Architecture & internals](architecture.html), and a step-by-step guide to
+adding a new table source is in
+[Adding a table-object adapter](extending-adapters.html).
 :::
 
 # 概要

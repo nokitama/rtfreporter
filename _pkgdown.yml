@@ -256,11 +256,21 @@ articles:
       - articles/example-demog
       - articles/example-lab
 
-  - title: 日本語ドキュメント (Japanese specs & design)
+  - title: For contributors
     desc: >
-      Japanese-language reference material for advanced users and
-      contributors — the external-API specification and the internal
-      class-design document.  日本語の仕様書・設計書です。
+      How rtfreporter is built and how to extend it.  Start with the
+      architecture overview, then the adapter how-to.
+    navbar: ~
+    contents:
+      - articles/architecture
+      - articles/extending-adapters
+
+  - title: Contributor design specs (日本語 / Japanese)
+    desc: >
+      The authoritative, in-depth design documents, written in Japanese
+      and aimed at contributors: the public S3 API specification and the
+      internal class-design reference.  These are linked from the English
+      architecture overview above.  日本語の詳細設計資料です。
     navbar: ~
     contents:
       - articles/external-api

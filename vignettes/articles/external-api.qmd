@@ -20,6 +20,9 @@ format:
 ::: {.callout-note}
 このドキュメントは **外部インターフェース仕様書** です。内部 S3 クラスの詳細は
 [内部クラス設計書](internal-design.qmd) を参照してください。
+
+🌐 **English:** a high-level overview for contributors is in
+[Architecture & internals](architecture.html).
 :::
 
 # 概要
