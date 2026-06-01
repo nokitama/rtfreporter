@@ -977,4 +977,5 @@ re-applied to each returned chunk after the splitter has finished.
 
 # Earlier versions
 
-See [`CHANGELOG.md`](CHANGELOG.md) for the detailed pre-v0.0.18 history.
+See [`CHANGELOG.md`](https://github.com/ichirio/rtfreporter/blob/main/CHANGELOG.md)
+for the detailed pre-v0.0.18 history.
