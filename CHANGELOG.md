@@ -6,7 +6,33 @@ All notable changes to rtfreporter are documented in this file. Changes are reco
 
 ## v0.1.0 (TBD - when ready for public release)
 
-> **Status**: Currently in development as v0.0.19. Will be released as v0.1.0 when complete.
+> **Status**: Currently in development as v0.0.44. Will be released as v0.1.0 when complete.
+
+### ✨ Features (v0.0.38–v0.0.44) — gt & gtsummary integration
+
+rtfreporter can now build RTF tables directly from
+[gt](https://gt.rstudio.com), [gtsummary](https://www.danieldsjoberg.com/gtsummary/)
+and (via gt) [tfrmt](https://gsk-biostatistics.github.io/tfrmt/) tables.
+
+* **`as_rtftables()`** is the single entry point: it reads a table
+  object's metadata **and** paginates the body, returning a list of
+  ready-to-render `rtftable` objects (one per page).  gtsummary tables
+  are converted to `gt_tbl` automatically via `gtsummary::as_gt()`.
+  `as_rtftable()` (singular) is the one-page convenience wrapper.
+* Metadata read from a gt object: column labels, per-column alignment,
+  multi-level spanning headers, column widths, hidden-column removal,
+  stub / row-group rows, title + subtitle, source notes, table
+  footnotes, **per-cell bold / italic / underline / indent**
+  (`tab_style(cell_text(...))`), and **in-cell footnote marks** rendered
+  as `^{N}` superscripts.
+* `rtf_tables()` reads the `rtf_titles` / `rtf_footnotes` attributes that
+  `as_rtftables()` puts on each page, so titles / footnotes flow through
+  with no extra flag.
+* New `rtftable(cell_styles = )` field for per-cell formatting.
+* **Deprecated**: `paginate()` (use `as_rtftables()`); `rtf_tables(read_gt = )`
+  is now a legacy direct-gt path.
+* **Packaging**: source directory renamed `r/` → `R/`; `R CMD check`
+  passes with 0 errors / 0 warnings.
 
 ### 🔴 Breaking Changes (v0.0.19) — R6 removed; full S3 architecture
 

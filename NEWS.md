@@ -1,5 +1,59 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.44
+
+### New: `as_rtftables()` -- one entry point for gt / gtsummary -> RTF
+
+`as_rtftables()` converts a table object (`gt_tbl`, a **gtsummary**
+table, a `data.frame`/tibble, or a list of these) into a list of
+ready-to-render [rtftable()] objects -- one per page.  It both reads the
+source table's metadata **and** paginates the body in a single call, so
+the long-standing gap where `paginate()` on a `gt_tbl` silently dropped
+all gt metadata is closed.
+
+* Page-level title / source-note blocks travel with each page as the
+  `rtf_titles` / `rtf_footnotes` attributes, which `rtf_tables()` now
+  reads automatically -- no `read_gt` flag required.
+* Per-cell styles are sliced to match each page; shared header / width /
+  spanning metadata is replicated onto every page.
+* `as_rtftable()` (singular) is retained as a convenience wrapper that
+  returns a single `rtftable` (`= as_rtftables(split = "none")[[1]]`).
+
+### New: gtsummary input
+
+Any gtsummary table (`tbl_summary()`, `tbl_regression()`, `tbl_merge()`,
+`tbl_stack()`, ...) is accepted directly; it is converted to a `gt_tbl`
+via `gtsummary::as_gt()` first.  Row indentation and bold group-header
+rows are not reproducible in RTF and are dropped; everything structural
+comes through.
+
+### New: per-cell styles, footnote marks, HTML cleanup (gt "Phase D")
+
+`read = TRUE` now also reads, from a gt object:
+
+* `"styles"` -- `tab_style(cell_text(...))` bold / italic / underline /
+  indent, stored on the new `rtftable$cell_styles` field and applied
+  per cell at render time.
+* `"footnote_marks"` -- gt's in-cell `<sup>N</sup>` footnote marks are
+  converted to rtfreporter `^{N}` superscript markup.
+* `"strip_html"` -- stray HTML in cell values is removed (`<br>` becomes
+  a line break).
+
+`rtftable()` gains a `cell_styles` argument for setting these directly.
+
+### Deprecated
+
+* `paginate()` is **deprecated** in favour of `as_rtftables()`.  It still
+  works (and still returns per-page data.frames for backward
+  compatibility), warning once per session.
+* `rtf_tables(read_gt = )` is now a legacy path for handing a raw
+  `gt_tbl` straight in; prefer converting with `as_rtftables()` first.
+
+### Packaging
+
+* Source directory renamed `r/` -> `R/` so `R CMD check` is clean
+  (0 errors, 0 warnings).
+
 ## rtfreporter 0.0.41
 
 ### Breaking change: removed `rtf_theme()` and the R6 dependency
