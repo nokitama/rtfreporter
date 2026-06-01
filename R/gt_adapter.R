@@ -385,11 +385,26 @@
 # `group_per_row[i] != group_per_row[i-1]` (or i == 1), a fresh row is
 # inserted with `group_label_per_row[i]` in the first column and
 # empty strings (or NA cast to "") in every other column.
+#
+# The returned data.frame carries an attribute "orig_to_new": an integer
+# vector of length nrow(df) giving the OUTPUT row position of each original
+# input row.  Inserted group-header rows are not represented in this vector
+# (they have no original-row source).  Callers that index post-interleave
+# rows by original-row number (e.g. footnote-mark injection, per-cell style
+# remapping) use this to translate.
 .interleave_group_rows <- function(df, group_per_row, group_label_per_row) {
-  if (nrow(df) == 0L) return(df)
-  if (length(group_per_row) != nrow(df)) return(df)
+  if (nrow(df) == 0L) {
+    attr(df, "orig_to_new") <- integer(0)
+    return(df)
+  }
+  if (length(group_per_row) != nrow(df)) {
+    attr(df, "orig_to_new") <- seq_len(nrow(df))
+    return(df)
+  }
   prev <- NA_character_
   pieces <- list()
+  orig_to_new <- integer(nrow(df))
+  out_pos <- 0L
   for (i in seq_len(nrow(df))) {
     g <- group_per_row[[i]]
     if (!identical(g, prev)) {
@@ -399,12 +414,16 @@
         header_row[1L, j] <- if (j == 1L) group_label_per_row[[i]] else ""
       }
       pieces[[length(pieces) + 1L]] <- header_row
+      out_pos <- out_pos + 1L          # inserted group-header row
     }
     pieces[[length(pieces) + 1L]] <- df[i, , drop = FALSE]
+    out_pos <- out_pos + 1L
+    orig_to_new[i] <- out_pos          # this original row's output position
     prev <- g
   }
   out <- do.call(rbind, pieces)
   rownames(out) <- NULL
+  attr(out, "orig_to_new") <- orig_to_new
   out
 }
 
@@ -526,6 +545,11 @@
   }
 
   # ---- "stub": apply the stubhead label + interleave group rows -----
+  # Row-count and mapping bookkeeping for Phase D (footnote marks / styles),
+  # which key on gt's ORIGINAL data rownum.  `stub_row_map` stays NULL unless
+  # group-header rows are interleaved (which shifts original rows downward).
+  orig_data_rows <- nrow(out$data)
+  stub_row_map   <- NULL
   if (stub_active) {
     stub <- .extract_stub_info(gt_obj)
     if (!is.null(stub)) {
@@ -549,9 +573,15 @@
       #     non-NA group_id sequence.
       if (!is.null(stub$group_id) &&
           length(stub$group_id) == nrow(out$data)) {
-        out$data <- .interleave_group_rows(
+        interleaved <- .interleave_group_rows(
           out$data, stub$group_id, stub$group_label
         )
+        # Capture the original-row -> output-row mapping so Phase D
+        # (footnote marks / per-cell styles), which is keyed on gt's
+        # original data rownum, lands on the correct physical rows.
+        stub_row_map <- attr(interleaved, "orig_to_new")
+        attr(interleaved, "orig_to_new") <- NULL
+        out$data <- interleaved
       }
     }
   }
@@ -573,17 +603,16 @@
 
   # ---- Phase D: footnote_marks, styles, strip_html ────────────────────
   # Order matters:
-  #   1. "footnote_marks" -- inject mark characters into data cell values
-  #      BEFORE HTML stripping so the ^{...} markup survives the strip pass.
-  #   2. "strip_html"     -- strip HTML from (now mark-annotated) cell values.
+  #   1. "footnote_marks" -- convert gt's existing in-cell footnote-mark HTML
+  #      to ^{N} markup BEFORE HTML stripping (otherwise the <sup> content
+  #      would be flattened to an inline digit).
+  #   2. "strip_html"     -- strip remaining HTML from the cell values.
   #   3. "styles"         -- extract per-cell formatting from _styles.
   #      Done last because it does not modify data; it only produces the
   #      cell_styles list used by the rtftable renderer.
 
   if ("footnote_marks" %in% tokens) {
-    out$data <- .inject_footnote_marks(out$data, gt_obj,
-                                       visible_mask = visible_mask,
-                                       visible_vars = visible_vars)
+    out$data <- .convert_footnote_marks(out$data)
   }
 
   if ("strip_html" %in% tokens) {
@@ -591,11 +620,18 @@
   }
 
   if ("styles" %in% tokens) {
+    # Extract in ORIGINAL row space (gt _styles rownum is pre-interleave),
+    # then remap onto the (possibly interleaved) output rows.
     cs <- .extract_cell_styles(gt_obj,
                                 visible_mask = visible_mask,
                                 visible_vars = visible_vars,
-                                n_data_rows  = nrow(out$data))
-    if (!is.null(cs)) out$cell_styles <- cs
+                                n_data_rows  = orig_data_rows)
+    if (!is.null(cs)) {
+      if (!is.null(stub_row_map)) {
+        cs <- .remap_cell_styles(cs, stub_row_map, nrow(out$data))
+      }
+      if (!is.null(cs)) out$cell_styles <- cs
+    }
   }
 
   out
@@ -698,111 +734,56 @@
 }
 
 
-# Generate the sequence of footnote-mark characters used by gt for `n`
-# unique footnotes under the given `marks_option` setting.
-.gt_footnote_mark_seq <- function(n, marks_option = "numbers") {
-  if (n <= 0L) return(character(0))
-  if (is.null(marks_option)) marks_option <- "numbers"
-  opt <- trimws(as.character(marks_option))
-
-  if (opt == "numbers") return(as.character(seq_len(n)))
-  if (opt == "letters") {
-    out <- character(n)
-    for (i in seq_len(n)) {
-      rpt <- (i - 1L) %/% 26L + 1L
-      out[i] <- paste(rep(letters[((i - 1L) %% 26L) + 1L], rpt), collapse = "")
-    }
-    return(out)
-  }
-  # "standard" / "extended" and anything else
-  base <- c("*", "†", "‡", "§", "¶", "#")
-  out  <- character(n)
-  for (i in seq_len(n)) {
-    idx  <- ((i - 1L) %% 6L) + 1L
-    rpt  <- (i - 1L) %/% 6L + 1L
-    out[i] <- paste(rep(base[idx], rpt), collapse = "")
-  }
-  out
-}
-
-# Inject footnote-mark superscripts into the data.frame cell values.
-# Marks are appended as rtfreporter `^{mark}` superscript markup.
+# Convert gt's in-cell footnote-mark HTML to rtfreporter superscript markup.
 #
-# Returns a modified copy of `data` (or the original if nothing to do).
-.inject_footnote_marks <- function(data, gt_obj, visible_mask = NULL,
-                                    visible_vars = NULL) {
-  fn_df <- gt_obj[["_footnotes"]]
-  if (is.null(fn_df) || !nrow(fn_df)) return(data)
+# IMPORTANT design note: gt's `as.data.frame()` already RENDERS footnote marks
+# into the body cell values as HTML, e.g.
+#     <span class="gt_footnote_marks" style="..."><sup>1</sup></span> 40
+# So the correct job here is to *transform* gt's existing marks into `^{N}`
+# markup -- NOT to inject new marks (which would double them) and NOT to rely
+# on `_footnotes$rownum` (which would also be wrong after stub interleaving).
+#
+# Because the mark already travels with the cell text, this transformation is
+# inherently robust to hidden-column drops and stub row interleaving -- no row
+# or column mapping is needed.
+#
+# The actual mark character (number / letter / symbol) is taken straight from
+# gt's rendered `<sup>...</sup>`, so it always matches gt's own numbering and
+# the `footnotes_marks` option without re-deriving a sequence.
+#
+# Implemented WITHOUT regex backreferences (some locale-broken R builds drop
+# `\\1` replacements); uses regmatches() match extraction + replacement.
+#
+# Returns a modified copy of `data` (or the original when no marks are present).
+.convert_footnote_marks <- function(data) {
+  span_pat <- "<span[^>]*gt_footnote_marks[^>]*>.*?</span>"
+  sup_pat  <- "<sup>.*?</sup>"
 
-  # Only data-cell entries
-  fn_data <- fn_df[fn_df$locname == "data", , drop = FALSE]
-  if (!nrow(fn_data)) return(data)
-
-  # Build visible_vars if not provided
-  boxh <- gt_obj[["_boxhead"]]
-  if (is.null(visible_vars)) {
-    all_vars <- if (!is.null(boxh)) as.character(boxh$var) else character()
-    visible_vars <- if (!is.null(visible_mask) && length(visible_mask) == length(all_vars))
-                     all_vars[visible_mask]
-                   else
-                     all_vars
+  conv_one <- function(s) {
+    if (is.na(s) || !grepl("gt_footnote_marks", s, fixed = TRUE)) return(s)
+    m     <- gregexpr(span_pat, s, perl = TRUE)
+    spans <- regmatches(s, m)[[1L]]
+    if (!length(spans)) return(s)
+    repl <- vapply(spans, function(sp) {
+      sm   <- regmatches(sp, regexpr(sup_pat, sp, perl = TRUE))
+      mark <- if (length(sm))
+                sub("</sup>$", "", sub("^<sup>", "", sm))
+              else
+                gsub("<[^>]+>", "", sp)
+      # Drop zero-width space (U+200B) and non-breaking space (U+00A0).
+      mark <- trimws(gsub("[​ ]", "", mark))
+      if (!nzchar(mark)) "" else paste0("^{", mark, "}")
+    }, character(1L), USE.NAMES = FALSE)
+    regmatches(s, m)[[1L]] <- repl
+    s
   }
-  if (!length(visible_vars)) return(data)
 
-  # Retrieve footnotes_marks option from gt_obj[["_options"]]
-  marks_opt <- "numbers"
-  opts_df   <- gt_obj[["_options"]]
-  if (!is.null(opts_df) && "parameter" %in% names(opts_df)) {
-    m_rows <- opts_df[opts_df$parameter == "footnotes_marks", , drop = FALSE]
-    if (nrow(m_rows) > 0L && !is.null(m_rows$value)) {
-      v <- m_rows$value[[1L]]
-      if (!is.null(v)) marks_opt <- as.character(v)
-    }
+  for (j in seq_len(ncol(data))) {
+    col <- data[[j]]
+    if (!is.character(col)) next
+    data[[j]] <- vapply(col, conv_one, character(1L), USE.NAMES = FALSE)
   }
-
-  # All unique footnote texts in the order they appear in fn_df (cross all
-  # locnames so the mark sequence matches gt's rendered output).
-  all_fn_texts <- character()
-  for (i in seq_len(nrow(fn_df))) {
-    texts_i <- fn_df$footnotes[[i]]
-    if (is.null(texts_i) || !length(texts_i)) next
-    for (t in texts_i) {
-      tv <- .flatten_to_chr(t)
-      if (!is.na(tv) && !tv %in% all_fn_texts) {
-        all_fn_texts <- c(all_fn_texts, tv)
-      }
-    }
-  }
-  if (!length(all_fn_texts)) return(data)
-  marks <- .gt_footnote_mark_seq(length(all_fn_texts), marks_opt)
-
-  # Apply marks to data cells
-  modified <- data
-  for (k in seq_len(nrow(fn_data))) {
-    row_i  <- as.integer(fn_data$rownum[k])
-    colnm  <- as.character(fn_data$colname[k])
-    if (is.na(row_i) || row_i < 1L || row_i > nrow(modified)) next
-    col_j  <- match(colnm, visible_vars)
-    if (is.na(col_j) || col_j > ncol(modified)) next
-
-    texts_k <- fn_data$footnotes[[k]]
-    if (is.null(texts_k) || !length(texts_k)) next
-
-    # Build the combined mark string for all footnotes on this cell
-    mark_str <- paste(vapply(texts_k, function(t) {
-      tv    <- .flatten_to_chr(t)
-      if (is.na(tv)) return("")
-      idx   <- match(tv, all_fn_texts)
-      if (is.na(idx)) return("")
-      paste0("^{", marks[idx], "}")
-    }, character(1L)), collapse = "")
-
-    if (nzchar(mark_str)) {
-      cur <- as.character(modified[[col_j]][row_i])
-      modified[[col_j]][row_i] <- paste0(cur, mark_str)
-    }
-  }
-  modified
+  data
 }
 
 
@@ -820,6 +801,25 @@
     data[[j]] <- col
   }
   data
+}
+
+# Remap an original-row-indexed cell_styles list onto post-interleave row
+# positions.  `cs_orig` is a list of length == original data rows (some NULL).
+# `orig_to_new` (from .interleave_group_rows) gives each original row's output
+# position.  `n_out` is the total number of output rows.  Inserted group-header
+# rows receive NULL (no per-cell style).  Returns a list of length n_out, or
+# NULL when every entry is NULL.
+.remap_cell_styles <- function(cs_orig, orig_to_new, n_out) {
+  if (is.null(cs_orig)) return(NULL)
+  out <- vector("list", n_out)
+  for (i in seq_along(cs_orig)) {
+    if (i > length(orig_to_new)) break
+    pos <- orig_to_new[i]
+    if (is.na(pos) || pos < 1L || pos > n_out) next
+    out[[pos]] <- cs_orig[[i]]
+  }
+  if (all(vapply(out, is.null, logical(1L)))) return(NULL)
+  out
 }
 
 

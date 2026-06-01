@@ -602,17 +602,24 @@ test_that(".interleave_group_rows inserts a header row at every group change", {
 })
 
 test_that(".interleave_group_rows is a no-op for empty input or mismatched lengths", {
+  # The function now also attaches an "orig_to_new" row-mapping attribute;
+  # strip it before comparing the data portion.
+  strip <- function(x) { attr(x, "orig_to_new") <- NULL; x }
   df0 <- data.frame()
-  expect_identical(rtfreporter:::.interleave_group_rows(df0,
-                                                         character(0),
-                                                         character(0)), df0)
+  expect_identical(
+    strip(rtfreporter:::.interleave_group_rows(df0, character(0), character(0))),
+    df0)
   df1 <- data.frame(a = 1:3, b = c("x","y","z"), stringsAsFactors = FALSE)
   expect_identical(
-    rtfreporter:::.interleave_group_rows(df1,
-                                          group_per_row = c("A","B"),  # wrong length
-                                          group_label_per_row = c("A","B")),
+    strip(rtfreporter:::.interleave_group_rows(
+      df1,
+      group_per_row = c("A","B"),         # wrong length
+      group_label_per_row = c("A","B"))),
     df1
   )
+  # Identity mapping when lengths mismatch (no-op path).
+  out <- rtfreporter:::.interleave_group_rows(df1, c("A","B"), c("A","B"))
+  expect_identical(attr(out, "orig_to_new"), 1:3)
 })
 
 # ──────── .gt_to_rtftable_kwargs Phase-C integration ──────────────────────
@@ -805,7 +812,7 @@ test_that("Phase D: indent applied -- \\\\li > baseline in RTF", {
   expect_match(txt, "\\li[3-9][0-9]{2,}")
 })
 
-test_that("Phase D: footnote_marks injected into data cells as superscript", {
+test_that("Phase D: footnote_marks converts gt's HTML marks to superscript", {
   skip_if_not_installed("gt")
   df <- data.frame(a = c("x", "y"), b = c(1L, 2L), stringsAsFactors = FALSE)
   g  <- gt::gt(df) |>
@@ -813,10 +820,51 @@ test_that("Phase D: footnote_marks injected into data cells as superscript", {
                      locations = gt::cells_body(rows = 1, columns = a))
 
   tbl <- as_rtftable(g, read = c("col_header", "footnote_marks"))
-  # The cell value for (row=1, col=a) should contain the mark
+  # gt embeds <sup>1</sup>; we convert it to ^{1} markup (single mark only).
   expect_match(tbl$data$a[1L], "\\^\\{1\\}", fixed = FALSE)
-  # Other cells unchanged
+  # No residual HTML span/sup tags left behind.
+  expect_false(grepl("<sup>|gt_footnote_marks", tbl$data$a[1L]))
+  # The mark must not be duplicated.
+  expect_equal(lengths(regmatches(tbl$data$a[1L],
+                                  gregexpr("\\^\\{", tbl$data$a[1L]))), 1L)
+  # Other cells unchanged.
   expect_false(grepl("^{", tbl$data$a[2L], fixed = TRUE))
+})
+
+test_that("Phase D regression: styles land on correct row after stub interleave", {
+  skip_if_not_installed("gt")
+  df <- data.frame(grp = c("G1", "G1", "G2", "G2"),
+                   sub = c("a", "b", "c", "d"),
+                   val = c(10, 20, 30, 40), stringsAsFactors = FALSE)
+  g <- gt::gt(df, groupname_col = "grp", rowname_col = "sub") |>
+    gt::tab_style(style = gt::cell_text(weight = "bold"),
+                  locations = gt::cells_body(rows = 4))  # original row 4 = "d"
+
+  kw <- rtfreporter:::.gt_to_rtftable_kwargs(g,
+          tokens = rtfreporter:::.GT_TOKENS_ALL)
+  # After interleaving group-header rows, "d" sits at physical row 6.
+  d_row <- which(kw$data$sub == "d")
+  expect_equal(d_row, 6L)
+  # Bold must be on physical row 6, NOT on the inserted "G2" header (row 4).
+  expect_true(isTRUE(kw$cell_styles[[6L]]$bold[2L]))
+  expect_null(kw$cell_styles[[4L]])
+})
+
+test_that("Phase D regression: footnote mark lands on correct row after stub", {
+  skip_if_not_installed("gt")
+  df <- data.frame(grp = c("G1", "G1", "G2", "G2"),
+                   sub = c("a", "b", "c", "d"),
+                   val = c(10, 20, 30, 40), stringsAsFactors = FALSE)
+  g <- gt::gt(df, groupname_col = "grp", rowname_col = "sub") |>
+    gt::tab_footnote("Note X",
+                     locations = gt::cells_body(rows = 4, columns = val))
+
+  kw <- rtfreporter:::.gt_to_rtftable_kwargs(g,
+          tokens = rtfreporter:::.GT_TOKENS_ALL)
+  d_row <- which(kw$data$sub == "d")
+  expect_match(kw$data$val[d_row], "\\^\\{1\\}")
+  # The inserted G2 header row (4) must NOT carry the mark.
+  expect_false(grepl("\\^\\{", kw$data$val[4L]))
 })
 
 test_that("Phase D: .strip_html_from_df removes tags, converts <br> to newline", {
