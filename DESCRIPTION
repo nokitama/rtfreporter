@@ -6,7 +6,7 @@ Authors@R:
     person(given  = "Yoichi",
            family = "Masui",
            email  = "ichi.r.pro@gmail.com",
-           role   = c("aut", "cre"))
+           role   = c("aut", "cre", "cph"))
 Description: A standalone toolkit for generating Rich Text Format (RTF)
     reports used in clinical trial deliverables -- Tables, Listings and
     Figures (TFLs). Provides a functional, pipe-friendly API to compose
