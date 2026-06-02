@@ -6,6 +6,10 @@ title: "Architecture & internals (for contributors)"
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 ```
 
+<p align="right">
+  <a class="btn btn-outline-secondary btn-sm" href="architecture-ja.html">In Japanese</a>
+</p>
+
 This article is the English entry point for people who want to **extend or
 contribute to** rtfreporter. It gives the big picture; the two
 authoritative deep-dive documents are in Japanese and are linked at the

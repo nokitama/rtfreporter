@@ -259,20 +259,22 @@ articles:
   - title: For contributors
     desc: >
       How rtfreporter is built and how to extend it.  Start with the
-      architecture overview, then the adapter how-to.
+      architecture overview, then the adapter how-to.  Each article opens
+      in English with an "In Japanese" toggle at the top.
     navbar: ~
     contents:
       - articles/architecture
       - articles/extending-adapters
 
-  - title: Contributor design specs (日本語 / Japanese)
+  - title: コントリビューター向け資料（日本語 / Japanese）
     desc: >
-      The authoritative, in-depth design documents, written in Japanese
-      and aimed at contributors: the public S3 API specification and the
-      internal class-design reference.  These are linked from the English
-      architecture overview above.  日本語の詳細設計資料です。
+      Japanese versions of the contributor articles (reachable from the
+      "In Japanese" toggle), plus the authoritative in-depth design
+      specifications.  日本語のコントリビューター向け資料と詳細設計書です。
     navbar: ~
     contents:
+      - articles/architecture-ja
+      - articles/extending-adapters-ja
       - articles/external-api
       - articles/internal-design
 

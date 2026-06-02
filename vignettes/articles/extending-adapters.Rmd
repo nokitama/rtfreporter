@@ -6,6 +6,10 @@ title: "Adding a table-object adapter"
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 ```
 
+<p align="right">
+  <a class="btn btn-outline-secondary btn-sm" href="extending-adapters-ja.html">In Japanese</a>
+</p>
+
 rtfreporter can read tables produced by other packages — gt, gtsummary,
 and rtables/tern — and turn them into RTF while preserving their metadata
 (column labels, alignment, spanning headers, titles, footnotes, per-cell
