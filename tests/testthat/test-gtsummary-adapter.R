@@ -78,21 +78,22 @@ test_that("as_rtftable() accepts a tbl_summary and returns an rtftable", {
   expect_s3_class(tbl, "rtftable")
 })
 
-test_that("as_rtftable() column count matches gtsummary rendered columns", {
+test_that("as_rtftable() column count matches the rendered (visible) body", {
   skip_if_not_installed("gtsummary")
   skip_if_not_installed("gt")
   s      <- .make_tbl_summary()
   gt_obj <- gtsummary::as_gt(s)
-  gt_df  <- as.data.frame(gt_obj)
-  tbl    <- as_rtftable(s, read = FALSE)
-  expect_equal(ncol(tbl$data), ncol(gt_df))
+  # The body comes from gt::extract_body() -- visible columns only.
+  eb     <- gt::extract_body(gt_obj, output = "html")
+  tbl    <- as_rtftable(s, read_meta = FALSE)
+  expect_equal(ncol(tbl$data), ncol(eb))
 })
 
 test_that("as_rtftable() reads col_header from gtsummary when read = TRUE", {
   skip_if_not_installed("gtsummary")
   skip_if_not_installed("gt")
   s   <- .make_tbl_summary()
-  tbl <- as_rtftable(s, read = TRUE)
+  tbl <- as_rtftable(s, read_meta = TRUE)
   # col_header should be a character vector of length == ncol(data)
   expect_true(!is.null(tbl$col_header) || is.null(tbl$col_header))
   # structural integrity: data is a data.frame

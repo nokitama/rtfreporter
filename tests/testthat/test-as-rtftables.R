@@ -61,23 +61,15 @@ test_that("as_rtftables(gt) reads metadata into the rtftable", {
   expect_identical(attr(rt, "rtf_footnotes"), "S")
 })
 
-test_that("as_rtftables(gt) per-cell styles are sliced per page", {
+test_that("as_rtftables(gt) body is clean: no hidden/helper cols, NA->empty", {
   skip_if_not_installed("gt")
-  df <- data.frame(name = paste0("r", 1:6), v = 1:6, stringsAsFactors = FALSE)
-  g  <- gt::gt(df) |>
-    gt::tab_style(gt::cell_text(weight = "bold"),
-                  gt::cells_body(rows = 5))
-  res <- as_rtftables(g, split = "group_force", max_rows = 3,
-                      group_col = "name")
-  expect_length(res, 2L)
-  # Page 1 (r1-r3): no styled rows -> cell_styles NULL.
-  expect_null(res[[1L]]$cell_styles)
-  # Page 2 (r4-r6): bold on its row 2 (= r5).
-  cs2 <- res[[2L]]$cell_styles
-  expect_false(is.null(cs2))
-  expect_true(isTRUE(cs2[[2L]]$bold[1L]))
-  expect_null(cs2[[1L]])
-  expect_null(cs2[[3L]])
+  df <- data.frame(a = c("x", "y"), b = c(1L, NA), stringsAsFactors = FALSE)
+  g  <- gt::gt(df) |> gt::cols_hide(a)        # hide a column
+  rt <- as_rtftables(g)[[1L]]
+  # hidden column dropped (extract_body gives visible columns only)
+  expect_equal(ncol(rt$data), 1L)
+  # no stray newline characters anywhere in the body
+  expect_false(any(grepl("\n", as.matrix(rt$data), fixed = TRUE)))
 })
 
 test_that("as_rtftables(gt) flows titles/footnotes into rtf_tables()", {
@@ -93,11 +85,11 @@ test_that("as_rtftables(gt) flows titles/footnotes into rtf_tables()", {
   expect_identical(doc$footnotes[[1L]], "Src")
 })
 
-test_that("as_rtftables(gt, read = FALSE) ignores metadata", {
+test_that("as_rtftables(gt, read_meta = FALSE) ignores metadata", {
   skip_if_not_installed("gt")
   g <- gt::gt(head(mtcars, 2)) |>
     gt::tab_header(title = "Demo")
-  res <- as_rtftables(g, read = FALSE)
+  res <- as_rtftables(g, read_meta = FALSE)
   expect_null(res[[1L]]$col_header)
   expect_null(attr(res[[1L]], "rtf_titles"))
 })
@@ -132,7 +124,7 @@ test_that("explicit rtf_tables() args override as_rtftables(read=FALSE) output",
     gt::cols_label(mpg = "MPG")
   doc <- rtf_document() |>
     rtf_section(page = 1, secinfo = list(header = NULL, footer = NULL)) |>
-    rtf_tables(as_rtftables(g, read = FALSE),
+    rtf_tables(as_rtftables(g, read_meta = FALSE),
                col_rel_width = c(3, 1), table_align = "center")
   expect_identical(doc$contents[[1L]]$col_rel_width, c(3, 1))
   expect_identical(doc$contents[[1L]]$table_align, "center")
@@ -145,7 +137,7 @@ test_that("rtf_tables() overrides only explicit fields, keeps gt metadata", {
     gt::cols_align("right")
   doc <- rtf_document() |>
     rtf_section(page = 1, secinfo = list(header = NULL, footer = NULL)) |>
-    rtf_tables(as_rtftables(g, read = TRUE), col_rel_width = c(4, 1))
+    rtf_tables(as_rtftables(g, read_meta = TRUE), col_rel_width = c(4, 1))
   # overridden
   expect_identical(doc$contents[[1L]]$col_rel_width, c(4, 1))
   # kept from gt
@@ -158,7 +150,7 @@ test_that("col_spec override merges per-column over gt-derived spec", {
   g <- gt::gt(head(mtcars, 2)[, c("mpg", "cyl")]) |> gt::cols_align("right")
   doc <- rtf_document() |>
     rtf_section(page = 1, secinfo = list(header = NULL, footer = NULL)) |>
-    rtf_tables(as_rtftables(g, read = TRUE),
+    rtf_tables(as_rtftables(g, read_meta = TRUE),
                col_spec = list(list(col = 1, align = "left")))
   expect_identical(doc$contents[[1L]]$col_spec[[1L]]$align, "left")   # overridden
   expect_identical(doc$contents[[1L]]$col_spec[[2L]]$align, "right")  # kept

@@ -6,7 +6,7 @@
 \usage{
 as_rtftables(
   x,
-  read = TRUE,
+  read_meta = TRUE,
   max_rows = NULL,
   split = c("none", "rows", "group_safe", "group_force", "by_value"),
   split_rows = NULL,
@@ -25,12 +25,14 @@ as_rtftables(
 \item{x}{A `gt_tbl`, a gtsummary table, an rtables/tern `VTableTree`, a
 `data.frame` / tibble, or a `list` of these.}
 
-\item{read}{Controls metadata extraction: `TRUE` (default, read
-everything), `FALSE` (treat as a bare data.frame body), or a character
-vector of tokens.  Ignored for plain data.frame inputs.  The token
-vocabulary differs by source -- see [as_rtftable()] (gt) and the
-package docs for the rtables tokens (`"col_header"`, `"alignment"`,
-`"spanning"`, `"titles"`, `"footnotes"`, `"indent"`, `"footnote_marks"`).}
+\item{read_meta}{Controls metadata extraction from the source table:
+`TRUE` (default, read everything in the table above), `FALSE` (use only
+the rendered body -- equivalent to the old `paginate()`), or a character
+vector of tokens.  Ignored for plain data.frame inputs.  Tokens for
+gt/gtsummary: `"col_header"`, `"alignment"`, `"spanning"`, `"widths"`,
+`"titles"`, `"footnotes"`.  For rtables/tern: `"col_header"`,
+`"alignment"`, `"spanning"`, `"titles"`, `"footnotes"`, `"indent"`,
+`"footnote_marks"`.}
 
 \item{max_rows, split, split_rows, group_col, cont_label, blank_rows, blank_row_first, blank_row_end, align_count_pct}{Pagination controls.  Identical meaning to the (now deprecated)
 `paginate()`.  `split = "none"` (default) keeps the whole table as a
@@ -55,36 +57,51 @@ across `paginate()` (page splitting) and `rtf_tables(read_gt = )`
 (metadata extraction):
 }
 \details{
-1. **Read the table's metadata.**  The supported source families are:
-   * **gt** -- a `gt_tbl`, or any **gtsummary** table (converted first via
-     `gtsummary::as_gt()`).  Column labels, per-column alignment, spanning
-     headers, widths, hidden-column removal, stub / row-group structure,
-     per-cell styles (bold / italic / underline / indent), in-cell footnote
-     marks, title / subtitle and source notes are extracted.  See
-     [as_rtftable()] for the gt token list.
-   * **rtables / tern** -- any `VTableTree` (`TableTree` / `ElementaryTable`;
-     tern's analysis functions all return one).  Read through
-     `formatters::matrix_form()`: leaf + spanning column headers, per-column
-     alignment, the row-label stub with its indentation, main title +
-     subtitles, the main / provenance footers and referential footnote
-     texts, and the in-cell numeric footnote marks (rewritten to
-     rtfreporter superscript markup).
+1. **Read the table's metadata** (only the parts the RTF renderer can use;
+   see *What is carried* below).
 2. **Paginate.**  The rendered body is split into per-page chunks using
    the same strategies the old `paginate()` offered (`split`, `max_rows`,
-   `group_col`, blank-row controls, ...).  Per-cell styles are sliced to
-   match each page; the shared header / width / spanning metadata is
-   replicated onto every page.
+   `group_col`, blank-row controls, ...).  The shared header / width /
+   spanning metadata is replicated onto every page.
 
 The page-level title / source-note blocks travel with each returned
 rtftable as the attributes `rtf_titles` / `rtf_footnotes`, which
-[rtf_tables()] consumes automatically -- so no `read_gt` flag is needed
-anymore.
+[rtf_tables()] consumes automatically.
 
 Supported inputs: `gt_tbl`, gtsummary tables, rtables/tern `VTableTree`
 tables, plain `data.frame` / tibble, or a `list` of any of these (the list
 is flattened, names propagated as `name`, `name.1`, `name.2`, ...).
 Figures are out of scope -- use [rtf_figures()] for those.
 }
+\section{What is carried, by source}{
+
+
+The body is always the table's *rendered* body -- for gt/gtsummary via
+`gt::extract_body()`, for rtables/tern via `formatters::matrix_form()`.
+Only visible columns appear (hidden / helper columns such as tfrmt's
+`..tfrmt_row_grp_lbl` are dropped), row-group / stub rows are already
+interleaved, and indentation is rendered into the label text.  On top of
+that body the following *metadata* is read:
+
+\tabular{lll}{
+  **Metadata** \tab **gt / gtsummary** \tab **rtables / tern** \cr
+  Column (leaf) labels        \tab yes \tab yes \cr
+  Per-column alignment        \tab yes \tab yes \cr
+  Spanning headers            \tab yes \tab yes \cr
+  Column widths               \tab yes (px/pct) \tab -- \cr
+  Title + subtitle            \tab yes \tab yes \cr
+  Footnotes / source notes    \tab yes \tab yes \cr
+  In-cell footnote marks      \tab yes (superscript) \tab yes (superscript) \cr
+  Row-group rows + indent     \tab yes (rendered) \tab yes (rendered) \cr
+}
+
+**Not carried** (RTF cannot reproduce these, so they are intentionally
+ignored): per-cell bold / italic / underline from `gt::tab_style()`, cell
+background colours / fills, font and size styling, and Markdown formatting
+inside labels or titles.  Plain `data.frame` / tibble inputs carry no
+metadata at all -- set `col_header`, `col_spec`, etc. yourself.
+}
+
 \examples{
 \dontrun{
 library(gtsummary)

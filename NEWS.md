@@ -1,5 +1,35 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.46
+
+### Fixes & changes to the gt / gtsummary / tfrmt reading path
+
+The gt body is now taken from `gt::extract_body()` (the route the deprecated
+`paginate()` used) instead of `as.data.frame()`.  This fixes several
+regressions and simplifies what is read:
+
+* **Clean body.**  Only the *visible* columns appear, so hidden / helper
+  columns -- such as tfrmt's `..tfrmt_row_grp_lbl` -- are dropped (even with
+  `read_meta = FALSE`).  Row-group rows render as genuinely empty cells
+  instead of leaving a stray newline (gt's `<br />` placeholder), and the
+  indentation of nested labels is preserved.
+* **Only render-relevant metadata is read.**  Column labels, alignment,
+  spanning headers, widths, title/subtitle, footnotes/source notes, and
+  in-cell footnote marks (rewritten to `^{N}`).  Per-cell bold/italic from
+  `gt::tab_style()`, cell fills and Markdown are **not** read -- RTF cannot
+  reproduce them.  See the new *What is carried, by source* table in
+  `?as_rtftables`.
+* **Header alignment inheritance restored.**  When you override a column's
+  `align` via `rtf_tables()`, the column header (and any spanning header
+  above it) now follows the new alignment again, unless `header_align` is
+  set explicitly -- matching the construction-time cascade.
+
+### Renamed argument
+
+* `as_rtftables(read = )` / `as_rtftable(read = )` are renamed to
+  **`read_meta`** ("read the source table's metadata").  `read_meta = FALSE`
+  yields the rendered body only.
+
 ## rtfreporter 0.0.45
 
 ### New: rtables / tern input

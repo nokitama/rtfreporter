@@ -552,6 +552,13 @@
              else as.integer(spec$col)
       if (is.na(idx) || idx < 1L || idx > length(tbl$col_spec)) next
       for (f in setdiff(names(spec), "col")) tbl$col_spec[[idx]][[f]] <- spec[[f]]
+      # The column header (and any spanning header above it) inherits the
+      # data alignment unless the header alignment is set explicitly.  When
+      # this override changes `align` but not `header_align`, re-inherit so
+      # the headers follow -- matching the construction-time cascade.
+      if ("align" %in% names(spec) && !("header_align" %in% names(spec))) {
+        tbl$col_spec[[idx]]$header_align <- spec$align
+      }
     }
   }
 

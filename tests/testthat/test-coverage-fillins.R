@@ -68,62 +68,37 @@ test_that(".resolve_blank_rows() of an empty data.frame returns integer(0)", {
 
 # ── R/gt_adapter.R: extractor early returns ────────────────────────
 
-test_that("gt extractors return NULL on a synthetic 'gt_tbl' that has no slots", {
-  skip_if_not_installed("gt")
-  # Fabricate a class but no slots: forces the early-return branches.
+test_that(".extract_titles() returns NULL on a synthetic gt with no heading", {
   fake <- structure(list(), class = c("gt_tbl", "list"))
-  expect_null(rtfreporter:::.extract_col_labels(fake))
-  expect_null(rtfreporter:::.extract_col_align(fake))
   expect_null(rtfreporter:::.extract_titles(fake))
-  expect_null(rtfreporter:::.extract_visible_mask(fake))
-  expect_null(rtfreporter:::.extract_widths(fake))
-  expect_identical(rtfreporter:::.extract_spanners(fake), list())
 })
 
-test_that(".extract_widths() returns NULL when any column has an unknown unit", {
-  skip_if_not_installed("gt")
-  g <- gt::gt(head(mtcars, 1)[, c("mpg", "cyl")]) |>
-    gt::cols_width(mpg ~ gt::px(100))
-  # Manually inject an unparsable width into the second slot.
-  g[["_boxhead"]]$column_width[[2L]] <- list(list("3em"))
-  expect_null(rtfreporter:::.extract_widths(g))
+test_that(".parse_one_width() classifies px / pct / unknown / missing", {
+  expect_identical(rtfreporter:::.parse_one_width("100px")$kind, "px")
+  expect_identical(rtfreporter:::.parse_one_width("40%")$kind,   "pct")
+  expect_identical(rtfreporter:::.parse_one_width("3em")$kind,   "unknown")
+  expect_identical(rtfreporter:::.parse_one_width(NA)$kind,      "missing")
 })
 
-test_that(".extract_spanners() skips a spanner whose vars become non-contiguous", {
-  skip_if_not_installed("gt")
-  # gt re-orders columns to make spanners contiguous, so to actually
-  # exercise the contiguity guard we patch `_spanners` by hand to
-  # reference a non-contiguous set in the boxhead column order.
-  g <- gt::gt(head(mtcars, 1)[, c("mpg", "cyl", "disp")]) |>
-    gt::tab_spanner(label = "Engine", columns = c(cyl))
-  # Hijack: claim Engine spans mpg + disp (skipping cyl).  Builds a
-  # spanner whose vars resolve to indices c(1, 3) -- non-contiguous.
-  g[["_spanners"]]$vars[[1L]] <- c("mpg", "disp")
-  rows <- rtfreporter:::.extract_spanners(g)
-  expect_length(rows, 0L)
-})
-
-test_that(".extract_spanners() drops a spanner whose vars are all hidden", {
-  skip_if_not_installed("gt")
-  g <- gt::gt(head(mtcars, 1)[, c("mpg", "cyl", "disp")]) |>
-    gt::cols_hide(c(cyl, disp)) |>
-    gt::tab_spanner(label = "GoneEngine", columns = c(cyl, disp))
-  mask <- rtfreporter:::.extract_visible_mask(g)
-  rows <- rtfreporter:::.extract_spanners(g, visible_mask = mask)
-  # All vars hidden -> no spanner row.  Use length to dodge any
-  # list-vs-list() structural identity quirks.
-  expect_length(rows, 0L)
-})
-
-test_that(".extract_spanners() copes with NA / empty spanner labels", {
+test_that(".extract_spanners_body() maps contiguous spanners; skips others", {
   skip_if_not_installed("gt")
   g <- gt::gt(head(mtcars, 1)[, c("mpg", "cyl", "disp")]) |>
     gt::tab_spanner(label = "Engine", columns = c(cyl, disp))
-  # Force the label to NA to hit the `is.na(label) -> ""` fallback.
-  g[["_spanners"]]$spanner_label[[1L]] <- NA_character_
-  rows <- rtfreporter:::.extract_spanners(g)
+  body_vars <- names(gt::extract_body(g, output = "html"))
+  rows <- rtfreporter:::.extract_spanners_body(g, body_vars)
   expect_length(rows, 1L)
-  expect_identical(rows[[1L]][[1L]]$label, "")
+  # Non-contiguous vars -> dropped.
+  g[["_spanners"]]$vars[[1L]] <- c("mpg", "disp")
+  expect_length(rtfreporter:::.extract_spanners_body(g, body_vars), 0L)
+})
+
+test_that(".strip_html_from_df() normalises break-only cells to empty", {
+  df  <- data.frame(a = c("<br />", "x<br/>y", "<b>z</b>"),
+                    stringsAsFactors = FALSE)
+  out <- rtfreporter:::.strip_html_from_df(df)
+  expect_identical(out$a[1L], "")          # <br/> only -> empty (item 3 fix)
+  expect_identical(out$a[2L], "x\ny")      # real line break preserved
+  expect_identical(out$a[3L], "z")         # tags stripped
 })
 
 test_that(".extract_source_notes() handles all-NA notes -> NULL", {
@@ -177,7 +152,7 @@ test_that(".merge_col_spec() handles user entries that target NEW columns", {
 test_that("as_rtftable() forwards `...` to rtftable (e.g. col_rel_width passes through)", {
   skip_if_not_installed("gt")
   g   <- gt::gt(head(mtcars, 1)[, c("mpg", "cyl")])
-  tbl <- as_rtftable(g, read = FALSE, col_rel_width = c(2, 1))
+  tbl <- as_rtftable(g, read_meta = FALSE, col_rel_width = c(2, 1))
   expect_identical(tbl$col_rel_width, c(2, 1))
 })
 

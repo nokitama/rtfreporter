@@ -27,3 +27,7 @@
 ^vignettes/articles/.*_files$
 ^vignettes/\.quarto$
 ^LICENSE\.md$
+^CONTRIBUTING\.md$
+^CODE_OF_CONDUCT\.md$
+^rtfreporter-tests$
+^.*\.Rcheck$

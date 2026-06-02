@@ -96,9 +96,9 @@ test_that("as_rtftables(rtables) converts in-cell {N} marks to ^{N}", {
   expect_true(any(grepl("a note", attr(rt, "rtf_footnotes"))))
 })
 
-test_that("as_rtftables(rtables, read = FALSE) gives body only, no metadata", {
+test_that("as_rtftables(rtables, read_meta = FALSE) gives body only, no metadata", {
   tbl <- .make_rtables(footnote = TRUE)
-  rt  <- as_rtftables(tbl, read = FALSE)[[1L]]
+  rt  <- as_rtftables(tbl, read_meta = FALSE)[[1L]]
   expect_null(rt$col_header)
   expect_null(attr(rt, "rtf_titles"))
   # Marks left literal when footnote_marks token is off.
