@@ -15,9 +15,12 @@ Thumbs.db
 # LibreOffice / OpenOffice lock files
 .~lock.*
 
-# R build artifacts
+# R build / check artifacts
 /doc/
 /Meta/
+/*.Rcheck/
+/rtfreporter-tests/
+/*.tar.gz
 
 # pkgdown build output -- deployed to gh-pages branch via GitHub Actions
 /docs/
@@ -29,9 +32,5 @@ Thumbs.db
 vignettes/articles/.quarto/
 vignettes/articles/*_files/
 
-# Generated RTF output (binary, reproducible from scripts)
-output/*.rtf
-output/demo/
-
-# Temporary / debug scripts
-output/debug_hdr.R
+# Runtime RTF output (reproducible from the demo scripts in data-raw/)
+/output/
