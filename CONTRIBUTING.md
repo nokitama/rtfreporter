@@ -104,13 +104,26 @@ contributor to several.
   direct pushes).  As soon as there is more than one contributor it will be
   turned on: require a pull request, passing CI, and at least one approving
   review before merge.  Contributors should use a PR regardless.
-- **One topic branch per change**, cut from the latest `main`.  Use a
-  short, descriptive name with a type prefix:
+- **One topic branch per change**, cut from the latest `main`.  Name it
+  **`<type>/<issue>-<slug>`** -- lowercase, hyphen-separated, short
+  (3-5 words):
 
   ```
-  feature/<slug>     fix/<slug>     docs/<slug>     chore/<slug>
-  # or tie it to an issue:  123-read-tfrmt-tables
+  fix/42-empty-cell-newline       feat/57-read-tfrmt-tables
+  docs/60-contributing-guide      refactor/12-gt-adapter
   ```
+
+  * **`<type>`** uses the Conventional Commits vocabulary:
+    `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `perf`, `ci`.
+  * **`<issue>`** is the related issue number (omit only for quick
+    exploratory work with no issue yet; add it once an issue exists).
+    Note: use the bare number -- `#` is not allowed in branch names.
+  * **`<slug>`** is a couple of words describing the change.
+
+  Tip: GitHub's *Create a branch* button on an issue (the Development
+  panel) generates a correctly-named, auto-linked branch for you.  Either
+  way, put `Closes #<issue>` in the PR description so the issue closes on
+  merge.
 
 - **Keep branches small and short-lived.**  Rebase (or merge) the latest
   `main` into your branch regularly so the eventual PR is a small,
