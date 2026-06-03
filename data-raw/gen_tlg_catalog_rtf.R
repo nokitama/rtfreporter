@@ -173,7 +173,9 @@ ae_tern <- build_table(
     append_varlabels(adae_ae, "AEDECOD", indent = 1L),
   df = adae_ae, alt_counts_df = adsl_ae)
 ae_tern_pages <- as_rtftables(ae_tern, split = "group_safe", max_rows = 30,
-                              blank_rows = "between_groups", align_count_pct = TRUE)
+                              blank_rows = "between_groups", align_count_pct = TRUE,
+                              col_rel_width = c(0.40, 0.15, 0.15, 0.15, 0.15),
+                              row_height_twips = 200)
 out_ae_tern <- .write(
   rtf_document() |>
     rtf_section(page = 1, secinfo = list(
@@ -222,8 +224,16 @@ ae_tfrmt <- tfrmt_n_pct(n = "n", pct = "p",
       group_val = ".default", element_block(post_space = " "))),
     big_n = big_n_structure(param_val = "bigN", n_frmt = frmt(" (N=xx)"))) |>
   print_to_gt(ae_card)
+ae_hdr <- c("System Organ Class /\nPreferred Term",
+            "Placebo\n(N=86)",
+            "Xanomeline\nHigh Dose\n(N=72)",
+            "Xanomeline\nLow Dose\n(N=96)",
+            "All Patients\n(N=306)")
 ae_tfrmt_pages <- as_rtftables(ae_tfrmt, split = "group_force", max_rows = 30,
-                               blank_rows = "between_groups")
+                               blank_rows = "between_groups",
+                               col_header = ae_hdr,
+                               col_rel_width = c(0.40, 0.15, 0.15, 0.15, 0.15),
+                               row_height_twips = 200)
 .write(
   rtf_document() |>
     rtf_section(page = 1, secinfo = list(

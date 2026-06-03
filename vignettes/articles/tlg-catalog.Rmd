@@ -278,9 +278,14 @@ ae_lyt <- basic_table(show_colcounts = TRUE) |>
   append_varlabels(adae_ae, "AEDECOD", indent = 1L)
 ae_tern <- build_table(ae_lyt, df = adae_ae, alt_counts_df = adsl_ae)
 
-# split = "group_safe" never breaks an SOC across a page boundary.
+# split = "group_safe" never breaks an SOC across a page boundary.  A wide
+# first column (40% of the page, the rest split evenly) keeps the long SOC /
+# preferred-term labels on one line, and a slightly shorter row height lets a
+# full 30 rows fit one printed page.
 ae_tern_pages <- as_rtftables(ae_tern, split = "group_safe", max_rows = 30,
-                              blank_rows = "between_groups", align_count_pct = TRUE)
+                              blank_rows = "between_groups", align_count_pct = TRUE,
+                              col_rel_width = c(0.40, 0.15, 0.15, 0.15, 0.15),
+                              row_height_twips = 200)
 length(ae_tern_pages)            # number of RTF pages
 ```
 
@@ -342,9 +347,21 @@ ae_tfrmt <- tfrmt_n_pct(
     big_n = big_n_structure(param_val = "bigN", n_frmt = frmt(" (N=xx)"))) |>
   print_to_gt(ae_card)
 
+# tfrmt renders "Arm (N=xx)" on a single header line; wrap it onto two/three
+# lines so the data columns can be narrow.  As with the tern table, a wide
+# first column keeps the SOC / preferred-term labels unbroken.
+ae_hdr <- c("System Organ Class /\nPreferred Term",
+            "Placebo\n(N=86)",
+            "Xanomeline\nHigh Dose\n(N=72)",
+            "Xanomeline\nLow Dose\n(N=96)",
+            "All Patients\n(N=306)")
+
 # split = "group_force" cuts at max_rows, adding a "(Cont.)" marker.
 ae_tfrmt_pages <- as_rtftables(ae_tfrmt, split = "group_force", max_rows = 30,
-                               blank_rows = "between_groups")
+                               blank_rows = "between_groups",
+                               col_header = ae_hdr,
+                               col_rel_width = c(0.40, 0.15, 0.15, 0.15, 0.15),
+                               row_height_twips = 200)
 length(ae_tfrmt_pages)
 ```
 

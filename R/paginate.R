@@ -422,8 +422,15 @@ paginate.data.frame <- function(x, ...) {
   if (is.null(group_idx)) {
     col1 <- as.character(df[[1L]])
     first_ch <- substr(col1, 1L, 1L)
+    # A row is a group *header* when its first column starts with a
+    # non-indent character.  Indentation may be encoded as a regular space,
+    # a tab, or a non-breaking space (U+00A0) -- gt/tfrmt bakes row-label
+    # indentation as leading NBSPs, so those must count as indent too,
+    # otherwise every indented sub-row is mistaken for a new group.
+    nbsp <- intToUtf8(160L)            # non-breaking space (U+00A0)
+    indent_chars <- c(" ", "	", nbsp)
     is_header <- !is.na(col1) & nzchar(col1) &
-                   first_ch != " " & first_ch != "\t"
+                   !(first_ch %in% indent_chars)
     raw_id <- cumsum(is_header)
     id <- ifelse(raw_id == 0L, NA_integer_, as.integer(raw_id))
     labels <- character(n)

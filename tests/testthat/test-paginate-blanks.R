@@ -35,6 +35,22 @@ test_that("only indent level 0 rows open a new group; deeper indents stay in", {
                      TRUE, FALSE, FALSE, FALSE, FALSE))
 })
 
+test_that("NBSP-indented sub-rows (gt/tfrmt style) are not treated as group headers", {
+  nbsp <- intToUtf8(160L)
+  df <- data.frame(
+    label = c("GROUP A",
+              paste0(nbsp, nbsp, "child 1"),
+              paste0(nbsp, nbsp, "child 2"),
+              "GROUP B",
+              paste0(nbsp, nbsp, "child 3")),
+    value = c("", "1", "2", "", "3"),
+    stringsAsFactors = FALSE)
+  info <- rtfreporter:::.compute_group_info(df, group_idx = NULL)
+  # Only the two non-indented rows are headers -> two groups, not five.
+  expect_identical(info$headers, c(TRUE, FALSE, FALSE, TRUE, FALSE))
+  expect_identical(info$id, c(1L, 1L, 1L, 2L, 2L))
+})
+
 # ──────── Page splitting respects indent-based top-level groups ────────────
 
 test_that("group_safe splits at top-level group boundaries even with nested indents", {

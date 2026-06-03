@@ -1,5 +1,29 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.55
+
+### Bug fix: NBSP-indented rows no longer treated as group headers
+
+`as_rtftables()` detects row groups from the indentation of the first column.
+It only recognised a regular space or tab as indent, so gt/tfrmt tables --
+which bake row-label indentation as **non-breaking spaces** (U+00A0) -- had
+*every* indented sub-row mistaken for a new group.  With
+`blank_rows = "between_groups"` that inserted a blank row after almost every
+line, roughly doubling the rendered rows and overflowing the printed page
+(e.g. the adverse-events `tfrmt` table rendered ~608 rows instead of ~340).
+A non-breaking space now counts as indentation, so blanks appear only between
+real groups.
+
+### TLG article: adverse-events tables now paginate cleanly
+
+In the *From pharmaverse tables to RTF reports* article both adverse-events
+tables (tern and tfrmt) now use a wide first column
+(`col_rel_width = c(0.40, 0.15, 0.15, 0.15, 0.15)`) so the long SOC / preferred
+-term labels stay on one line, a shorter `row_height_twips = 200` so a full 30
+rows fit one printed page, and -- for the tfrmt table -- two/three-line column
+headers (`Arm` over `(N=xx)`) so the data columns can be narrow.  The tables
+now hold their intended 14 / 11 pages instead of overflowing in Word.
+
 ## rtfreporter 0.0.54
 
 ### `as_rtftables(auto_width = TRUE)` sizes columns to their content
