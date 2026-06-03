@@ -74,11 +74,15 @@ A small reusable clinical header / footer, used for every table below (this is
 the only rtfreporter-specific glue; see *Using rtfreporter* for the details):
 
 ```{r hf}
-make_header <- function(table_no, title2) {
+# The whole title block lives in the running header, so it is normal weight
+# (not bold) and repeats on every page: company / protocol-and-page, then the
+# centred "Table N  <title>" and a centred "<subtitle>".
+make_header <- function(table_no, title, subtitle = "Safety Analysis Set") {
   rtf_header(rows = list(
     c(l = "Hoge Co. Limited",   r = "CONFIDENTIAL"),
     c(l = "Protocol: RTF-101",  r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
-    c(c = paste0("Table ", table_no, "  ", title2))
+    c(c = paste0("Table ", table_no, "  ", title)),
+    c(c = paste0("<", subtitle, ">"))
   ))
 }
 make_footer <- function(built_with) {
@@ -86,6 +90,10 @@ make_footer <- function(built_with) {
     "Table object built with ", built_with,
     " (pharmaverse example); rendered to RTF by rtfreporter.")))
 }
+
+# A single empty content title ("") inserts one blank line between the header
+# and the table on every page.
+blank_title <- function(n = 1L) rep(list(""), n)
 
 # Writable width of the default landscape Letter page (11in wide, 0.6in
 # margins).  `auto_width = TRUE` sizes each column to its content; passing this
@@ -118,15 +126,14 @@ dm_tern
 ```
 
 ```{r dm-tern-rtf}
-demog_title <- list(c("Demographic and Baseline Characteristics",
-                      "Safety Analysis Set"))
+demog_title <- "Demographic and Baseline Characteristics"
 doc <- rtf_document() |>
   rtf_section(page = 1,
-              secinfo = list(header = make_header("14.1.1a", "Demographics (tern)"),
+              secinfo = list(header = make_header("14.1.1a", paste(demog_title, "(tern)")),
                              footer = make_footer("tern + rtables"))) |>
   rtf_tables(as_rtftables(dm_tern, blank_rows = "between_groups",
                           auto_width = TRUE, table_width_twips = writable),
-             titles = demog_title)
+             titles = blank_title())
 out_dm_tern <- tempfile(fileext = ".rtf")
 generate_rtfreport(doc, out_dm_tern, overwrite = TRUE)
 file.exists(out_dm_tern)
@@ -159,11 +166,11 @@ dm_gts
 ```{r dm-gts-rtf}
 doc <- rtf_document() |>
   rtf_section(page = 1,
-              secinfo = list(header = make_header("14.1.1b", "Demographics (gtsummary)"),
+              secinfo = list(header = make_header("14.1.1b", paste(demog_title, "(gtsummary)")),
                              footer = make_footer("gtsummary + cards"))) |>
   rtf_tables(as_rtftables(dm_gts, blank_rows = "between_groups",
                           auto_width = TRUE, table_width_twips = writable),
-             titles = demog_title)
+             titles = blank_title())
 out_dm_gts <- tempfile(fileext = ".rtf")
 generate_rtfreport(doc, out_dm_gts, overwrite = TRUE)
 file.exists(out_dm_gts)
@@ -223,11 +230,11 @@ dm_tfrmt
 ```{r dm-tfrmt-rtf}
 doc <- rtf_document() |>
   rtf_section(page = 1,
-              secinfo = list(header = make_header("14.1.1c", "Demographics (tfrmt)"),
+              secinfo = list(header = make_header("14.1.1c", paste(demog_title, "(tfrmt)")),
                              footer = make_footer("tfrmt + cards"))) |>
   rtf_tables(as_rtftables(dm_tfrmt, blank_rows = "between_groups",
                           auto_width = TRUE, table_width_twips = writable),
-             titles = demog_title)
+             titles = blank_title())
 out_dm_tfrmt <- tempfile(fileext = ".rtf")
 generate_rtfreport(doc, out_dm_tfrmt, overwrite = TRUE)
 file.exists(out_dm_tfrmt)
@@ -238,8 +245,15 @@ file.exists(out_dm_tfrmt)
 The pharmaverse *adverse events* example is a genuinely large table -- 23
 system-organ classes and 242 preferred terms -- so it spans **many** pages.
 This is exactly where rtfreporter earns its keep: `as_rtftables()` paginates
-the object, repeats the column headers and the running header on every page,
-and keeps each SOC block intact.  Again the example builds it two ways.
+the object and repeats the column headers and running header on every page.
+The example builds it two ways, which also lets us show the **two pagination
+strategies**:
+
+* **`split = "group_safe"`** (the tern table) never breaks an SOC across a
+  page boundary -- a group that would overflow moves whole to the next page.
+* **`split = "group_force"`** (the tfrmt table) fills each page to `max_rows`
+  and, when the cut falls *inside* an SOC, repeats that SOC's label followed by
+  `" (Cont.)"` at the top of the next page (controlled by `cont_label`).
 
 ```{r ae-prep}
 adsl_ae <- adsl |>
@@ -250,8 +264,7 @@ adae_ae <- adae |>
               AEDECOD  = "MedDRA Preferred Term") |>
   filter(SAFFL == "Y")
 
-ae_title <- list(c("Adverse Events by System Organ Class and Preferred Term",
-                   "Safety Analysis Set"))
+ae_title <- "Adverse Events by System Organ Class and Preferred Term"
 ```
 
 ### tern + rtables (a `TableTree`)
@@ -292,9 +305,9 @@ length(ae_tern_pages)            # number of RTF pages
 ```{r ae-tern-rtf}
 doc <- rtf_document() |>
   rtf_section(page = 1,
-              secinfo = list(header = make_header("14.3.1a", "Adverse Events (tern)"),
+              secinfo = list(header = make_header("14.3.1a", paste(ae_title, "(tern)")),
                              footer = make_footer("tern + rtables"))) |>
-  rtf_tables(ae_tern_pages, titles = rep(ae_title, length(ae_tern_pages)))
+  rtf_tables(ae_tern_pages, titles = blank_title(length(ae_tern_pages)))
 out_ae_tern <- tempfile(fileext = ".rtf")
 generate_rtfreport(doc, out_ae_tern, overwrite = TRUE)
 file.exists(out_ae_tern)
@@ -368,9 +381,9 @@ length(ae_tfrmt_pages)
 ```{r ae-tfrmt-rtf}
 doc <- rtf_document() |>
   rtf_section(page = 1,
-              secinfo = list(header = make_header("14.3.1b", "Adverse Events (tfrmt)"),
+              secinfo = list(header = make_header("14.3.1b", paste(ae_title, "(tfrmt)")),
                              footer = make_footer("tfrmt + cards"))) |>
-  rtf_tables(ae_tfrmt_pages, titles = rep(ae_title, length(ae_tfrmt_pages)))
+  rtf_tables(ae_tfrmt_pages, titles = blank_title(length(ae_tfrmt_pages)))
 out_ae_tfrmt <- tempfile(fileext = ".rtf")
 generate_rtfreport(doc, out_ae_tfrmt, overwrite = TRUE)
 file.exists(out_ae_tfrmt)

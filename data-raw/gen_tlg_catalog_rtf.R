@@ -29,11 +29,12 @@ if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
 adsl <- pharmaverseadam::adsl
 adae <- pharmaverseadam::adae
 
-make_header <- function(table_no, title2) {
+make_header <- function(table_no, title, subtitle = "Safety Analysis Set") {
   rtf_header(rows = list(
     c(l = "Hoge Co. Limited",   r = "CONFIDENTIAL"),
     c(l = "Protocol: RTF-101",  r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
-    c(c = paste0("Table ", table_no, "  ", title2))
+    c(c = paste0("Table ", table_no, "  ", title)),
+    c(c = paste0("<", subtitle, ">"))
   ))
 }
 make_footer <- function(built_with) {
@@ -41,10 +42,10 @@ make_footer <- function(built_with) {
     "Table object built with ", built_with,
     " (pharmaverse example); rendered to RTF by rtfreporter.")))
 }
-demog_title <- list(c("Demographic and Baseline Characteristics",
-                      "Safety Analysis Set"))
-ae_title <- list(c("Adverse Events by System Organ Class and Preferred Term",
-                   "Safety Analysis Set"))
+# One empty content title ("") = one blank line between header and table.
+blank_title <- function(n = 1L) rep(list(""), n)
+demog_title <- "Demographic and Baseline Characteristics"
+ae_title    <- "Adverse Events by System Organ Class and Preferred Term"
 # Writable width of the default landscape Letter page (11in, 0.6in margins).
 writable <- as.integer((11 - 2 * 0.6) * 1440)
 
@@ -68,11 +69,11 @@ dm_tern <- build_table(
 out_dm_tern <- .write(
   rtf_document() |>
     rtf_section(page = 1, secinfo = list(
-      header = make_header("14.1.1a", "Demographics (tern)"),
+      header = make_header("14.1.1a", paste(demog_title, "(tern)")),
       footer = make_footer("tern + rtables"))) |>
     rtf_tables(as_rtftables(dm_tern, blank_rows = "between_groups",
                           auto_width = TRUE, table_width_twips = writable),
-               titles = demog_title),
+               titles = blank_title()),
   "tlg-demog-tern.rtf")
 
 # ---- 1b. Demographics (gtsummary + cards) ----------------------------------
@@ -91,11 +92,11 @@ dm_gts <- tbl_ard_summary(cards = ard, by = ACTARM,
 out_dm_gts <- .write(
   rtf_document() |>
     rtf_section(page = 1, secinfo = list(
-      header = make_header("14.1.1b", "Demographics (gtsummary)"),
+      header = make_header("14.1.1b", paste(demog_title, "(gtsummary)")),
       footer = make_footer("gtsummary + cards"))) |>
     rtf_tables(as_rtftables(dm_gts, blank_rows = "between_groups",
                           auto_width = TRUE, table_width_twips = writable),
-               titles = demog_title),
+               titles = blank_title()),
   "tlg-demog-gtsummary.rtf")
 
 # ---- 1c. Demographics (tfrmt + cards) --------------------------------------
@@ -138,11 +139,11 @@ dm_tfrmt <- tfrmt(group = stat_variable, label = label, param = stat_name,
 .write(
   rtf_document() |>
     rtf_section(page = 1, secinfo = list(
-      header = make_header("14.1.1c", "Demographics (tfrmt)"),
+      header = make_header("14.1.1c", paste(demog_title, "(tfrmt)")),
       footer = make_footer("tfrmt + cards"))) |>
     rtf_tables(as_rtftables(dm_tfrmt, blank_rows = "between_groups",
                           auto_width = TRUE, table_width_twips = writable),
-               titles = demog_title),
+               titles = blank_title()),
   "tlg-demog-tfrmt.rtf")
 
 # ---- AE data prep ----------------------------------------------------------
@@ -179,9 +180,9 @@ ae_tern_pages <- as_rtftables(ae_tern, split = "group_safe", max_rows = 30,
 out_ae_tern <- .write(
   rtf_document() |>
     rtf_section(page = 1, secinfo = list(
-      header = make_header("14.3.1a", "Adverse Events (tern)"),
+      header = make_header("14.3.1a", paste(ae_title, "(tern)")),
       footer = make_footer("tern + rtables"))) |>
-    rtf_tables(ae_tern_pages, titles = rep(ae_title, length(ae_tern_pages))),
+    rtf_tables(ae_tern_pages, titles = blank_title(length(ae_tern_pages))),
   "tlg-ae-tern.rtf", length(ae_tern_pages))
 
 # ---- 2b. Adverse events (cards + tfrmt, paginated) -------------------------
@@ -237,9 +238,9 @@ ae_tfrmt_pages <- as_rtftables(ae_tfrmt, split = "group_force", max_rows = 30,
 .write(
   rtf_document() |>
     rtf_section(page = 1, secinfo = list(
-      header = make_header("14.3.1b", "Adverse Events (tfrmt)"),
+      header = make_header("14.3.1b", paste(ae_title, "(tfrmt)")),
       footer = make_footer("tfrmt + cards"))) |>
-    rtf_tables(ae_tfrmt_pages, titles = rep(ae_title, length(ae_tfrmt_pages))),
+    rtf_tables(ae_tfrmt_pages, titles = blank_title(length(ae_tfrmt_pages))),
   "tlg-ae-tfrmt.rtf", length(ae_tfrmt_pages))
 
 # ---- 3. Assembled deliverable ----------------------------------------------

@@ -1,5 +1,23 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.56
+
+### TLG article: title block in the running header; both pagination modes shown
+
+* The full title block now lives in the **running header** (normal weight, not
+  bold): a single centred `Table N  <title> (builder)` line over a centred
+  `<Safety Analysis Set>` subtitle, repeated on every page.  The bold content
+  titles are replaced by a single empty content title (`""`), which inserts
+  one blank line between the header and the table.
+* The adverse-events section now spells out the **two pagination strategies**
+  it already used: `split = "group_safe"` (tern) keeps each SOC whole, while
+  `split = "group_force"` (tfrmt) breaks inside a long SOC and repeats the
+  SOC label with `" (Cont.)"` at the top of the next page (via `cont_label`).
+
+No package code changed in this release; it documents and demonstrates the
+existing `cont_label` continuation behaviour and the empty-title blank-line
+convention.
+
 ## rtfreporter 0.0.55
 
 ### Bug fix: NBSP-indented rows no longer treated as group headers
