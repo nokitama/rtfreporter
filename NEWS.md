@@ -1,5 +1,29 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.53
+
+### Article reframed as a continuation of the pharmaverse examples
+
+The cookbook article (now *From pharmaverse tables to RTF reports*) is
+rewritten to make rtfreporter's role explicit: it **complements** the
+pharmaverse, adding only the last-mile RTF rendering step.  It now takes the
+table objects from the official
+[pharmaverse examples](https://pharmaverse.github.io/examples/) -- the
+*demographic* and *adverse events* TLGs -- **verbatim**, and renders each to
+RTF, demonstrating that rtfreporter can read objects from as many pharmaverse
+table packages as possible:
+
+* **Demographics**, built three ways -- **tern + rtables**,
+  **gtsummary + cards**, **tfrmt + cards** -- each rendered to RTF.
+* **Adverse events**, built two ways -- **tern + rtables** and
+  **tfrmt + cards** -- paginated across 14 / 11 pages.
+* the gtsummary demographics and the multi-page tern AE table are assembled
+  into one deliverable with `assemble_rtf()`.
+
+A separate *Using rtfreporter* section now collects the rtfreporter-specific
+options (headers/footers, pagination, count-percent alignment).  `forcats`
+added to `Suggests` (used by the pharmaverse tfrmt demographic example).
+
 ## rtfreporter 0.0.52
 
 ### Adverse-events cookbook now uses the real pharmaverse example objects

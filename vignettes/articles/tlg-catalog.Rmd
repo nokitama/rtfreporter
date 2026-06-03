@@ -1,74 +1,77 @@
 ---
-title: "TLG cookbook: pharmaverse tables -> RTF"
+title: "From pharmaverse tables to RTF reports"
 ---
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
-.pkgs <- c("gtsummary", "rtables", "tern", "tfrmt", "random.cdisc.data",
-           "pharmaverseadam", "cards", "dplyr", "tidyr")
+.pkgs <- c("tern", "rtables", "gtsummary", "tfrmt", "cards", "forcats",
+           "pharmaverseadam", "dplyr")
 .ok <- all(vapply(.pkgs, requireNamespace, logical(1L), quietly = TRUE))
 knitr::opts_chunk$set(eval = .ok)
 ```
 
 ```{r, eval = TRUE, echo = FALSE, results = "asis"}
 if (!.ok)
-  cat("> This article renders only when gtsummary, rtables, tern, tfrmt,",
-      "random.cdisc.data, dplyr and tidyr are installed.  The code below",
-      "shows the workflow either way.\n")
+  cat("> This article renders only when the pharmaverse table packages",
+      "(tern, rtables, gtsummary, tfrmt, cards, forcats) and pharmaverseadam",
+      "are installed.  The code below shows the workflow either way.\n")
 ```
 
-rtfreporter does not compute statistics or format numbers -- the
-[pharmaverse](https://pharmaverse.org) ecosystem already does that
-beautifully.  rtfreporter handles the **last mile**: taking whatever table
-object your team produced and laying it out as a clinical-style RTF page,
-with the pagination, blank rows and running headers a real deliverable
-needs.
+## rtfreporter complements the pharmaverse
 
-This cookbook follows the
-[pharmaverse TLG examples](https://pharmaverse.github.io/examples/tlg/):
-the *Demographic* table is built **three ways** (tern, gtsummary, tfrmt)
-and the *Adverse Events* table is paginated across several pages.  Each is
-converted to RTF with [`as_rtftables()`](../reference/as_rtftables.html) +
+The [pharmaverse](https://pharmaverse.org) already produces beautiful clinical
+tables: [tern](https://insightsengineering.github.io/tern/) /
+[rtables](https://insightsengineering.github.io/rtables/),
+[gtsummary](https://www.danieldsjoberg.com/gtsummary/) and
+[tfrmt](https://gsk-biostatistics.github.io/tfrmt/) each compute the
+statistics and format the numbers.  rtfreporter does **not** reinvent any of
+that.  It handles the *last mile*: taking whatever table object those packages
+produced and laying it out as a submission-style **RTF** page -- with the
+pagination, blank rows and running headers a real deliverable needs.
+
+To make that concrete, this article is written as a **continuation of the
+official [pharmaverse examples](https://pharmaverse.github.io/examples/)**.
+We take the table objects built -- *verbatim* -- by the
+[demographic](https://pharmaverse.github.io/examples/tlg/demographic.html) and
+[adverse events](https://pharmaverse.github.io/examples/tlg/adverse_events.html)
+examples, and add one final step: render each of them to RTF with
+[`as_rtftables()`](../reference/as_rtftables.html) +
 [`rtf_tables()`](../reference/rtf_tables.html) +
-[`generate_rtfreport()`](../reference/generate_rtfreport.html).
+[`generate_rtfreport()`](../reference/generate_rtfreport.html).  The aim is to
+show that **whichever pharmaverse package you already use, rtfreporter can
+read its object** and finish the job.
+
+> All credit for the tables below belongs to the pharmaverse examples and
+> their authors; rtfreporter only adds the RTF rendering step.
+
+# Rendering the pharmaverse example tables
 
 ```{r setup, eval = TRUE}
 library(rtfreporter)
 ```
 
 ```{r libs}
-library(rtables)
 library(tern)
+library(rtables)
 library(gtsummary)
 library(tfrmt)
 library(cards)
+library(forcats)
 library(dplyr)
-library(tidyr)
 ```
 
-## Data
+### Data
 
-For the demographics we use the CDISC pilot ADaM data shipped with
-`random.cdisc.data` (the same data the NEST TLG catalog uses).  For the
-adverse-events table we use the `pharmaverseadam` ADaM data, exactly as in
-the [pharmaverse adverse-events
-example](https://pharmaverse.github.io/examples/tlg/adverse_events.html), so
-the table objects here are *the very ones produced by that example*.
+Exactly as in the pharmaverse examples, we use the `pharmaverseadam` ADaM
+data.
 
 ```{r data}
-adsl <- random.cdisc.data::cadsl   # demographics
-
-ae_adsl <- pharmaverseadam::adsl |>
-  df_explicit_na()
-ae_adae <- pharmaverseadam::adae |>
-  df_explicit_na() |>
-  var_relabel(AEBODSYS = "MedDRA System Organ Class",
-              AEDECOD  = "MedDRA Preferred Term") |>
-  filter(SAFFL == "Y")
+adsl <- pharmaverseadam::adsl
+adae <- pharmaverseadam::adae
 ```
 
-A reusable 3-row clinical header (company / protocol / centred table title)
-and a one-line provenance footer:
+A small reusable clinical header / footer, used for every table below (this is
+the only rtfreporter-specific glue; see *Using rtfreporter* for the details):
 
 ```{r hf}
 make_header <- function(table_no, title2) {
@@ -78,59 +81,71 @@ make_header <- function(table_no, title2) {
     c(c = paste0("Table ", table_no, "  ", title2))
   ))
 }
-make_footer <- function(source_object, built_with) {
+make_footer <- function(built_with) {
   rtf_footer(c(l = paste0(
-    "Source object: ", source_object, " (", built_with, "), ",
-    "converted to RTF by rtfreporter.  ",
-    "CDISC pilot data (random.cdisc.data); layout after the pharmaverse ",
-    "TLG examples.")))
+    "Table object built with ", built_with,
+    " (pharmaverse example); rendered to RTF by rtfreporter.")))
 }
-demog_title <- list(c("Demographic and Baseline Characteristics",
-                      "Safety Analysis Set"))
 ```
 
-## 1. Demographics, three ways
+## Demographics -- three pharmaverse packages
 
-The same demographic summary, built with three different pharmaverse tools.
-Whichever you prefer, `as_rtftables()` reads its object and the RTF comes
-out the same clinical shape.
+The pharmaverse *demographic* example builds the same table three different
+ways.  Each produces a different object class; `as_rtftables()` reads all of
+them and the RTF comes out the same clinical shape.
 
-### 1a. tern + rtables
+### tern + rtables (a `TableTree`)
 
 ```{r dm-tern}
-dm_lyt <- basic_table(show_colcounts = TRUE) |>
-  split_cols_by("ARM") |>
+adsl2 <- adsl |>
+  df_explicit_na()
+
+vars <- c("AGE", "AGEGR1", "SEX", "RACE")
+var_labels <- c("Age (yr)", "Age group", "Sex", "Race")
+
+lyt <- basic_table(show_colcounts = TRUE) |>
+  split_cols_by(var = "ACTARM") |>
   add_overall_col("All Patients") |>
-  analyze_vars(
-    vars   = c("AGE", "SEX", "RACE"),
-    .stats = c("mean_sd", "median", "range", "count_fraction")) |>
-  append_topleft("Characteristic")
-dm_tern <- build_table(dm_lyt, adsl)
+  analyze_vars(vars = vars, var_labels = var_labels)
+dm_tern <- build_table(lyt, adsl2)
 dm_tern
 ```
 
 ```{r dm-tern-rtf}
+demog_title <- list(c("Demographic and Baseline Characteristics",
+                      "Safety Analysis Set"))
 doc <- rtf_document() |>
   rtf_section(page = 1,
               secinfo = list(header = make_header("14.1.1a", "Demographics (tern)"),
-                             footer = make_footer("rtables TableTree", "tern + rtables"))) |>
+                             footer = make_footer("tern + rtables"))) |>
   rtf_tables(as_rtftables(dm_tern, blank_rows = "between_groups"),
              titles = demog_title)
-out_tern <- tempfile(fileext = ".rtf")
-generate_rtfreport(doc, out_tern, overwrite = TRUE)
-file.exists(out_tern)
+out_dm_tern <- tempfile(fileext = ".rtf")
+generate_rtfreport(doc, out_dm_tern, overwrite = TRUE)
+file.exists(out_dm_tern)
 ```
 
-### 1b. gtsummary
+### gtsummary + cards (a `gt_tbl`)
 
 ```{r dm-gts}
-dm_gts <- adsl |>
-  select(ARM, AGE, SEX, RACE) |>
-  tbl_summary(by = ARM,
-              label = list(AGE = "Age (years)", SEX = "Sex", RACE = "Race"),
-              statistic = list(all_continuous() ~ "{mean} ({sd})")) |>
-  modify_header(label = "Characteristic") |>
-  add_overall()
+theme_gtsummary_compact()
+
+ard <- ard_stack(
+  adsl,
+  ard_continuous(variables = AGE),
+  ard_categorical(variables = c(AGEGR1, SEX, RACE)),
+  .by = ACTARM,
+  .attributes = TRUE)
+
+dm_gts <- tbl_ard_summary(
+  cards = ard, by = ACTARM,
+  include = c(AGE, AGEGR1, SEX, RACE),
+  type = AGE ~ "continuous2",
+  statistic = AGE ~ c("{N}", "{mean} ({sd})",
+                      "{median} ({p25}, {p75})", "{min}, {max}")) |>
+  bold_labels() |>
+  modify_header(all_stat_cols() ~ "**{level}**  \nN = {n}") |>
+  modify_footnote(everything() ~ NA)
 dm_gts
 ```
 
@@ -138,49 +153,62 @@ dm_gts
 doc <- rtf_document() |>
   rtf_section(page = 1,
               secinfo = list(header = make_header("14.1.1b", "Demographics (gtsummary)"),
-                             footer = make_footer("gt_tbl", "gtsummary::tbl_summary()"))) |>
-  rtf_tables(as_rtftables(dm_gts, align_count_pct = TRUE,
-                          blank_rows = "between_groups"),
+                             footer = make_footer("gtsummary + cards"))) |>
+  rtf_tables(as_rtftables(dm_gts, blank_rows = "between_groups"),
              titles = demog_title)
-out_gts <- tempfile(fileext = ".rtf")
-generate_rtfreport(doc, out_gts, overwrite = TRUE)
-file.exists(out_gts)
+out_dm_gts <- tempfile(fileext = ".rtf")
+generate_rtfreport(doc, out_dm_gts, overwrite = TRUE)
+file.exists(out_dm_gts)
 ```
 
-### 1c. tfrmt
-
-`tfrmt` describes the table format declaratively (here: `xx.x` for the age
-rows, a combined `n (xx.x%)` for the categorical rows) and renders to gt.
+### tfrmt + cards (a `gt_tbl`)
 
 ```{r dm-tfrmt}
-age_long <- adsl |>
-  group_by(ARM) |>
-  summarise(Mean = mean(AGE), SD = sd(AGE), .groups = "drop") |>
-  pivot_longer(c(Mean, SD), names_to = "label", values_to = "value") |>
-  mutate(group = "Age (years)", param = tolower(label))
+ard <- ard_stack(
+  adsl,
+  ard_continuous(
+    variables = AGE,
+    statistic = ~ continuous_summary_fns(c("N", "mean", "sd", "min", "max"))),
+  ard_categorical(variables = c(AGEGR1, SEX, RACE)),
+  .by = ACTARM, .overall = TRUE, .total_n = TRUE)
 
-cat_long <- function(var, group_lbl) {
-  adsl |>
-    count(ARM, !!sym(var)) |>
-    group_by(ARM) |>
-    mutate(pct = n / sum(n) * 100) |>
-    ungroup() |>
-    pivot_longer(c(n, pct), names_to = "param", values_to = "value") |>
-    mutate(group = group_lbl, label = as.character(.data[[var]])) |>
-    select(ARM, group, label, param, value)
-}
-dm_long <- bind_rows(age_long |> select(ARM, group, label, param, value),
-                     cat_long("SEX", "Sex"),
-                     cat_long("RACE", "Race"))
+ard_tbl <- ard |>
+  shuffle_card(fill_overall = "Total") |>
+  prep_big_n(vars = "ACTARM") |>
+  prep_combine_vars(vars = c("AGE", "AGEGR1", "SEX", "RACE")) |>
+  prep_label() |>
+  group_by(ACTARM, stat_variable) |>
+  mutate(across(c(variable_level, label),
+                ~ ifelse(stat_name == "N", "n", .x))) |>
+  ungroup() |> unique() |>
+  mutate(
+    ord1 = fct_inorder(stat_variable) |> fct_relevel("SEX", after = 0) |> as.numeric(),
+    ord2 = ifelse(label == "n", 1, 2)) |>
+  mutate(stat_variable = case_when(
+    stat_variable == "AGE"    ~ "Age (YEARS) at First Dose",
+    stat_variable == "AGEGR1" ~ "Age Group (YEARS) at First Dose",
+    stat_variable == "SEX"    ~ "Sex",
+    stat_variable == "RACE"   ~ "High Level Race",
+    .default = stat_variable)) |>
+  select(ACTARM, stat_variable, label, stat_name, stat, ord1, ord2) |>
+  unique()
 
-tf <- tfrmt(
-  group = group, label = label, column = ARM, param = param, value = value,
+dm_tfrmt <- tfrmt(
+  group = stat_variable, label = label, param = stat_name,
+  value = stat, column = ACTARM, sorting_cols = c(ord1, ord2),
   body_plan = body_plan(
-    frmt_structure("Age (years)", ".default", frmt("xx.x")),
-    frmt_structure(".default",    ".default",
-                   frmt_combine("{n} ({pct}%)",
-                                n = frmt("xx"), pct = frmt("xx.x")))))
-dm_tfrmt <- print_to_gt(tf, dm_long)
+    frmt_structure(".default", ".default", frmt("xxx")),
+    frmt_structure(".default", ".default",
+      frmt_combine("{n} ({p}%)", n = frmt("xxx"),
+                   p = frmt("xx", transform = ~ . * 100)))),
+  big_n = big_n_structure(param_val = "bigN", n_frmt = frmt(" (N=xx)")),
+  col_plan = col_plan(-starts_with("ord")),
+  col_style_plan = col_style_plan(col_style_structure(
+    col = c("Placebo", "Xanomeline High Dose", "Xanomeline Low Dose", "Total"),
+    align = "left")),
+  row_grp_plan = row_grp_plan(row_grp_structure(
+    ".default", element_block(post_space = " ")))) |>
+  print_to_gt(ard_tbl)
 dm_tfrmt
 ```
 
@@ -188,42 +216,41 @@ dm_tfrmt
 doc <- rtf_document() |>
   rtf_section(page = 1,
               secinfo = list(header = make_header("14.1.1c", "Demographics (tfrmt)"),
-                             footer = make_footer("gt_tbl", "tfrmt"))) |>
+                             footer = make_footer("tfrmt + cards"))) |>
   rtf_tables(as_rtftables(dm_tfrmt, blank_rows = "between_groups"),
              titles = demog_title)
-out_tfrmt <- tempfile(fileext = ".rtf")
-generate_rtfreport(doc, out_tfrmt, overwrite = TRUE)
-file.exists(out_tfrmt)
+out_dm_tfrmt <- tempfile(fileext = ".rtf")
+generate_rtfreport(doc, out_dm_tfrmt, overwrite = TRUE)
+file.exists(out_dm_tfrmt)
 ```
 
-## 2. Adverse events, paginated across many pages
+## Adverse events -- paginated across many pages
 
-The full "AEs by SOC and Preferred Term" table is genuinely large -- 23
-system-organ classes and 242 preferred terms -- so it spans *many* pages.
+The pharmaverse *adverse events* example is a genuinely large table -- 23
+system-organ classes and 242 preferred terms -- so it spans **many** pages.
 This is exactly where rtfreporter earns its keep: `as_rtftables()` paginates
-the table, repeats the column headers and the running header on every page,
-and keeps each SOC block intact.  We build the table object two ways and run
-both through the identical RTF pipeline.
+the object, repeats the column headers and the running header on every page,
+and keeps each SOC block intact.  Again the example builds it two ways.
 
-`ae_title` is shared by both versions; the header carries the `Page X of Y`
-field so the page count is filled in automatically per version.
+```{r ae-prep}
+adsl_ae <- adsl |>
+  df_explicit_na()
+adae_ae <- adae |>
+  df_explicit_na() |>
+  var_relabel(AEBODSYS = "MedDRA System Organ Class",
+              AEDECOD  = "MedDRA Preferred Term") |>
+  filter(SAFFL == "Y")
 
-```{r ae-title}
 ae_title <- list(c("Adverse Events by System Organ Class and Preferred Term",
                    "Safety Analysis Set"))
 ```
 
-### 2a. tern + rtables
+### tern + rtables (a `TableTree`)
 
-This is the adverse-events layout from the pharmaverse example verbatim
-(unique/non-unique patient and event counts per SOC, occurrence counts per
-preferred term, indented one level).  `split = "group_safe"` never breaks an
-SOC block across a page, and `blank_rows = "between_groups"` separates them.
-
-```{r ae-tern-build}
+```{r ae-tern}
 split_fun <- drop_split_levels
 ae_lyt <- basic_table(show_colcounts = TRUE) |>
-  split_cols_by("ACTARM") |>
+  split_cols_by(var = "ACTARM") |>
   add_overall_col(label = "All Patients") |>
   analyze_num_patients(
     vars = "USUBJID", .stats = c("unique", "nonunique"),
@@ -232,66 +259,52 @@ ae_lyt <- basic_table(show_colcounts = TRUE) |>
       nonunique = "Overall total number of events")) |>
   split_rows_by("AEBODSYS", child_labels = "visible", nested = FALSE,
                 split_fun = split_fun, label_pos = "topleft",
-                split_label = obj_label(ae_adae$AEBODSYS)) |>
+                split_label = obj_label(adae_ae$AEBODSYS)) |>
   summarize_num_patients(
     var = "USUBJID", .stats = c("unique", "nonunique"),
     .labels = c(
       unique    = "Total number of patients with at least one adverse event",
       nonunique = "Total number of events")) |>
   count_occurrences(vars = "AEDECOD", .indent_mods = -1L) |>
-  append_varlabels(ae_adae, "AEDECOD", indent = 1L)
-ae_tern <- build_table(ae_lyt, df = ae_adae, alt_counts_df = ae_adsl)
+  append_varlabels(adae_ae, "AEDECOD", indent = 1L)
+ae_tern <- build_table(ae_lyt, df = adae_ae, alt_counts_df = adsl_ae)
 
-ae_tern_pages <- as_rtftables(ae_tern,
-                              split      = "group_safe",
-                              max_rows   = 30,
-                              blank_rows = "between_groups",
-                              align_count_pct = TRUE)
+# split = "group_safe" never breaks an SOC across a page boundary.
+ae_tern_pages <- as_rtftables(ae_tern, split = "group_safe", max_rows = 30,
+                              blank_rows = "between_groups", align_count_pct = TRUE)
 length(ae_tern_pages)            # number of RTF pages
 ```
 
 ```{r ae-tern-rtf}
-# One section starting at page 1 covers every page; rtfreporter repeats its
-# header/footer (and the "Page X of Y" field) on each page automatically.
 doc <- rtf_document() |>
   rtf_section(page = 1,
-              secinfo = list(header = make_header("14.3.1a",
-                                                  "Adverse Events (tern)"),
-                             footer = make_footer("rtables TableTree", "tern + rtables"))) |>
-  rtf_tables(ae_tern_pages,
-             titles = rep(ae_title, length(ae_tern_pages)))
+              secinfo = list(header = make_header("14.3.1a", "Adverse Events (tern)"),
+                             footer = make_footer("tern + rtables"))) |>
+  rtf_tables(ae_tern_pages, titles = rep(ae_title, length(ae_tern_pages)))
 out_ae_tern <- tempfile(fileext = ".rtf")
 generate_rtfreport(doc, out_ae_tern, overwrite = TRUE)
 file.exists(out_ae_tern)
 ```
 
-### 2b. tfrmt + cards
+### tfrmt + cards (a `gt_tbl`)
 
-The same example also builds the table with `cards` (an ARD) and `tfrmt`,
-SOC/PT sorted by descending frequency.  It renders to gt, so `as_rtftables()`
-reads it as a gt table; `split = "group_force"` paginates at `max_rows`,
-adding a `(Cont.)` marker when an SOC spills over.
-
-```{r ae-tfrmt-build}
+```{r ae-tfrmt}
 ae_ard <- ard_stack_hierarchical(
-  data = ae_adae, by = ACTARM, variables = c(AEBODSYS, AEDECOD),
-  statistic = ~ c("n", "p"), denominator = ae_adsl, id = USUBJID,
+  data = adae_ae, by = ACTARM, variables = c(AEBODSYS, AEDECOD),
+  statistic = ~ c("n", "p"), denominator = adsl_ae, id = USUBJID,
   over_variables = TRUE, overall = TRUE)
-
 ae_tot <- ard_stack_hierarchical(
-  data = mutate(ae_adae, ACTARM = "All Patients"), by = ACTARM,
+  data = mutate(adae_ae, ACTARM = "All Patients"), by = ACTARM,
   variables = c(AEBODSYS, AEDECOD),
-  denominator = mutate(ae_adsl, ACTARM = "All Patients"),
+  denominator = mutate(adsl_ae, ACTARM = "All Patients"),
   statistic = ~ c("n", "p"), id = USUBJID,
   over_variables = TRUE, overall = TRUE) |>
   filter(group2 == "ACTARM" | variable == "ACTARM")
-
 ae_card <- bind_ard(ae_ard, ae_tot) |>
   shuffle_card(fill_hierarchical_overall = "ANY EVENT") |>
   prep_big_n(vars = "ACTARM") |>
   prep_hierarchical_fill(vars = c("AEBODSYS", "AEDECOD"), fill = "ANY EVENT") |>
   mutate(ACTARM = ifelse(ACTARM == "Overall ACTARM", "All Patients", ACTARM))
-
 ord_soc <- ae_card |>
   filter(ACTARM == "All Patients", stat_name == "n", AEDECOD == "ANY EVENT") |>
   arrange(desc(stat)) |> mutate(ord1 = row_number()) |> select(AEBODSYS, ord1)
@@ -307,11 +320,8 @@ ae_card <- ae_card |>
 ae_tfrmt <- tfrmt_n_pct(
   n = "n", pct = "p",
   pct_frmt_when = frmt_when(
-    "==1"     ~ frmt("(100%)"),
-    ">=0.995" ~ frmt("(>99%)"),
-    "==0"     ~ frmt(""),
-    "<=0.01"  ~ frmt("(<1%)"),
-    "TRUE"    ~ frmt("(xx.x%)", transform = ~ . * 100))) |>
+    "==1" ~ frmt("(100%)"), ">=0.995" ~ frmt("(>99%)"), "==0" ~ frmt(""),
+    "<=0.01" ~ frmt("(<1%)"), "TRUE" ~ frmt("(xx.x%)", transform = ~ . * 100))) |>
   tfrmt(
     group = AEBODSYS, label = AEDECOD, param = stat_name, value = stat,
     column = ACTARM, sorting_cols = c(ord1, ord2),
@@ -323,9 +333,8 @@ ae_tfrmt <- tfrmt_n_pct(
     big_n = big_n_structure(param_val = "bigN", n_frmt = frmt(" (N=xx)"))) |>
   print_to_gt(ae_card)
 
-ae_tfrmt_pages <- as_rtftables(ae_tfrmt,
-                               split      = "group_force",
-                               max_rows   = 30,
+# split = "group_force" cuts at max_rows, adding a "(Cont.)" marker.
+ae_tfrmt_pages <- as_rtftables(ae_tfrmt, split = "group_force", max_rows = 30,
                                blank_rows = "between_groups")
 length(ae_tfrmt_pages)
 ```
@@ -333,36 +342,68 @@ length(ae_tfrmt_pages)
 ```{r ae-tfrmt-rtf}
 doc <- rtf_document() |>
   rtf_section(page = 1,
-              secinfo = list(header = make_header("14.3.1b",
-                                                  "Adverse Events (tfrmt)"),
-                             footer = make_footer("gt_tbl", "cards + tfrmt"))) |>
-  rtf_tables(ae_tfrmt_pages,
-             titles = rep(ae_title, length(ae_tfrmt_pages)))
+              secinfo = list(header = make_header("14.3.1b", "Adverse Events (tfrmt)"),
+                             footer = make_footer("tfrmt + cards"))) |>
+  rtf_tables(ae_tfrmt_pages, titles = rep(ae_title, length(ae_tfrmt_pages)))
 out_ae_tfrmt <- tempfile(fileext = ".rtf")
 generate_rtfreport(doc, out_ae_tfrmt, overwrite = TRUE)
 file.exists(out_ae_tfrmt)
 ```
 
-## 3. Assembling a deliverable
+## Assembling a deliverable
 
 A real submission bundles many TLGs into one file.  Render each table to its
 own `.rtf`, then concatenate them with
-[`assemble_rtf()`](../reference/assemble_rtf.html) (page numbering and
-section headers continue across the seam).  Here we bundle the gtsummary
-demographics with the full multi-page tern adverse-events table:
+[`assemble_rtf()`](../reference/assemble_rtf.html) (page numbering and section
+headers continue across the seam).  Here we bundle the gtsummary demographics
+with the full multi-page tern adverse-events table:
 
 ```{r assemble}
 bundle <- tempfile(fileext = ".rtf")
-assemble_rtf(c(out_gts, out_ae_tern), bundle)
+assemble_rtf(c(out_dm_gts, out_ae_tern), bundle)
 file.exists(bundle)
 ```
+
+# Using rtfreporter
+
+The examples above kept the rtfreporter-specific code to a minimum.  This
+section collects the pieces you can tune.
+
+## Headers and footers
+
+`rtf_header()` / `rtf_footer()` take rows of left / centre / right cells
+(`l` / `c` / `r`).  The tokens `{AUTO_PAGE}` and `{AUTO_TOTAL_PAGES}` expand to
+the current page and the total page count of the section, so a one-line
+"Page X of Y" works across a paginated table automatically (as in `make_header`
+above).
+
+## Pagination
+
+`as_rtftables()` turns one table object into a list of one-page `rtftable`s.
+The `split` argument controls how:
+
+* `"group_safe"` -- never breaks a row group; an SOC that would overflow moves
+  whole to the next page.
+* `"group_force"` -- cuts strictly at `max_rows`, inserting a `(Cont.)` row so
+  the reader knows the group continues.
+* `"by_value"` -- one group per page.
+* `"rows"` -- split at explicit row positions (`split_rows`).
+* `"none"` -- a single page.
+
+`blank_rows = "between_groups"` inserts a blank line between row groups, and
+`align_count_pct = TRUE` re-pads `n (xx.x%)` cells so the percentages line up
+in a monospaced renderer.
+
+## What carries across, by source
+
+What does and does not survive the conversion (column headers, spanning,
+alignment, titles, footnotes) depends on the source object and is documented
+in the *What is carried, by source* table in
+[`?as_rtftables`](../reference/as_rtftables.html).
 
 ## Notes
 
 * The output is `.rtf`; open it in Word / LibreOffice (or batch-convert to
   PDF).
-* `split = "group_force"` cuts strictly at `max_rows` (inserting `(Cont.)`
-  rows), while `"group_safe"` never breaks a group; `"by_value"` puts one
-  group per page.  See [`as_rtftables()`](../reference/as_rtftables.html).
-* What does and does not carry across from each source is documented in the
-  *What is carried, by source* table in `?as_rtftables`.
+* The pharmaverse example tables are reproduced here unchanged; only the final
+  RTF-rendering step is rtfreporter's.
