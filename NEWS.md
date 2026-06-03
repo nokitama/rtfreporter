@@ -1,5 +1,15 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.57
+
+### TLG article: more rows per adverse-events page
+
+The adverse-events tables now fit `max_rows = 38` rows per printed page (up
+from 30), using the page space that was previously left blank.  The tern
+table drops from 14 to 11 pages and the tfrmt table from 11 to 9, with the
+same wide first column, shorter row height and (for tfrmt) "(Cont.)"
+continuation rows.
+
 ## rtfreporter 0.0.56
 
 ### TLG article: title block in the running header; both pagination modes shown

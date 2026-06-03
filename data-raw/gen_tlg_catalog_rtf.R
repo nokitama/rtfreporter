@@ -173,7 +173,7 @@ ae_tern <- build_table(
     count_occurrences(vars = "AEDECOD", .indent_mods = -1L) |>
     append_varlabels(adae_ae, "AEDECOD", indent = 1L),
   df = adae_ae, alt_counts_df = adsl_ae)
-ae_tern_pages <- as_rtftables(ae_tern, split = "group_safe", max_rows = 30,
+ae_tern_pages <- as_rtftables(ae_tern, split = "group_safe", max_rows = 38,
                               blank_rows = "between_groups", align_count_pct = TRUE,
                               col_rel_width = c(0.40, 0.15, 0.15, 0.15, 0.15),
                               row_height_twips = 200)
@@ -230,7 +230,7 @@ ae_hdr <- c("System Organ Class /\nPreferred Term",
             "Xanomeline\nHigh Dose\n(N=72)",
             "Xanomeline\nLow Dose\n(N=96)",
             "All Patients\n(N=306)")
-ae_tfrmt_pages <- as_rtftables(ae_tfrmt, split = "group_force", max_rows = 30,
+ae_tfrmt_pages <- as_rtftables(ae_tfrmt, split = "group_force", max_rows = 38,
                                blank_rows = "between_groups",
                                col_header = ae_hdr,
                                col_rel_width = c(0.40, 0.15, 0.15, 0.15, 0.15),

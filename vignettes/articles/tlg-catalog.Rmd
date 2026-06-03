@@ -295,7 +295,7 @@ ae_tern <- build_table(ae_lyt, df = adae_ae, alt_counts_df = adsl_ae)
 # first column (40% of the page, the rest split evenly) keeps the long SOC /
 # preferred-term labels on one line, and a slightly shorter row height lets a
 # full 30 rows fit one printed page.
-ae_tern_pages <- as_rtftables(ae_tern, split = "group_safe", max_rows = 30,
+ae_tern_pages <- as_rtftables(ae_tern, split = "group_safe", max_rows = 38,
                               blank_rows = "between_groups", align_count_pct = TRUE,
                               col_rel_width = c(0.40, 0.15, 0.15, 0.15, 0.15),
                               row_height_twips = 200)
@@ -370,7 +370,7 @@ ae_hdr <- c("System Organ Class /\nPreferred Term",
             "All Patients\n(N=306)")
 
 # split = "group_force" cuts at max_rows, adding a "(Cont.)" marker.
-ae_tfrmt_pages <- as_rtftables(ae_tfrmt, split = "group_force", max_rows = 30,
+ae_tfrmt_pages <- as_rtftables(ae_tfrmt, split = "group_force", max_rows = 38,
                                blank_rows = "between_groups",
                                col_header = ae_hdr,
                                col_rel_width = c(0.40, 0.15, 0.15, 0.15, 0.15),
