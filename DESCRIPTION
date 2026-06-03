@@ -1,7 +1,7 @@
 Package: rtfreporter
 Type: Package
 Title: Clinical RTF Reporting Toolkit for Tables, Listings and Figures
-Version: 0.0.51
+Version: 0.0.52
 Authors@R:
     person(given  = "Yoichi",
            family = "Masui",
@@ -40,7 +40,9 @@ Suggests:
     tern,
     tfrmt,
     tidyr,
-    random.cdisc.data
+    cards,
+    random.cdisc.data,
+    pharmaverseadam
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 RoxygenNote: 7.3.3

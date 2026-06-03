@@ -16,6 +16,8 @@ library(rtables)
 library(tern)
 library(gtsummary)
 library(tfrmt)
+library(cards)
+library(pharmaverseadam)
 library(dplyr)
 library(tidyr)
 
@@ -23,7 +25,14 @@ out_dir <- file.path("output", "tlg")
 if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
 
 adsl <- random.cdisc.data::cadsl
-adae <- random.cdisc.data::cadae
+
+ae_adsl <- pharmaverseadam::adsl |>
+  df_explicit_na()
+ae_adae <- pharmaverseadam::adae |>
+  df_explicit_na() |>
+  var_relabel(AEBODSYS = "MedDRA System Organ Class",
+              AEDECOD  = "MedDRA Preferred Term") |>
+  filter(SAFFL == "Y")
 
 make_header <- function(table_no, title2) {
   rtf_header(rows = list(
@@ -123,37 +132,100 @@ dm_tfrmt <- print_to_gt(tfrmt(
                titles = demog_title),
   "tlg-demog-tfrmt.rtf")
 
-# ---- 2. Adverse events (paginated) -----------------------------------------
-ae_tbl <- build_table(
+ae_title <- list(c("Adverse Events by System Organ Class and Preferred Term",
+                   "Safety Analysis Set"))
+
+# ---- 2a. Adverse events (tern + rtables, paginated) ------------------------
+split_fun <- drop_split_levels
+ae_tern <- build_table(
   basic_table(show_colcounts = TRUE) |>
-    split_cols_by("ARM") |>
-    analyze_num_patients(vars = "USUBJID", .stats = "unique",
-      .labels = c(unique = "Total number of patients with at least one AE")) |>
-    split_rows_by("AEBODSYS", label_pos = "topleft",
-                  split_label = "MedDRA System Organ Class") |>
-    summarize_num_patients(var = "USUBJID", .stats = "unique",
-                           .labels = c(unique = "Total patients with an AE")) |>
-    count_occurrences(vars = "AEDECOD"),
-  adae, alt_counts_df = adsl)
-ae_pages <- as_rtftables(ae_tbl, split = "group_safe", max_rows = 12,
-                         blank_rows = "between_groups", align_count_pct = TRUE)
-out_ae <- file.path(out_dir, "tlg-ae.rtf")
+    split_cols_by("ACTARM") |>
+    add_overall_col(label = "All Patients") |>
+    analyze_num_patients(vars = "USUBJID", .stats = c("unique", "nonunique"),
+      .labels = c(
+        unique    = "Total number of patients with at least one adverse event",
+        nonunique = "Overall total number of events")) |>
+    split_rows_by("AEBODSYS", child_labels = "visible", nested = FALSE,
+                  split_fun = split_fun, label_pos = "topleft",
+                  split_label = obj_label(ae_adae$AEBODSYS)) |>
+    summarize_num_patients(var = "USUBJID", .stats = c("unique", "nonunique"),
+      .labels = c(
+        unique    = "Total number of patients with at least one adverse event",
+        nonunique = "Total number of events")) |>
+    count_occurrences(vars = "AEDECOD", .indent_mods = -1L) |>
+    append_varlabels(ae_adae, "AEDECOD", indent = 1L),
+  df = ae_adae, alt_counts_df = ae_adsl)
+ae_tern_pages <- as_rtftables(ae_tern, split = "group_safe", max_rows = 30,
+                              blank_rows = "between_groups", align_count_pct = TRUE)
+out_ae_tern <- file.path(out_dir, "tlg-ae-tern.rtf")
 generate_rtfreport(
   rtf_document() |>
     rtf_section(page = 1, secinfo = list(
-      header = make_header("14.3.1", "Adverse Events by SOC and Preferred Term"),
+      header = make_header("14.3.1a", "Adverse Events (tern)"),
       footer = make_footer("rtables TableTree", "tern + rtables"))) |>
-    rtf_tables(ae_pages,
-               titles = rep(list(c("Adverse Events Summary", "Safety Analysis Set")),
-                            length(ae_pages))),
-  out_ae, overwrite = TRUE)
-message("wrote ", out_ae, " (", length(ae_pages), " pages)")
+    rtf_tables(ae_tern_pages, titles = rep(ae_title, length(ae_tern_pages))),
+  out_ae_tern, overwrite = TRUE)
+message("wrote ", out_ae_tern, " (", length(ae_tern_pages), " pages)")
+
+# ---- 2b. Adverse events (cards + tfrmt, paginated) -------------------------
+ae_ard <- ard_stack_hierarchical(
+  data = ae_adae, by = ACTARM, variables = c(AEBODSYS, AEDECOD),
+  statistic = ~ c("n", "p"), denominator = ae_adsl, id = USUBJID,
+  over_variables = TRUE, overall = TRUE)
+ae_tot <- ard_stack_hierarchical(
+  data = mutate(ae_adae, ACTARM = "All Patients"), by = ACTARM,
+  variables = c(AEBODSYS, AEDECOD),
+  denominator = mutate(ae_adsl, ACTARM = "All Patients"),
+  statistic = ~ c("n", "p"), id = USUBJID,
+  over_variables = TRUE, overall = TRUE) |>
+  filter(group2 == "ACTARM" | variable == "ACTARM")
+ae_card <- bind_ard(ae_ard, ae_tot) |>
+  shuffle_card(fill_hierarchical_overall = "ANY EVENT") |>
+  prep_big_n(vars = "ACTARM") |>
+  prep_hierarchical_fill(vars = c("AEBODSYS", "AEDECOD"), fill = "ANY EVENT") |>
+  mutate(ACTARM = ifelse(ACTARM == "Overall ACTARM", "All Patients", ACTARM))
+ord_soc <- ae_card |>
+  filter(ACTARM == "All Patients", stat_name == "n", AEDECOD == "ANY EVENT") |>
+  arrange(desc(stat)) |> mutate(ord1 = row_number()) |> select(AEBODSYS, ord1)
+ord_pt <- ae_card |>
+  filter(ACTARM == "All Patients", stat_name == "n") |>
+  group_by(AEBODSYS) |> arrange(desc(stat)) |>
+  mutate(ord2 = row_number()) |> select(AEBODSYS, AEDECOD, ord2)
+ae_card <- ae_card |>
+  full_join(ord_soc, by = "AEBODSYS") |>
+  full_join(ord_pt, by = c("AEBODSYS", "AEDECOD")) |>
+  select(AEBODSYS, AEDECOD, ord1, ord2, stat, stat_name, ACTARM)
+ae_tfrmt <- tfrmt_n_pct(
+  n = "n", pct = "p",
+  pct_frmt_when = frmt_when(
+    "==1" ~ frmt("(100%)"), ">=0.995" ~ frmt("(>99%)"), "==0" ~ frmt(""),
+    "<=0.01" ~ frmt("(<1%)"), "TRUE" ~ frmt("(xx.x%)", transform = ~ . * 100))) |>
+  tfrmt(group = AEBODSYS, label = AEDECOD, param = stat_name, value = stat,
+    column = ACTARM, sorting_cols = c(ord1, ord2),
+    col_plan = col_plan("System Organ Class / Preferred Term" = AEBODSYS,
+      Placebo, `Xanomeline High Dose`, `Xanomeline Low Dose`, -ord1, -ord2),
+    row_grp_plan = row_grp_plan(row_grp_structure(
+      group_val = ".default", element_block(post_space = " "))),
+    big_n = big_n_structure(param_val = "bigN", n_frmt = frmt(" (N=xx)"))) |>
+  print_to_gt(ae_card)
+ae_tfrmt_pages <- as_rtftables(ae_tfrmt, split = "group_force", max_rows = 30,
+                               blank_rows = "between_groups")
+out_ae_tfrmt <- file.path(out_dir, "tlg-ae-tfrmt.rtf")
+generate_rtfreport(
+  rtf_document() |>
+    rtf_section(page = 1, secinfo = list(
+      header = make_header("14.3.1b", "Adverse Events (tfrmt)"),
+      footer = make_footer("gt_tbl", "cards + tfrmt"))) |>
+    rtf_tables(ae_tfrmt_pages, titles = rep(ae_title, length(ae_tfrmt_pages))),
+  out_ae_tfrmt, overwrite = TRUE)
+message("wrote ", out_ae_tfrmt, " (", length(ae_tfrmt_pages), " pages)")
 
 # ---- 3. Assembled deliverable ----------------------------------------------
-assemble_rtf(c(out_gts, out_ae), file.path(out_dir, "tlg-assembled.rtf"))
+assemble_rtf(c(out_gts, out_ae_tern), file.path(out_dir, "tlg-assembled.rtf"),
+             overwrite = TRUE)
 message("wrote ", file.path(out_dir, "tlg-assembled.rtf"))
 
 message("\nDone. Open the .rtf files in ", normalizePath(out_dir),
         "\nScreenshots (PNG) go to man/figures/ as:",
         "\n  tlg-demog-tern.png  tlg-demog-gtsummary.png  tlg-demog-tfrmt.png",
-        "\n  tlg-ae.png  tlg-assembled.png")
+        "\n  tlg-ae-tern.png  tlg-ae-tfrmt.png  tlg-assembled.png")

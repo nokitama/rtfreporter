@@ -5,7 +5,7 @@ title: "TLG cookbook: pharmaverse tables -> RTF"
 ```{r, include = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 .pkgs <- c("gtsummary", "rtables", "tern", "tfrmt", "random.cdisc.data",
-           "dplyr", "tidyr")
+           "pharmaverseadam", "cards", "dplyr", "tidyr")
 .ok <- all(vapply(.pkgs, requireNamespace, logical(1L), quietly = TRUE))
 knitr::opts_chunk$set(eval = .ok)
 ```
@@ -41,19 +41,30 @@ library(rtables)
 library(tern)
 library(gtsummary)
 library(tfrmt)
+library(cards)
 library(dplyr)
 library(tidyr)
 ```
 
 ## Data
 
-We use the CDISC pilot ADaM data shipped with `random.cdisc.data` (the same
-data the NEST TLG catalog uses), so the examples are realistic and fully
-reproducible.
+For the demographics we use the CDISC pilot ADaM data shipped with
+`random.cdisc.data` (the same data the NEST TLG catalog uses).  For the
+adverse-events table we use the `pharmaverseadam` ADaM data, exactly as in
+the [pharmaverse adverse-events
+example](https://pharmaverse.github.io/examples/tlg/adverse_events.html), so
+the table objects here are *the very ones produced by that example*.
 
 ```{r data}
-adsl <- random.cdisc.data::cadsl
-adae <- random.cdisc.data::cadae
+adsl <- random.cdisc.data::cadsl   # demographics
+
+ae_adsl <- pharmaverseadam::adsl |>
+  df_explicit_na()
+ae_adae <- pharmaverseadam::adae |>
+  df_explicit_na() |>
+  var_relabel(AEBODSYS = "MedDRA System Organ Class",
+              AEDECOD  = "MedDRA Preferred Term") |>
+  filter(SAFFL == "Y")
 ```
 
 A reusable 3-row clinical header (company / protocol / centred table title)
@@ -185,50 +196,151 @@ generate_rtfreport(doc, out_tfrmt, overwrite = TRUE)
 file.exists(out_tfrmt)
 ```
 
-## 2. Adverse events (paginated across pages)
+## 2. Adverse events, paginated across many pages
 
-A standard "AEs by SOC and Preferred Term" table.  With a real adverse-event
-data set it is long, so we let `as_rtftables()` paginate it -- `split =
-"group_safe"` keeps each SOC block whole, spilling to the next page rather
-than breaking a group, and `blank_rows = "between_groups"` separates the
-SOCs.  rtfreporter repeats the column headers and the running header on
-every page automatically.
+The full "AEs by SOC and Preferred Term" table is genuinely large -- 23
+system-organ classes and 242 preferred terms -- so it spans *many* pages.
+This is exactly where rtfreporter earns its keep: `as_rtftables()` paginates
+the table, repeats the column headers and the running header on every page,
+and keeps each SOC block intact.  We build the table object two ways and run
+both through the identical RTF pipeline.
 
-```{r ae-build}
-ae_lyt <- basic_table(show_colcounts = TRUE) |>
-  split_cols_by("ARM") |>
-  analyze_num_patients(
-    vars = "USUBJID", .stats = "unique",
-    .labels = c(unique = "Total number of patients with at least one AE")) |>
-  split_rows_by("AEBODSYS", label_pos = "topleft",
-                split_label = "MedDRA System Organ Class") |>
-  summarize_num_patients(var = "USUBJID", .stats = "unique",
-                         .labels = c(unique = "Total patients with an AE")) |>
-  count_occurrences(vars = "AEDECOD")
-ae_tbl <- build_table(ae_lyt, adae, alt_counts_df = adsl)
+`ae_title` is shared by both versions; the header carries the `Page X of Y`
+field so the page count is filled in automatically per version.
 
-ae_pages <- as_rtftables(ae_tbl,
-                         split      = "group_safe",
-                         max_rows   = 12,
-                         blank_rows = "between_groups",
-                         align_count_pct = TRUE)
-length(ae_pages)            # number of RTF pages
+```{r ae-title}
+ae_title <- list(c("Adverse Events by System Organ Class and Preferred Term",
+                   "Safety Analysis Set"))
 ```
 
-```{r ae-rtf}
+### 2a. tern + rtables
+
+This is the adverse-events layout from the pharmaverse example verbatim
+(unique/non-unique patient and event counts per SOC, occurrence counts per
+preferred term, indented one level).  `split = "group_safe"` never breaks an
+SOC block across a page, and `blank_rows = "between_groups"` separates them.
+
+```{r ae-tern-build}
+split_fun <- drop_split_levels
+ae_lyt <- basic_table(show_colcounts = TRUE) |>
+  split_cols_by("ACTARM") |>
+  add_overall_col(label = "All Patients") |>
+  analyze_num_patients(
+    vars = "USUBJID", .stats = c("unique", "nonunique"),
+    .labels = c(
+      unique    = "Total number of patients with at least one adverse event",
+      nonunique = "Overall total number of events")) |>
+  split_rows_by("AEBODSYS", child_labels = "visible", nested = FALSE,
+                split_fun = split_fun, label_pos = "topleft",
+                split_label = obj_label(ae_adae$AEBODSYS)) |>
+  summarize_num_patients(
+    var = "USUBJID", .stats = c("unique", "nonunique"),
+    .labels = c(
+      unique    = "Total number of patients with at least one adverse event",
+      nonunique = "Total number of events")) |>
+  count_occurrences(vars = "AEDECOD", .indent_mods = -1L) |>
+  append_varlabels(ae_adae, "AEDECOD", indent = 1L)
+ae_tern <- build_table(ae_lyt, df = ae_adae, alt_counts_df = ae_adsl)
+
+ae_tern_pages <- as_rtftables(ae_tern,
+                              split      = "group_safe",
+                              max_rows   = 30,
+                              blank_rows = "between_groups",
+                              align_count_pct = TRUE)
+length(ae_tern_pages)            # number of RTF pages
+```
+
+```{r ae-tern-rtf}
 # One section starting at page 1 covers every page; rtfreporter repeats its
 # header/footer (and the "Page X of Y" field) on each page automatically.
 doc <- rtf_document() |>
   rtf_section(page = 1,
-              secinfo = list(header = make_header("14.3.1",
-                                                  "Adverse Events by SOC and Preferred Term"),
+              secinfo = list(header = make_header("14.3.1a",
+                                                  "Adverse Events (tern)"),
                              footer = make_footer("rtables TableTree", "tern + rtables"))) |>
-  rtf_tables(ae_pages,
-             titles = rep(list(c("Adverse Events Summary", "Safety Analysis Set")),
-                          length(ae_pages)))
-out_ae <- tempfile(fileext = ".rtf")
-generate_rtfreport(doc, out_ae, overwrite = TRUE)
-file.exists(out_ae)
+  rtf_tables(ae_tern_pages,
+             titles = rep(ae_title, length(ae_tern_pages)))
+out_ae_tern <- tempfile(fileext = ".rtf")
+generate_rtfreport(doc, out_ae_tern, overwrite = TRUE)
+file.exists(out_ae_tern)
+```
+
+### 2b. tfrmt + cards
+
+The same example also builds the table with `cards` (an ARD) and `tfrmt`,
+SOC/PT sorted by descending frequency.  It renders to gt, so `as_rtftables()`
+reads it as a gt table; `split = "group_force"` paginates at `max_rows`,
+adding a `(Cont.)` marker when an SOC spills over.
+
+```{r ae-tfrmt-build}
+ae_ard <- ard_stack_hierarchical(
+  data = ae_adae, by = ACTARM, variables = c(AEBODSYS, AEDECOD),
+  statistic = ~ c("n", "p"), denominator = ae_adsl, id = USUBJID,
+  over_variables = TRUE, overall = TRUE)
+
+ae_tot <- ard_stack_hierarchical(
+  data = mutate(ae_adae, ACTARM = "All Patients"), by = ACTARM,
+  variables = c(AEBODSYS, AEDECOD),
+  denominator = mutate(ae_adsl, ACTARM = "All Patients"),
+  statistic = ~ c("n", "p"), id = USUBJID,
+  over_variables = TRUE, overall = TRUE) |>
+  filter(group2 == "ACTARM" | variable == "ACTARM")
+
+ae_card <- bind_ard(ae_ard, ae_tot) |>
+  shuffle_card(fill_hierarchical_overall = "ANY EVENT") |>
+  prep_big_n(vars = "ACTARM") |>
+  prep_hierarchical_fill(vars = c("AEBODSYS", "AEDECOD"), fill = "ANY EVENT") |>
+  mutate(ACTARM = ifelse(ACTARM == "Overall ACTARM", "All Patients", ACTARM))
+
+ord_soc <- ae_card |>
+  filter(ACTARM == "All Patients", stat_name == "n", AEDECOD == "ANY EVENT") |>
+  arrange(desc(stat)) |> mutate(ord1 = row_number()) |> select(AEBODSYS, ord1)
+ord_pt <- ae_card |>
+  filter(ACTARM == "All Patients", stat_name == "n") |>
+  group_by(AEBODSYS) |> arrange(desc(stat)) |>
+  mutate(ord2 = row_number()) |> select(AEBODSYS, AEDECOD, ord2)
+ae_card <- ae_card |>
+  full_join(ord_soc, by = "AEBODSYS") |>
+  full_join(ord_pt, by = c("AEBODSYS", "AEDECOD")) |>
+  select(AEBODSYS, AEDECOD, ord1, ord2, stat, stat_name, ACTARM)
+
+ae_tfrmt <- tfrmt_n_pct(
+  n = "n", pct = "p",
+  pct_frmt_when = frmt_when(
+    "==1"     ~ frmt("(100%)"),
+    ">=0.995" ~ frmt("(>99%)"),
+    "==0"     ~ frmt(""),
+    "<=0.01"  ~ frmt("(<1%)"),
+    "TRUE"    ~ frmt("(xx.x%)", transform = ~ . * 100))) |>
+  tfrmt(
+    group = AEBODSYS, label = AEDECOD, param = stat_name, value = stat,
+    column = ACTARM, sorting_cols = c(ord1, ord2),
+    col_plan = col_plan("System Organ Class / Preferred Term" = AEBODSYS,
+                        Placebo, `Xanomeline High Dose`, `Xanomeline Low Dose`,
+                        -ord1, -ord2),
+    row_grp_plan = row_grp_plan(row_grp_structure(
+      group_val = ".default", element_block(post_space = " "))),
+    big_n = big_n_structure(param_val = "bigN", n_frmt = frmt(" (N=xx)"))) |>
+  print_to_gt(ae_card)
+
+ae_tfrmt_pages <- as_rtftables(ae_tfrmt,
+                               split      = "group_force",
+                               max_rows   = 30,
+                               blank_rows = "between_groups")
+length(ae_tfrmt_pages)
+```
+
+```{r ae-tfrmt-rtf}
+doc <- rtf_document() |>
+  rtf_section(page = 1,
+              secinfo = list(header = make_header("14.3.1b",
+                                                  "Adverse Events (tfrmt)"),
+                             footer = make_footer("gt_tbl", "cards + tfrmt"))) |>
+  rtf_tables(ae_tfrmt_pages,
+             titles = rep(ae_title, length(ae_tfrmt_pages)))
+out_ae_tfrmt <- tempfile(fileext = ".rtf")
+generate_rtfreport(doc, out_ae_tfrmt, overwrite = TRUE)
+file.exists(out_ae_tfrmt)
 ```
 
 ## 3. Assembling a deliverable
@@ -236,11 +348,12 @@ file.exists(out_ae)
 A real submission bundles many TLGs into one file.  Render each table to its
 own `.rtf`, then concatenate them with
 [`assemble_rtf()`](../reference/assemble_rtf.html) (page numbering and
-section headers continue across the seam):
+section headers continue across the seam).  Here we bundle the gtsummary
+demographics with the full multi-page tern adverse-events table:
 
 ```{r assemble}
 bundle <- tempfile(fileext = ".rtf")
-assemble_rtf(c(out_gts, out_ae), bundle)   # demographics + the multi-page AEs
+assemble_rtf(c(out_gts, out_ae_tern), bundle)
 file.exists(bundle)
 ```
 

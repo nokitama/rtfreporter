@@ -1,5 +1,26 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.52
+
+### Adverse-events cookbook now uses the real pharmaverse example objects
+
+The `tlg-catalog` adverse-events section now builds the table from the
+`pharmaverseadam` ADaM data, using the exact table objects from the
+[pharmaverse adverse-events
+example](https://pharmaverse.github.io/examples/tlg/adverse_events.html) --
+**two ways**:
+
+* **tern + rtables** (full SOC/PT layout with unique / non-unique patient and
+  event counts), paginated with `split = "group_safe"` (each SOC kept whole);
+* **cards + tfrmt** (ARD-driven, frequency-sorted), paginated with
+  `split = "group_force"`.
+
+With 23 system-organ classes and 242 preferred terms the table spans **14**
+(tern) / **11** (tfrmt) pages, exercising real multi-page pagination, repeated
+column/running headers, blank rows between groups, and `(Cont.)` markers.
+
+`cards` and `pharmaverseadam` added to `Suggests`.
+
 ## rtfreporter 0.0.51
 
 ### TLG cookbook article reworked to follow the pharmaverse examples
