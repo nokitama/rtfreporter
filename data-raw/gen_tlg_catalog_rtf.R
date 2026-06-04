@@ -78,7 +78,8 @@ out_dm_tern <- .write(
       header = make_header("14.1.1a", paste(demog_title, "(tern)")),
       footer = make_footer("tern + rtables"))) |>
     rtf_tables(as_rtftables(dm_tern, blank_rows = "between_groups",
-                          auto_width = TRUE, table_width_twips = writable),
+                          auto_width = TRUE, table_width_twips = writable,
+                          cell_format = fmt_count_paren),
                titles = blank_title()),
   "pharmaverse-demographic-tern.rtf")
 
@@ -101,7 +102,8 @@ out_dm_gts <- .write(
       header = make_header("14.1.1b", paste(demog_title, "(gtsummary)")),
       footer = make_footer("gtsummary + cards"))) |>
     rtf_tables(as_rtftables(dm_gts, blank_rows = "between_groups",
-                          auto_width = TRUE, table_width_twips = writable),
+                          auto_width = TRUE, table_width_twips = writable,
+                          cell_format = fmt_count_paren),
                titles = blank_title()),
   "pharmaverse-demographic-gtsummary.rtf")
 
@@ -148,7 +150,8 @@ dm_tfrmt <- tfrmt(group = stat_variable, label = label, param = stat_name,
       header = make_header("14.1.1c", paste(demog_title, "(tfrmt)")),
       footer = make_footer("tfrmt + cards"))) |>
     rtf_tables(as_rtftables(dm_tfrmt,
-                          auto_width = TRUE, table_width_twips = writable),
+                          auto_width = TRUE, table_width_twips = writable,
+                          cell_format = fmt_count_paren),
                titles = blank_title()),
   "pharmaverse-demographic-tfrmt.rtf")
 

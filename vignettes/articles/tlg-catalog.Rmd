@@ -125,7 +125,8 @@ rtf_document() |>
     header = make_header("14.1.1a", "Demographic and Baseline Characteristics (tern)"),
     footer = make_footer("tern + rtables"))) |>
   rtf_tables(as_rtftables(dm_tern, blank_rows = "between_groups",
-                          auto_width = TRUE, table_width_twips = writable),
+                          auto_width = TRUE, table_width_twips = writable,
+                          cell_format = fmt_count_paren),
              titles = blank_title()) |>
   generate_rtfreport(out_dm_tern, overwrite = TRUE)
 ```
@@ -182,7 +183,8 @@ rtf_document() |>
     header = make_header("14.1.1b", "Demographic and Baseline Characteristics (gtsummary)"),
     footer = make_footer("gtsummary + cards"))) |>
   rtf_tables(as_rtftables(dm_gts, blank_rows = "between_groups",
-                          auto_width = TRUE, table_width_twips = writable),
+                          auto_width = TRUE, table_width_twips = writable,
+                          cell_format = fmt_count_paren),
              titles = blank_title()) |>
   generate_rtfreport(out_dm_gts, overwrite = TRUE)
 ```
@@ -263,7 +265,8 @@ rtf_document() |>
   rtf_section(page = 1, secinfo = list(
     header = make_header("14.1.1c", "Demographic and Baseline Characteristics (tfrmt)"),
     footer = make_footer("tfrmt + cards"))) |>
-  rtf_tables(as_rtftables(dm_tfrmt, auto_width = TRUE, table_width_twips = writable),
+  rtf_tables(as_rtftables(dm_tfrmt, auto_width = TRUE, table_width_twips = writable,
+                          cell_format = fmt_count_paren),
              titles = blank_title()) |>
   generate_rtfreport(out_dm_tfrmt, overwrite = TRUE)
 ```
