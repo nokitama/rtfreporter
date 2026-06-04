@@ -493,9 +493,13 @@ paginate.data.frame <- function(x, ...) {
   while (pos <= nrow(df)) {
     end <- min(pos + max_rows - 1L, nrow(df))
 
-    # Orphan control: only when the boundary group is actually being split
-    # (it continues past `end`), started on this page, and has fewer than
-    # `min_group_rows` child rows visible -> move the whole group down.
+    # Widow/orphan control, only when the boundary group is actually being
+    # split (it continues past `end`):
+    #   * ORPHAN -- the group starts on this page and shows fewer than
+    #     `min_group_rows` of its children -> move the whole group down.
+    #   * WIDOW  -- the cut would leave fewer than `min_group_rows` rows of the
+    #     group for the continuation page -> pull the cut back so the tail is
+    #     at least `min_group_rows` (without leaving < `min_group_rows` here).
     if (min_group_rows > 0L && end < nrow(df)) {
       end_gid  <- info$id[end]
       next_gid <- info$id[end + 1L]
@@ -507,7 +511,23 @@ paginate.data.frame <- function(x, ...) {
                        !is.na(info$id[hpos]) && info$id[hpos] == end_gid
         child_rows  <- end - hpos          # rows after the header on this page
         if (starts_here && child_rows < min_group_rows) {
-          end <- hpos - 1L                 # push the group to the next page
+          end <- hpos - 1L                 # ORPHAN: push the group to next page
+        } else {
+          # WIDOW: count the same-group rows that would spill past `end`.
+          tail_n <- 0L; k <- end + 1L
+          while (k <= nrow(df) && !is.na(info$id[k]) &&
+                 info$id[k] == end_gid) { tail_n <- tail_n + 1L; k <- k + 1L }
+          if (tail_n > 0L && tail_n < min_group_rows) {
+            new_end <- end - (min_group_rows - tail_n)
+            # First row of this group on the current page (a (Cont.) header
+            # shares the group id, so this stops at `pos` for a continuation).
+            gstart <- end
+            while (gstart > pos && !is.na(info$id[gstart - 1L]) &&
+                   info$id[gstart - 1L] == end_gid) gstart <- gstart - 1L
+            if (new_end > pos && (new_end - gstart + 1L) >= min_group_rows) {
+              end <- new_end
+            }
+          }
         }
       }
     }
@@ -586,35 +606,41 @@ paginate.data.frame <- function(x, ...) {
   # synthetic "preamble" group.
   gid <- ifelse(is.na(info$id), 0L, info$id)
   unique_gids <- unique(gid)
+
+  # The page buffer is a data.frame (not row indices) so the tail of a
+  # force-split group -- which contains a synthetic "(Cont.)" row not present
+  # in `df` -- can stay in the buffer and have following whole groups packed
+  # onto it, instead of being stranded on a near-empty page of its own.
   result <- list()
-  buf <- integer(0)
+  buf     <- NULL
+  flush <- function() {
+    if (!is.null(buf)) { result[[length(result) + 1L]] <<- buf; buf <<- NULL }
+  }
 
   for (g in unique_gids) {
     rows <- which(gid == g)
     g_n  <- length(rows)
+    gdf  <- df[rows, , drop = FALSE]
 
     if (g_n > max_rows) {
-      if (length(buf) > 0L) {
-        result[[length(result) + 1L]] <- df[buf, , drop = FALSE]
-        buf <- integer(0)
-      }
+      flush()
       sub_info <- list(id      = info$id[rows],
                        label   = info$label[rows],
                        headers = info$headers[rows])
-      result <- c(result,
-                  .split_group_force(df[rows, , drop = FALSE],
-                                     sub_info, max_rows, cont_label,
-                                     group_idx, min_group_rows))
-    } else if (length(buf) + g_n > max_rows) {
-      result[[length(result) + 1L]] <- df[buf, , drop = FALSE]
-      buf <- rows
+      sub <- .split_group_force(gdf, sub_info, max_rows, cont_label,
+                                group_idx, min_group_rows)
+      # All but the last sub-chunk are full pages; keep the last (the tail)
+      # in the buffer so the next group(s) can pack onto it.
+      if (length(sub) > 1L) result <- c(result, sub[-length(sub)])
+      buf <- sub[[length(sub)]]
+    } else if (!is.null(buf) && (nrow(buf) + g_n) > max_rows) {
+      flush()
+      buf <- gdf
     } else {
-      buf <- c(buf, rows)
+      buf <- if (is.null(buf)) gdf else rbind(buf, gdf)
     }
   }
-  if (length(buf) > 0L) {
-    result[[length(result) + 1L]] <- df[buf, , drop = FALSE]
-  }
+  flush()
   result
 }
 

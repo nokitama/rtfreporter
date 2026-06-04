@@ -1,5 +1,23 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.63
+
+### Pagination: widow control and tail packing for split groups
+
+When a single group was larger than `max_rows` and had to be force-split, the
+continuation could be left with only one row (a `(Cont.)` header plus a single
+child) stranded on a near-empty page.  Two fixes:
+
+* **Widow control.** `min_group_rows` (default 2) now also applies to the
+  *continuation* of a force-split group: the cut is pulled back so the next
+  page carries at least `min_group_rows` of the group's rows.
+* **Tail packing (`split = "group_safe"`).** The tail of a force-split group is
+  now kept in the page buffer, so the following whole groups pack onto it
+  instead of each split group's remainder getting its own sparse page.
+
+Together these remove the near-empty continuation pages (e.g. the
+adverse-events tern table dropped from 12 to 11 pages with no 2-row page).
+
 ## rtfreporter 0.0.62
 
 ### `fmt_count_paren()` now aligns the percentages too

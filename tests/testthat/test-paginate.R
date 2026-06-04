@@ -75,7 +75,9 @@ test_that("group_safe requires max_rows", {
 # ──────── group_force ──────────────────────────────────────────────────────
 
 test_that("group_force cuts at exactly max_rows with Cont. continuation", {
-  res <- paginate(.demo_df(), max_rows = 3L, split = "group_force")
+  # min_group_rows = 0 tests the raw cut mechanic (no widow/orphan nudging).
+  res <- paginate(.demo_df(), max_rows = 3L, split = "group_force",
+                  min_group_rows = 0L)
   expect_length(res, 4L)
   expect_equal(nrow(res[[1L]]), 3L)
   # Chunk 2 must begin with "group1 (Cont.)"
@@ -104,6 +106,38 @@ test_that("group_force min_group_rows moves an orphan group header to the next p
   expect_false(any(grepl("\\(Cont\\.\\)", new[[1L]]$label)))
   expect_identical(new[[1L]]$label[nrow(new[[1L]])], paste0(nbsp, nbsp, "a4"))
   expect_identical(new[[2L]]$label[1L], "G2")
+})
+
+test_that("group_force min_group_rows avoids leaving a widow tail of one row", {
+  nbsp <- intToUtf8(160L)
+  kids <- function(...) paste0(nbsp, nbsp, c(...))
+  # One big group whose force-split would otherwise spill a single child.
+  df <- data.frame(
+    label = c("G1", kids(paste0("a", 1:6))),   # header + 6 children = 7 rows
+    value = "x", stringsAsFactors = FALSE)
+
+  old <- paginate(df, max_rows = 6L, split = "group_force", min_group_rows = 0L)
+  # Raw cut: page 1 = 6 rows, page 2 = "(Cont.)" + 1 child (a widow).
+  expect_equal(nrow(old[[2L]]), 2L)
+
+  new <- paginate(df, max_rows = 6L, split = "group_force")  # default = 2
+  # Widow control pulls a row back so the continuation has >= 2 children.
+  expect_gte(nrow(new[[2L]]) - 1L, 2L)   # minus the (Cont.) header row
+  expect_match(new[[2L]]$label[1L], "G1 \\(Cont\\.\\)")
+})
+
+test_that("group_safe packs following groups onto a split group's tail", {
+  nbsp <- intToUtf8(160L)
+  kids <- function(...) paste0(nbsp, nbsp, c(...))
+  df <- data.frame(
+    label = c("BIG", kids(paste0("a", 1:7)),   # 8 rows -> force-split
+              "SMALL", kids("b1", "b2")),       # 3 rows
+    value = "x", stringsAsFactors = FALSE)
+  res <- paginate(df, max_rows = 6L, split = "group_safe")
+  # The SMALL group should ride on the tail page of BIG, not start a new one.
+  last <- res[[length(res)]]
+  expect_true(any(last$label == "SMALL"))
+  expect_match(last$label[1L], "BIG \\(Cont\\.\\)")
 })
 
 test_that("group_force preserves cell types in non-character columns", {
