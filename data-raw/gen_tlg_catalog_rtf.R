@@ -241,6 +241,7 @@ ae_tfrmt_pages <- as_rtftables(ae_tfrmt, split = "group_force", max_rows = 36,
                                col_header = ae_hdr,
                                col_rel_width = c(0.50, 0.125, 0.125, 0.125, 0.125),
                                col_spec = ae_col_spec,
+                               cell_format = fmt_count_paren,
                                row_height_twips = 200)
 .write(
   rtf_document() |>

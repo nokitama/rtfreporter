@@ -1,5 +1,26 @@
 # rtfreporter (development version)
 
+## rtfreporter 0.0.61
+
+### Pluggable cell formatting
+
+`as_rtftables()` gains a `cell_format` argument: a function (applied to every
+data column) or a list of functions (one per column) that re-formats the body
+cells for monospaced alignment, applied just before pagination.  A format
+function follows a small contract -- it takes one column (a character vector)
+and returns a character vector of the same length, padding with the
+non-breaking space -- documented in `?as_rtftables` and the article.
+
+Two ready-made formatters are provided alongside the existing
+`realign_count_pct()`:
+
+* `fmt_count_paren()` aligns an integer count followed by *any* parenthetical
+  (e.g. a column mixing `"2 ( 2.8%)"`, `"3 (<1%)"`, `"70 (100%)"` and a lone
+  `"0"`), so the digits and a bare zero line up.  The adverse-events tfrmt
+  table in the article now uses it, fixing the misaligned `0` cells.
+* `fmt_right_align()` -- the minimal "right-justify a column" formatter, used
+  in the docs as the template for writing your own.
+
 ## rtfreporter 0.0.60
 
 ### TLG article: downloadable RTFs, single group gaps, wider label column

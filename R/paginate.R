@@ -315,6 +315,7 @@ paginate.data.frame <- function(x, ...) {
                                  blank_row_first  = FALSE,
                                  blank_row_end    = FALSE,
                                  align_count_pct  = FALSE,
+                                 cell_format      = NULL,
                                  ...) {
   split <- match.arg(split)
 
@@ -326,11 +327,15 @@ paginate.data.frame <- function(x, ...) {
     stop("`split_rows` is required when split = \"rows\".", call. = FALSE)
   }
 
-  # Optional digit-alignment pass: rewrite character columns (cols 2..N)
-  # that match the "n (xx.x)" clinical pattern to a uniform display width
-  # via realign_count_pct().  Done BEFORE splitting so all chunks
-  # inherit the cleaned-up cells.
-  if (isTRUE(align_count_pct)) {
+  # Optional cell-format pass: rewrite the body cells column-by-column to a
+  # uniform display width BEFORE splitting, so every chunk inherits the
+  # cleaned-up cells.  `cell_format` (a function or list of functions) takes
+  # precedence; `align_count_pct = TRUE` is the long-standing shorthand for
+  # the built-in "n (xx.x)" realigner.
+  if (!is.null(cell_format)) {
+    fl <- .resolve_cell_format(cell_format, ncol(x))
+    if (!is.null(fl)) x <- .apply_cell_format(x, fl)
+  } else if (isTRUE(align_count_pct)) {
     x <- .realign_count_pct_df(x)
   }
 

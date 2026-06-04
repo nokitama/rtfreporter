@@ -17,6 +17,7 @@ as_rtftables(
   blank_row_first = FALSE,
   blank_row_end = FALSE,
   align_count_pct = FALSE,
+  cell_format = NULL,
   auto_width = FALSE,
   table_width_twips = NULL,
   border = "tfl",
@@ -48,6 +49,16 @@ than `min_group_rows` of the group's child rows, the whole group is moved
 to the next page.  This prevents a lone group header being stranded at the
 foot of a page with none (or too few) of its members.  Set to `0` to
 disable (the previous behaviour).}
+
+\item{cell_format}{Optional cell re-formatter applied column-by-column to
+the body **before** pagination, for monospaced alignment.  Either a single
+function -- applied to every data column (columns 2..N; the row-label
+column 1 is left alone) -- or a list of functions taken positionally
+(`cell_format[[j]]` for column `j`; non-function entries are skipped).
+Each function takes one column (a character vector) and returns a
+character vector of the same length; see [fmt_count_paren()] /
+[fmt_right_align()] for built-ins and the contract for writing your own.
+When supplied it takes precedence over `align_count_pct`.}
 
 \item{auto_width}{Logical (default `FALSE`).  When `TRUE`, each column is
 sized to its widest content (column header label or data cell) via

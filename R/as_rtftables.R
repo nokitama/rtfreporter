@@ -109,6 +109,15 @@
 #'   to the next page.  This prevents a lone group header being stranded at the
 #'   foot of a page with none (or too few) of its members.  Set to `0` to
 #'   disable (the previous behaviour).
+#' @param cell_format Optional cell re-formatter applied column-by-column to
+#'   the body **before** pagination, for monospaced alignment.  Either a single
+#'   function -- applied to every data column (columns 2..N; the row-label
+#'   column 1 is left alone) -- or a list of functions taken positionally
+#'   (`cell_format[[j]]` for column `j`; non-function entries are skipped).
+#'   Each function takes one column (a character vector) and returns a
+#'   character vector of the same length; see [fmt_count_paren()] /
+#'   [fmt_right_align()] for built-ins and the contract for writing your own.
+#'   When supplied it takes precedence over `align_count_pct`.
 #' @param auto_width Logical (default `FALSE`).  When `TRUE`, each column is
 #'   sized to its widest content (column header label or data cell) via
 #'   [auto_col_widths()], so long row labels and column headers do not wrap.
@@ -158,6 +167,7 @@ as_rtftables <- function(x,
                          blank_row_first = FALSE,
                          blank_row_end   = FALSE,
                          align_count_pct = FALSE,
+                         cell_format     = NULL,
                          auto_width        = FALSE,
                          table_width_twips = NULL,
                          border          = "tfl",
@@ -179,6 +189,7 @@ as_rtftables <- function(x,
         min_group_rows = min_group_rows,
         blank_rows = blank_rows, blank_row_first = blank_row_first,
         blank_row_end = blank_row_end, align_count_pct = align_count_pct,
+        cell_format = cell_format,
         auto_width = auto_width, table_width_twips = table_width_twips,
         border = border, style = style, ...)
       if (!is.null(in_names) && nzchar(in_names[i])) {
@@ -255,7 +266,7 @@ as_rtftables <- function(x,
     group_col = group_col, cont_label = cont_label,
     min_group_rows = min_group_rows, blank_rows = blank_rows,
     blank_row_first = blank_row_first, blank_row_end = blank_row_end,
-    align_count_pct = align_count_pct)
+    align_count_pct = align_count_pct, cell_format = cell_format)
   page_names <- names(pages)
 
   out <- lapply(seq_along(pages), function(i) {
