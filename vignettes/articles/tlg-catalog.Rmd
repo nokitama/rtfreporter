@@ -3,7 +3,8 @@ title: "From pharmaverse tables to RTF reports"
 ---
 
 ```{r, include = FALSE}
-knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
+                      message = FALSE, warning = FALSE)
 .pkgs <- c("tern", "rtables", "gtsummary", "tfrmt", "cards", "forcats",
            "pharmaverseadam", "dplyr")
 .ok <- all(vapply(.pkgs, requireNamespace, logical(1L), quietly = TRUE))
@@ -66,109 +67,62 @@ The file names mark which pharmaverse example table each one came from
 
 # Rendering the pharmaverse example tables
 
+For each table the **complete, self-contained recipe is folded** below: expand
+it and one copy gives you everything -- package loading, the `pharmaverseadam`
+data, the pharmaverse processing, the table object, and the rtfreporter step
+that renders it to RTF.  (The recipes deliberately repeat the package/data/
+header boilerplate so each one runs on its own.)  Outside the fold we show only
+the table object as the example prints it and a snapshot of the resulting RTF.
+
 ```{r setup, eval = TRUE}
 library(rtfreporter)
-```
-
-```{r libs}
-library(tern)
-library(rtables)
-library(gtsummary)
-library(tfrmt)
-library(cards)
-library(forcats)
-library(dplyr)
-```
-
-### Data
-
-Exactly as in the pharmaverse examples, we use the `pharmaverseadam` ADaM
-data.
-
-```{r data}
-adsl <- pharmaverseadam::adsl
-adae <- pharmaverseadam::adae
-```
-
-A small reusable clinical header / footer, used for every table below (this is
-the only rtfreporter-specific glue; see *Using rtfreporter* for the details):
-
-```{r hf}
-# The whole title block lives in the running header, so it is normal weight
-# (not bold) and repeats on every page: company / protocol-and-page, then a
-# centred "Table N", the centred title, and a centred "<subtitle>" (three
-# title lines).
-make_header <- function(table_no, title, subtitle = "Safety Analysis Set") {
-  rtf_header(rows = list(
-    c(l = "HOGESTER Co. Limited1", r = "CONFIDENTIAL"),
-    c(l = "Protocol: RTF-101",     r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
-    c(c = paste0("Table ", table_no)),
-    c(c = title),
-    c(c = paste0("<", subtitle, ">"))
-  ))
-}
-make_footer <- function(built_with) {
-  rtf_footer(c(l = paste0(
-    "Table object built with ", built_with,
-    " (pharmaverse example); rendered to RTF by rtfreporter.")))
-}
-
-# A single empty content title ("") inserts one blank line between the header
-# and the table on every page.
-blank_title <- function(n = 1L) rep(list(""), n)
-
-# Column alignment for the (5-column) adverse-events tables: the row-label
-# column is left-aligned, every data column is centred.  Without this the
-# alignment read from the source object can differ column to column (e.g. the
-# "All Patients" column came through left-aligned).
-ae_col_spec <- c(
-  list(list(col = 1L, align = "left")),
-  lapply(2:5, function(j) list(col = j, align = "center")))
-
-# Writable width of the default landscape Letter page (11in wide, 0.6in
-# margins).  `auto_width = TRUE` sizes each column to its content; passing this
-# as `table_width_twips` makes the table fill the page, keeping the row-label
-# column (column 1) wide enough that long labels do not wrap.
-writable <- as.integer((11 - 2 * 0.6) * 1440)
 ```
 
 ## Demographics -- three pharmaverse packages
 
 The pharmaverse *demographic* example builds the same table three different
-ways.  Each produces a different object class; `as_rtftables()` reads all of
-them and the RTF comes out the same clinical shape.
-
-For each, the pharmaverse example code (plus the rtfreporter rendering step)
-is **folded** -- expand it to copy the whole recipe in one go.  Underneath is
-the table object as the example prints it, then a snapshot of the RTF
-rtfreporter produced.
-
-```{r demog-prep}
-demog_title <- "Demographic and Baseline Characteristics"
-```
+ways -- a tern `TableTree`, a gtsummary `gt_tbl` and a tfrmt `gt_tbl`.
+`as_rtftables()` reads all three and the RTF comes out the same clinical shape.
 
 ### tern + rtables (a `TableTree`)
 
-<details><summary>Show the code (pharmaverse example + rtfreporter rendering)</summary>
+<details><summary>Show the full recipe (pharmaverse example + rtfreporter)</summary>
 ```{r dm-tern, results = "hide"}
-adsl2 <- adsl |> df_explicit_na()
+library(rtfreporter); library(tern); library(dplyr)
+# --- reusable rtfreporter glue (header / footer / blank line) ---
+make_header <- function(table_no, title, subtitle = "Safety Analysis Set") {
+  rtf_header(rows = list(
+    c(l = "HOGESTER Co. Limited1", r = "CONFIDENTIAL"),
+    c(l = "Protocol: RTF-101",     r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
+    c(c = paste0("Table ", table_no)), c(c = title),
+    c(c = paste0("<", subtitle, ">"))))
+}
+make_footer <- function(built_with) rtf_footer(c(l = paste0(
+  "Table object built with ", built_with,
+  " (pharmaverse example); rendered to RTF by rtfreporter.")))
+blank_title <- function(n = 1L) rep(list(""), n)
+writable <- as.integer((11 - 2 * 0.6) * 1440)   # landscape Letter writable width
+
+# --- pharmaverse demographic example (tern + rtables) -> table object ---
+adsl <- pharmaverseadam::adsl |> df_explicit_na()
 vars <- c("AGE", "AGEGR1", "SEX", "RACE")
 var_labels <- c("Age (yr)", "Age group", "Sex", "Race")
 lyt <- basic_table(show_colcounts = TRUE) |>
   split_cols_by(var = "ACTARM") |>
   add_overall_col("All Patients") |>
   analyze_vars(vars = vars, var_labels = var_labels)
-dm_tern <- build_table(lyt, adsl2)
+dm_tern <- build_table(lyt, adsl)
 
-doc <- rtf_document() |>
-  rtf_section(page = 1,
-              secinfo = list(header = make_header("14.1.1a", paste(demog_title, "(tern)")),
-                             footer = make_footer("tern + rtables"))) |>
+# --- render to RTF with rtfreporter ---
+out_dm_tern <- tempfile(fileext = ".rtf")
+rtf_document() |>
+  rtf_section(page = 1, secinfo = list(
+    header = make_header("14.1.1a", "Demographic and Baseline Characteristics (tern)"),
+    footer = make_footer("tern + rtables"))) |>
   rtf_tables(as_rtftables(dm_tern, blank_rows = "between_groups",
                           auto_width = TRUE, table_width_twips = writable),
-             titles = blank_title())
-out_dm_tern <- tempfile(fileext = ".rtf")
-generate_rtfreport(doc, out_dm_tern, overwrite = TRUE)
+             titles = blank_title()) |>
+  generate_rtfreport(out_dm_tern, overwrite = TRUE)
 ```
 </details>
 
@@ -181,8 +135,25 @@ dm_tern
 
 ### gtsummary + cards (a `gt_tbl`)
 
-<details><summary>Show the code (pharmaverse example + rtfreporter rendering)</summary>
+<details><summary>Show the full recipe (pharmaverse example + rtfreporter)</summary>
 ```{r dm-gts, results = "hide"}
+library(rtfreporter); library(gtsummary); library(cards); library(dplyr)
+# --- reusable rtfreporter glue (header / footer / blank line) ---
+make_header <- function(table_no, title, subtitle = "Safety Analysis Set") {
+  rtf_header(rows = list(
+    c(l = "HOGESTER Co. Limited1", r = "CONFIDENTIAL"),
+    c(l = "Protocol: RTF-101",     r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
+    c(c = paste0("Table ", table_no)), c(c = title),
+    c(c = paste0("<", subtitle, ">"))))
+}
+make_footer <- function(built_with) rtf_footer(c(l = paste0(
+  "Table object built with ", built_with,
+  " (pharmaverse example); rendered to RTF by rtfreporter.")))
+blank_title <- function(n = 1L) rep(list(""), n)
+writable <- as.integer((11 - 2 * 0.6) * 1440)   # landscape Letter writable width
+
+# --- pharmaverse demographic example (gtsummary + cards) -> table object ---
+adsl <- pharmaverseadam::adsl
 theme_gtsummary_compact()
 ard <- ard_stack(
   adsl,
@@ -199,15 +170,16 @@ dm_gts <- tbl_ard_summary(
   modify_header(all_stat_cols() ~ "**{level}**  \nN = {n}") |>
   modify_footnote(everything() ~ NA)
 
-doc <- rtf_document() |>
-  rtf_section(page = 1,
-              secinfo = list(header = make_header("14.1.1b", paste(demog_title, "(gtsummary)")),
-                             footer = make_footer("gtsummary + cards"))) |>
+# --- render to RTF with rtfreporter ---
+out_dm_gts <- tempfile(fileext = ".rtf")
+rtf_document() |>
+  rtf_section(page = 1, secinfo = list(
+    header = make_header("14.1.1b", "Demographic and Baseline Characteristics (gtsummary)"),
+    footer = make_footer("gtsummary + cards"))) |>
   rtf_tables(as_rtftables(dm_gts, blank_rows = "between_groups",
                           auto_width = TRUE, table_width_twips = writable),
-             titles = blank_title())
-out_dm_gts <- tempfile(fileext = ".rtf")
-generate_rtfreport(doc, out_dm_gts, overwrite = TRUE)
+             titles = blank_title()) |>
+  generate_rtfreport(out_dm_gts, overwrite = TRUE)
 ```
 </details>
 
@@ -220,8 +192,25 @@ dm_gts
 
 ### tfrmt + cards (a `gt_tbl`)
 
-<details><summary>Show the code (pharmaverse example + rtfreporter rendering)</summary>
+<details><summary>Show the full recipe (pharmaverse example + rtfreporter)</summary>
 ```{r dm-tfrmt, results = "hide"}
+library(rtfreporter); library(tfrmt); library(cards); library(forcats); library(dplyr)
+# --- reusable rtfreporter glue (header / footer / blank line) ---
+make_header <- function(table_no, title, subtitle = "Safety Analysis Set") {
+  rtf_header(rows = list(
+    c(l = "HOGESTER Co. Limited1", r = "CONFIDENTIAL"),
+    c(l = "Protocol: RTF-101",     r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
+    c(c = paste0("Table ", table_no)), c(c = title),
+    c(c = paste0("<", subtitle, ">"))))
+}
+make_footer <- function(built_with) rtf_footer(c(l = paste0(
+  "Table object built with ", built_with,
+  " (pharmaverse example); rendered to RTF by rtfreporter.")))
+blank_title <- function(n = 1L) rep(list(""), n)
+writable <- as.integer((11 - 2 * 0.6) * 1440)   # landscape Letter writable width
+
+# --- pharmaverse demographic example (tfrmt + cards) -> table object ---
+adsl <- pharmaverseadam::adsl
 ard <- ard_stack(
   adsl,
   ard_continuous(
@@ -235,8 +224,7 @@ ard_tbl <- ard |>
   prep_combine_vars(vars = c("AGE", "AGEGR1", "SEX", "RACE")) |>
   prep_label() |>
   group_by(ACTARM, stat_variable) |>
-  mutate(across(c(variable_level, label),
-                ~ ifelse(stat_name == "N", "n", .x))) |>
+  mutate(across(c(variable_level, label), ~ ifelse(stat_name == "N", "n", .x))) |>
   ungroup() |> unique() |>
   mutate(
     ord1 = fct_inorder(stat_variable) |> fct_relevel("SEX", after = 0) |> as.numeric(),
@@ -245,10 +233,8 @@ ard_tbl <- ard |>
     stat_variable == "AGE"    ~ "Age (YEARS) at First Dose",
     stat_variable == "AGEGR1" ~ "Age Group (YEARS) at First Dose",
     stat_variable == "SEX"    ~ "Sex",
-    stat_variable == "RACE"   ~ "High Level Race",
-    .default = stat_variable)) |>
-  select(ACTARM, stat_variable, label, stat_name, stat, ord1, ord2) |>
-  unique()
+    stat_variable == "RACE"   ~ "High Level Race", .default = stat_variable)) |>
+  select(ACTARM, stat_variable, label, stat_name, stat, ord1, ord2) |> unique()
 dm_tfrmt <- tfrmt(
   group = stat_variable, label = label, param = stat_name,
   value = stat, column = ACTARM, sorting_cols = c(ord1, ord2),
@@ -266,15 +252,15 @@ dm_tfrmt <- tfrmt(
     ".default", element_block(post_space = " ")))) |>
   print_to_gt(ard_tbl)
 
-doc <- rtf_document() |>
-  rtf_section(page = 1,
-              secinfo = list(header = make_header("14.1.1c", paste(demog_title, "(tfrmt)")),
-                             footer = make_footer("tfrmt + cards"))) |>
-  rtf_tables(as_rtftables(dm_tfrmt,
-                          auto_width = TRUE, table_width_twips = writable),
-             titles = blank_title())
+# --- render to RTF with rtfreporter ---
 out_dm_tfrmt <- tempfile(fileext = ".rtf")
-generate_rtfreport(doc, out_dm_tfrmt, overwrite = TRUE)
+rtf_document() |>
+  rtf_section(page = 1, secinfo = list(
+    header = make_header("14.1.1c", "Demographic and Baseline Characteristics (tfrmt)"),
+    footer = make_footer("tfrmt + cards"))) |>
+  rtf_tables(as_rtftables(dm_tfrmt, auto_width = TRUE, table_width_twips = writable),
+             titles = blank_title()) |>
+  generate_rtfreport(out_dm_tfrmt, overwrite = TRUE)
 ```
 </details>
 
@@ -289,34 +275,44 @@ dm_tfrmt
 
 The pharmaverse *adverse events* example is a genuinely large table -- 23
 system-organ classes and 242 preferred terms -- so it spans **many** pages.
-This is exactly where rtfreporter earns its keep: `as_rtftables()` paginates
-the object and repeats the column headers and running header on every page.
-The example builds it two ways, which also lets us show the **two pagination
-strategies**:
+This is where rtfreporter earns its keep: `as_rtftables()` paginates the
+object and repeats the column and running headers on every page.  The example
+builds it two ways, which also shows the **two pagination strategies**:
 
-* **`split = "group_safe"`** (the tern table) never breaks an SOC across a
-  page boundary -- a group that would overflow moves whole to the next page.
-* **`split = "group_force"`** (the tfrmt table) fills each page to `max_rows`
-  and, when the cut falls *inside* an SOC, repeats that SOC's label followed by
-  `" (Cont.)"` at the top of the next page (controlled by `cont_label`).
+* **`split = "group_safe"`** (tern) never breaks an SOC across a page boundary.
+* **`split = "group_force"`** (tfrmt) fills each page to `max_rows` and repeats
+  the SOC label with `" (Cont.)"` at the top of the next page when a group is
+  split.
 
-The objects are large, so below each folded recipe we show just the snapshot
-of the rendered RTF.
-
-```{r ae-prep}
-adsl_ae <- adsl |> df_explicit_na()
-adae_ae <- adae |>
-  df_explicit_na() |>
-  var_relabel(AEBODSYS = "MedDRA System Organ Class",
-              AEDECOD  = "MedDRA Preferred Term") |>
-  filter(SAFFL == "Y")
-ae_title <- "Adverse Events by System Organ Class and Preferred Term"
-```
+The objects are large, so under each folded recipe we show only the snapshot.
 
 ### tern + rtables (a `TableTree`)
 
-<details><summary>Show the code (pharmaverse example + rtfreporter rendering)</summary>
+<details><summary>Show the full recipe (pharmaverse example + rtfreporter)</summary>
 ```{r ae-tern, results = "hide"}
+library(rtfreporter); library(tern); library(dplyr)
+# --- reusable rtfreporter glue (header / footer / blank line) ---
+make_header <- function(table_no, title, subtitle = "Safety Analysis Set") {
+  rtf_header(rows = list(
+    c(l = "HOGESTER Co. Limited1", r = "CONFIDENTIAL"),
+    c(l = "Protocol: RTF-101",     r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
+    c(c = paste0("Table ", table_no)), c(c = title),
+    c(c = paste0("<", subtitle, ">"))))
+}
+make_footer <- function(built_with) rtf_footer(c(l = paste0(
+  "Table object built with ", built_with,
+  " (pharmaverse example); rendered to RTF by rtfreporter.")))
+blank_title <- function(n = 1L) rep(list(""), n)
+writable <- as.integer((11 - 2 * 0.6) * 1440)   # landscape Letter writable width
+ae_col_spec <- c(list(list(col = 1L, align = "left")),
+                 lapply(2:5, function(j) list(col = j, align = "center")))
+
+# --- pharmaverse adverse-events example (tern + rtables) -> table object ---
+adsl_ae <- pharmaverseadam::adsl |> df_explicit_na()
+adae_ae <- pharmaverseadam::adae |> df_explicit_na() |>
+  var_relabel(AEBODSYS = "MedDRA System Organ Class",
+              AEDECOD  = "MedDRA Preferred Term") |>
+  filter(SAFFL == "Y")
 split_fun <- drop_split_levels
 ae_lyt <- basic_table(show_colcounts = TRUE) |>
   split_cols_by(var = "ACTARM") |>
@@ -338,22 +334,19 @@ ae_lyt <- basic_table(show_colcounts = TRUE) |>
   append_varlabels(adae_ae, "AEDECOD", indent = 1L)
 ae_tern <- build_table(ae_lyt, df = adae_ae, alt_counts_df = adsl_ae)
 
-# Wide first column keeps the long SOC / preferred-term labels on one line;
-# row label left, data columns centred; fmt_count_paren aligns the counts and
-# percentages; a shorter row height packs more rows per page.
+# --- render to RTF with rtfreporter (wide label col, centred data, fmt_count_paren) ---
 ae_tern_pages <- as_rtftables(ae_tern, split = "group_safe", max_rows = 36,
                               blank_rows = "between_groups",
                               cell_format = fmt_count_paren,
                               col_rel_width = c(0.50, 0.125, 0.125, 0.125, 0.125),
-                              col_spec = ae_col_spec,
-                              row_height_twips = 200)
-doc <- rtf_document() |>
-  rtf_section(page = 1,
-              secinfo = list(header = make_header("14.3.1a", paste(ae_title, "(tern)")),
-                             footer = make_footer("tern + rtables"))) |>
-  rtf_tables(ae_tern_pages, titles = blank_title(length(ae_tern_pages)))
+                              col_spec = ae_col_spec, row_height_twips = 200)
 out_ae_tern <- tempfile(fileext = ".rtf")
-generate_rtfreport(doc, out_ae_tern, overwrite = TRUE)
+rtf_document() |>
+  rtf_section(page = 1, secinfo = list(
+    header = make_header("14.3.1a", "Adverse Events by System Organ Class and Preferred Term (tern)"),
+    footer = make_footer("tern + rtables"))) |>
+  rtf_tables(ae_tern_pages, titles = blank_title(length(ae_tern_pages))) |>
+  generate_rtfreport(out_ae_tern, overwrite = TRUE)
 ```
 </details>
 
@@ -363,8 +356,31 @@ generate_rtfreport(doc, out_ae_tern, overwrite = TRUE)
 
 ### tfrmt + cards (a `gt_tbl`)
 
-<details><summary>Show the code (pharmaverse example + rtfreporter rendering)</summary>
+<details><summary>Show the full recipe (pharmaverse example + rtfreporter)</summary>
 ```{r ae-tfrmt, results = "hide"}
+library(rtfreporter); library(tfrmt); library(cards); library(dplyr)
+# --- reusable rtfreporter glue (header / footer / blank line) ---
+make_header <- function(table_no, title, subtitle = "Safety Analysis Set") {
+  rtf_header(rows = list(
+    c(l = "HOGESTER Co. Limited1", r = "CONFIDENTIAL"),
+    c(l = "Protocol: RTF-101",     r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
+    c(c = paste0("Table ", table_no)), c(c = title),
+    c(c = paste0("<", subtitle, ">"))))
+}
+make_footer <- function(built_with) rtf_footer(c(l = paste0(
+  "Table object built with ", built_with,
+  " (pharmaverse example); rendered to RTF by rtfreporter.")))
+blank_title <- function(n = 1L) rep(list(""), n)
+writable <- as.integer((11 - 2 * 0.6) * 1440)   # landscape Letter writable width
+ae_col_spec <- c(list(list(col = 1L, align = "left")),
+                 lapply(2:5, function(j) list(col = j, align = "center")))
+
+# --- pharmaverse adverse-events example (tfrmt + cards) -> table object ---
+adsl_ae <- pharmaverseadam::adsl |> df_explicit_na()
+adae_ae <- pharmaverseadam::adae |> df_explicit_na() |>
+  var_relabel(AEBODSYS = "MedDRA System Organ Class",
+              AEDECOD  = "MedDRA Preferred Term") |>
+  filter(SAFFL == "Y")
 ae_ard <- ard_stack_hierarchical(
   data = adae_ae, by = ACTARM, variables = c(AEBODSYS, AEDECOD),
   statistic = ~ c("n", "p"), denominator = adsl_ae, id = USUBJID,
@@ -408,27 +424,22 @@ ae_tfrmt <- tfrmt_n_pct(
     big_n = big_n_structure(param_val = "bigN", n_frmt = frmt(" (N=xx)"))) |>
   print_to_gt(ae_card)
 
-# Wrap "Arm (N=xx)" onto two/three header lines so data columns can be narrow.
-ae_hdr <- c("System Organ Class /\nPreferred Term",
-            "Placebo\n(N=86)",
+# --- render to RTF with rtfreporter (multi-line headers; group_force pagination) ---
+ae_hdr <- c("System Organ Class /\nPreferred Term", "Placebo\n(N=86)",
             "Xanomeline\nHigh Dose\n(N=72)",
-            "Xanomeline\nLow Dose\n(N=96)",
-            "All Patients\n(N=306)")
-# This tfrmt already bakes a group gap via element_block(post_space=" "), so we
-# do NOT also pass blank_rows = "between_groups" (that would double the gap).
+            "Xanomeline\nLow Dose\n(N=96)", "All Patients\n(N=306)")
 ae_tfrmt_pages <- as_rtftables(ae_tfrmt, split = "group_force", max_rows = 36,
                                col_header = ae_hdr,
                                col_rel_width = c(0.50, 0.125, 0.125, 0.125, 0.125),
-                               col_spec = ae_col_spec,
-                               cell_format = fmt_count_paren,
+                               col_spec = ae_col_spec, cell_format = fmt_count_paren,
                                row_height_twips = 200)
-doc <- rtf_document() |>
-  rtf_section(page = 1,
-              secinfo = list(header = make_header("14.3.1b", paste(ae_title, "(tfrmt)")),
-                             footer = make_footer("tfrmt + cards"))) |>
-  rtf_tables(ae_tfrmt_pages, titles = blank_title(length(ae_tfrmt_pages)))
 out_ae_tfrmt <- tempfile(fileext = ".rtf")
-generate_rtfreport(doc, out_ae_tfrmt, overwrite = TRUE)
+rtf_document() |>
+  rtf_section(page = 1, secinfo = list(
+    header = make_header("14.3.1b", "Adverse Events by System Organ Class and Preferred Term (tfrmt)"),
+    footer = make_footer("tfrmt + cards"))) |>
+  rtf_tables(ae_tfrmt_pages, titles = blank_title(length(ae_tfrmt_pages))) |>
+  generate_rtfreport(out_ae_tfrmt, overwrite = TRUE)
 ```
 </details>
 
