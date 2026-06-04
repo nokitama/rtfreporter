@@ -34,3 +34,6 @@ vignettes/articles/*_files/
 
 # Runtime RTF output (reproducible from the demo scripts in data-raw/)
 /output/
+
+# Article snapshots are copied here from inst/rtf-examples/ at build time
+vignettes/articles/figures/

@@ -33,7 +33,7 @@ adae <- pharmaverseadam::adae
 make_header <- function(table_no, title, subtitle = "Safety Analysis Set") {
   rtf_header(rows = list(
     c(l = "HOGESTER Co. Limited1", r = "CONFIDENTIAL"),
-    c(l = "Protocol: RTF-101",     r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
+    c(l = "Protocol: RTF-101",     r = "Page {PAGE} of {TOTAL_PAGES}"),
     c(c = paste0("Table ", table_no)),
     c(c = title),
     c(c = paste0("<", subtitle, ">"))
@@ -252,12 +252,24 @@ ae_tfrmt_pages <- as_rtftables(ae_tfrmt, split = "group_force", max_rows = 36,
     rtf_tables(ae_tfrmt_pages, titles = blank_title(length(ae_tfrmt_pages))),
   "pharmaverse-adverse-events-tfrmt.rtf", length(ae_tfrmt_pages))
 
-# ---- 3. Assembled deliverable ----------------------------------------------
-assemble_rtf(c(out_dm_gts, out_ae_tern), file.path(out_dir, "pharmaverse-assembled.rtf"),
-             overwrite = TRUE)
+# ---- 3. Assembled deliverable (with a Table of Contents) -------------------
+assemble_rtf(
+  c(out_dm_gts, out_ae_tern),
+  file.path(out_dir, "pharmaverse-assembled.rtf"),
+  overwrite = TRUE,
+  toc = list(
+    toc_heading("DEMOGRAPHIC DATA", level = 1),
+    toc_entry("Table 14.1.1b  Demographic and Baseline Characteristics (gtsummary)",
+              file = out_dm_gts, level = 2),
+    toc_heading("SAFETY DATA", level = 1),
+    toc_entry("Table 14.3.1a  Adverse Events by SOC and Preferred Term (tern)",
+              file = out_ae_tern, level = 2)),
+  toc_title = "Table of Contents",
+  toc_page_numbering = "decimal")
 message("wrote ", file.path(out_dir, "pharmaverse-assembled.rtf"))
 
 message("\nDone. Open the .rtf files in ", normalizePath(out_dir),
-        "\nScreenshots (PNG) go to man/figures/ as:",
-        "\n  tlg-demog-tern.png  tlg-demog-gtsummary.png  tlg-demog-tfrmt.png",
-        "\n  tlg-ae-tern.png  tlg-ae-tfrmt.png  tlg-assembled.png")
+        "\nScreenshots (PNG) go to vignettes/articles/figures/ as:",
+        "\n  pharmaverse-demographic-{tern,gtsummary,tfrmt}.png",
+        "\n  pharmaverse-adverse-events-{tern,tfrmt}.png",
+        "\n  pharmaverse-assembled.png  pharmaverse-assembled-toc.png")

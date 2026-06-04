@@ -10,16 +10,21 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
 .ok <- all(vapply(.pkgs, requireNamespace, logical(1L), quietly = TRUE))
 knitr::opts_chunk$set(eval = .ok)
 
-# Show a screenshot of the rendered RTF if it has been captured (PNGs live in
-# vignettes/articles/figures/), otherwise leave a small placeholder so the
-# article still renders before the screenshots exist.
+# Show a screenshot of the rendered RTF if it has been captured.  The PNGs sit
+# next to the .rtf files in inst/rtf-examples/; we copy the one we need into
+# the article's own figures/ folder (so pkgdown serves it) and include that.
+# If the screenshot does not exist yet, a small placeholder is shown instead so
+# the article still builds.
 .snapshot <- function(file, alt = "rendered RTF") {
-  path <- file.path("figures", file)
-  if (file.exists(path)) {
-    knitr::include_graphics(path)
+  src <- file.path("..", "..", "inst", "rtf-examples", file)
+  if (file.exists(src)) {
+    dir.create("figures", showWarnings = FALSE)
+    dest <- file.path("figures", file)
+    file.copy(src, dest, overwrite = TRUE)
+    knitr::include_graphics(dest)
   } else {
     knitr::asis_output(sprintf(
-      "<p><em>(snapshot <code>figures/%s</code> not captured yet)</em></p>",
+      "<p><em>(snapshot <code>inst/rtf-examples/%s</code> not captured yet)</em></p>",
       file))
   }
 }
@@ -93,7 +98,7 @@ library(rtfreporter); library(tern); library(dplyr)
 make_header <- function(table_no, title, subtitle = "Safety Analysis Set") {
   rtf_header(rows = list(
     c(l = "HOGESTER Co. Limited1", r = "CONFIDENTIAL"),
-    c(l = "Protocol: RTF-101",     r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
+    c(l = "Protocol: RTF-101",     r = "Page {PAGE} of {TOTAL_PAGES}"),
     c(c = paste0("Table ", table_no)), c(c = title),
     c(c = paste0("<", subtitle, ">"))))
 }
@@ -142,7 +147,7 @@ library(rtfreporter); library(gtsummary); library(cards); library(dplyr)
 make_header <- function(table_no, title, subtitle = "Safety Analysis Set") {
   rtf_header(rows = list(
     c(l = "HOGESTER Co. Limited1", r = "CONFIDENTIAL"),
-    c(l = "Protocol: RTF-101",     r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
+    c(l = "Protocol: RTF-101",     r = "Page {PAGE} of {TOTAL_PAGES}"),
     c(c = paste0("Table ", table_no)), c(c = title),
     c(c = paste0("<", subtitle, ">"))))
 }
@@ -199,7 +204,7 @@ library(rtfreporter); library(tfrmt); library(cards); library(forcats); library(
 make_header <- function(table_no, title, subtitle = "Safety Analysis Set") {
   rtf_header(rows = list(
     c(l = "HOGESTER Co. Limited1", r = "CONFIDENTIAL"),
-    c(l = "Protocol: RTF-101",     r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
+    c(l = "Protocol: RTF-101",     r = "Page {PAGE} of {TOTAL_PAGES}"),
     c(c = paste0("Table ", table_no)), c(c = title),
     c(c = paste0("<", subtitle, ">"))))
 }
@@ -295,7 +300,7 @@ library(rtfreporter); library(tern); library(dplyr)
 make_header <- function(table_no, title, subtitle = "Safety Analysis Set") {
   rtf_header(rows = list(
     c(l = "HOGESTER Co. Limited1", r = "CONFIDENTIAL"),
-    c(l = "Protocol: RTF-101",     r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
+    c(l = "Protocol: RTF-101",     r = "Page {PAGE} of {TOTAL_PAGES}"),
     c(c = paste0("Table ", table_no)), c(c = title),
     c(c = paste0("<", subtitle, ">"))))
 }
@@ -363,7 +368,7 @@ library(rtfreporter); library(tfrmt); library(cards); library(dplyr)
 make_header <- function(table_no, title, subtitle = "Safety Analysis Set") {
   rtf_header(rows = list(
     c(l = "HOGESTER Co. Limited1", r = "CONFIDENTIAL"),
-    c(l = "Protocol: RTF-101",     r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
+    c(l = "Protocol: RTF-101",     r = "Page {PAGE} of {TOTAL_PAGES}"),
     c(c = paste0("Table ", table_no)), c(c = title),
     c(c = paste0("<", subtitle, ">"))))
 }
@@ -447,18 +452,51 @@ rtf_document() |>
 .snapshot("pharmaverse-adverse-events-tfrmt.png")
 ```
 
-## Assembling a deliverable
+## Assembling a deliverable -- with a Table of Contents
 
 A real submission bundles many TLGs into one file.  Render each table to its
-own `.rtf`, then concatenate them with
-[`assemble_rtf()`](../reference/assemble_rtf.html) (page numbering and section
-headers continue across the seam).  Here we bundle the gtsummary demographics
-with the full multi-page tern adverse-events table:
+own `.rtf` (the recipes above leave the paths in `out_dm_gts` and
+`out_ae_tern`), then concatenate them with
+[`assemble_rtf()`](../reference/assemble_rtf.html).  Passing `toc =` a list of
+[`toc_heading()`](../reference/toc_heading.html) /
+[`toc_entry()`](../reference/toc_entry.html) adds a clickable **Table of
+Contents** at the front, and `toc_page_numbering = "decimal"` numbers its
+pages.
 
-```{r assemble}
+Each table keeps its own baked-in `Page X of Y` footer: the recipes use the
+static `{PAGE}` / `{TOTAL_PAGES}` tokens (resolved to real numbers at render
+time, so every viewer shows them) rather than the dynamic `{AUTO_PAGE}` /
+`{AUTO_TOTAL_PAGES}` fields.
+
+<details><summary>Show the code (assemble + Table of Contents)</summary>
+```{r assemble, results = "hide"}
+library(rtfreporter)
 bundle <- tempfile(fileext = ".rtf")
-assemble_rtf(c(out_dm_gts, out_ae_tern), bundle)
-file.exists(bundle)
+assemble_rtf(
+  c(out_dm_gts, out_ae_tern), bundle, overwrite = TRUE,
+  toc = list(
+    toc_heading("DEMOGRAPHIC DATA", level = 1),
+    toc_entry("Table 14.1.1b  Demographic and Baseline Characteristics (gtsummary)",
+              file = out_dm_gts, level = 2),
+    toc_heading("SAFETY DATA", level = 1),
+    toc_entry("Table 14.3.1a  Adverse Events by SOC and Preferred Term (tern)",
+              file = out_ae_tern, level = 2)),
+  toc_title = "Table of Contents",
+  toc_page_numbering = "decimal")
+```
+</details>
+
+The generated Table of Contents:
+
+```{r assemble-toc-snap, echo = FALSE}
+.snapshot("pharmaverse-assembled-toc.png")
+```
+
+and a body page from the assembled deliverable (note the per-table `Page X of
+Y` footer):
+
+```{r assemble-snap, echo = FALSE}
+.snapshot("pharmaverse-assembled.png")
 ```
 
 # Using rtfreporter
@@ -469,10 +507,15 @@ section collects the pieces you can tune.
 ## Headers and footers
 
 `rtf_header()` / `rtf_footer()` take rows of left / centre / right cells
-(`l` / `c` / `r`).  The tokens `{AUTO_PAGE}` and `{AUTO_TOTAL_PAGES}` expand to
-the current page and the total page count of the section, so a one-line
-"Page X of Y" works across a paginated table automatically (as in `make_header`
-above).
+(`l` / `c` / `r`).  For "Page X of Y" there are two flavours of token:
+
+* `{AUTO_PAGE}` / `{AUTO_TOTAL_PAGES}` -- *dynamic* RTF fields, recomputed by
+  the viewer (and across `assemble_rtf()`), so they always show the live page
+  numbers.
+* `{PAGE}` / `{TOTAL_PAGES}` -- *static* numbers baked in at render time, so
+  each table carries its own real `Page X of Y` text that every viewer shows
+  identically and `assemble_rtf()` leaves untouched.  The recipes above use
+  these.
 
 ## Pagination
 
