@@ -42,7 +42,7 @@ make_header <- function(table_no, title, subtitle = "Safety Analysis Set") {
 make_footer <- function(built_with) {
   rtf_footer(c(l = paste0(
     "Table object built with ", built_with,
-    " (pharmaverse example); rendered to RTF by rtfreporter.")))
+    " (Pharmaverse Example); rendered to RTF by rtfreporter.")))
 }
 # One empty content title ("") = one blank line between header and table.
 blank_title <- function(n = 1L) rep(list(""), n)
