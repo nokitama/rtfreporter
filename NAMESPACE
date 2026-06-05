@@ -92,6 +92,11 @@ S3method(plot, rtf_document)
 # Report generation
 export(generate_rtfreport)
 export(assemble_rtf)
+export(assemble_files)
+export(assemble_toc)
+export(assemble_spec)
+export(assemble_from_spec)
+export(assemble_folder)
 export(toc_heading)
 export(toc_entry)
 

@@ -471,6 +471,19 @@ Y` footer):
 .snapshot("pharmaverse-assembled.png")
 ```
 
+For a whole folder of `.rtf` files there is a one-call shortcut that reads each
+file's header, builds the Table of Contents and assembles the deliverable --
+optionally saving the editable "assembly spec" (an `.xlsx` / `.csv` you can
+tweak and re-run):
+
+```r
+assemble_folder("path/to/rtf", "deliverable.rtf", spec_file = "spec.xlsx")
+```
+
+See [`assemble_folder()`](../reference/assemble_folder.html),
+[`assemble_spec()`](../reference/assemble_spec.html) and
+[`assemble_from_spec()`](../reference/assemble_from_spec.html).
+
 # Using rtfreporter
 
 The examples above kept the rtfreporter-specific code to a minimum.  This

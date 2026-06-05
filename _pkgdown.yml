@@ -157,6 +157,11 @@ reference:
       - assemble_rtf
       - toc_heading
       - toc_entry
+      - assemble_files
+      - assemble_spec
+      - assemble_toc
+      - assemble_from_spec
+      - assemble_folder
 
   - title: Content constructors
     desc: Build a richly formatted table or figure object.
