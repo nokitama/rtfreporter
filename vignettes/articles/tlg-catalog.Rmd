@@ -83,10 +83,9 @@ RTF, and a snapshot of the resulting `.rtf`.
 library(rtfreporter)
 ```
 
-A little reusable rtfreporter glue, shared by every table below -- a clinical
-running header / footer, a one-blank-line helper, the column alignment for the
-adverse-events tables, and the writable page width (see *Using rtfreporter*
-for the details):
+Two small helpers build the clinical running header and footer used by every
+table below (the defaults -- landscape Letter, one blank line under the header
+-- need no setup; see *Using rtfreporter* for the details):
 
 ```{r helpers}
 make_header <- function(table_no, title, subtitle = "Safety Analysis Set") {
@@ -99,10 +98,6 @@ make_header <- function(table_no, title, subtitle = "Safety Analysis Set") {
 make_footer <- function(built_with) rtf_footer(c(l = paste0(
   "Table object built with ", built_with,
   " (Pharmaverse Example); rendered to RTF by rtfreporter.")))
-blank_title <- function(n = 1L) rep(list(""), n)        # "" = one blank line
-ae_col_spec <- c(list(list(col = 1L, align = "left")),  # row label left,
-                 lapply(2:5, function(j) list(col = j, align = "center")))  # data centred
-writable    <- as.integer((11 - 2 * 0.6) * 1440)        # landscape Letter width
 ```
 
 ## Demographics -- three pharmaverse packages
@@ -142,9 +137,7 @@ rtf_document() |>
     header = make_header("14.1.1a", "Demographic and Baseline Characteristics (tern)"),
     footer = make_footer("tern + rtables"))) |>
   rtf_tables(as_rtftables(dm_tern, blank_rows = "between_groups",
-                          auto_width = TRUE, table_width_twips = writable,
-                          cell_format = fmt_count_paren),
-             titles = blank_title()) |>
+                          auto_width = TRUE, cell_format = fmt_count_paren)) |>
   generate_rtfreport(out_dm_tern, overwrite = TRUE)
 ```
 
@@ -190,9 +183,7 @@ rtf_document() |>
     header = make_header("14.1.1b", "Demographic and Baseline Characteristics (gtsummary)"),
     footer = make_footer("gtsummary + cards"))) |>
   rtf_tables(as_rtftables(dm_gts, blank_rows = "between_groups",
-                          auto_width = TRUE, table_width_twips = writable,
-                          cell_format = fmt_count_paren),
-             titles = blank_title()) |>
+                          auto_width = TRUE, cell_format = fmt_count_paren)) |>
   generate_rtfreport(out_dm_gts, overwrite = TRUE)
 ```
 
@@ -263,9 +254,8 @@ rtf_document() |>
   rtf_section(page = 1, secinfo = list(
     header = make_header("14.1.1c", "Demographic and Baseline Characteristics (tfrmt)"),
     footer = make_footer("tfrmt + cards"))) |>
-  rtf_tables(as_rtftables(dm_tfrmt, auto_width = TRUE, table_width_twips = writable,
-                          cell_format = fmt_count_paren),
-             titles = blank_title()) |>
+  rtf_tables(as_rtftables(dm_tfrmt, auto_width = TRUE,
+                          cell_format = fmt_count_paren)) |>
   generate_rtfreport(out_dm_tfrmt, overwrite = TRUE)
 ```
 
@@ -325,6 +315,9 @@ pagination, a wide first column so the long labels stay on one line, centred
 data columns, and `fmt_count_paren` to line the counts and percentages up:
 
 ```{r ae-tern-rtf}
+# adverse-events column alignment: row label left, the data columns centred
+ae_col_spec <- c(list(list(col = 1L, align = "left")),
+                 lapply(2:5, function(j) list(col = j, align = "center")))
 ae_tern_pages <- as_rtftables(ae_tern, split = "group_safe", max_rows = 36,
                               blank_rows = "between_groups",
                               cell_format = fmt_count_paren,
@@ -335,7 +328,7 @@ rtf_document() |>
   rtf_section(page = 1, secinfo = list(
     header = make_header("14.3.1a", "Adverse Events by System Organ Class and Preferred Term (tern)"),
     footer = make_footer("tern + rtables"))) |>
-  rtf_tables(ae_tern_pages, titles = blank_title(length(ae_tern_pages))) |>
+  rtf_tables(ae_tern_pages) |>
   generate_rtfreport(out_ae_tern, overwrite = TRUE)
 ```
 
@@ -416,7 +409,7 @@ rtf_document() |>
   rtf_section(page = 1, secinfo = list(
     header = make_header("14.3.1b", "Adverse Events by System Organ Class and Preferred Term (tfrmt)"),
     footer = make_footer("tfrmt + cards"))) |>
-  rtf_tables(ae_tfrmt_pages, titles = blank_title(length(ae_tfrmt_pages))) |>
+  rtf_tables(ae_tfrmt_pages) |>
   generate_rtfreport(out_ae_tfrmt, overwrite = TRUE)
 ```
 

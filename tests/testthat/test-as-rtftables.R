@@ -201,3 +201,17 @@ test_that("as_rtftables() explicit column_widths_twips beats auto_width", {
                      column_widths_twips = c(1000L, 2000L))[[1L]]
   expect_equal(p$column_widths_twips, c(1000L, 2000L))
 })
+
+test_that("as_rtftables(auto_width=TRUE) caps an over-wide table at the default page width", {
+  # A table whose natural width exceeds the default landscape-Letter writable
+  # width (14112 twips) is scaled down to fit; a narrow one keeps natural.
+  wide <- data.frame(
+    label = strrep("X", 120),
+    a = strrep("Y", 60), b = strrep("Z", 60), stringsAsFactors = FALSE)
+  p <- as_rtftables(wide, auto_width = TRUE)[[1L]]
+  expect_equal(sum(p$column_widths_twips), 14112L)
+
+  narrow <- data.frame(label = "A", a = "1", b = "2", stringsAsFactors = FALSE)
+  q <- as_rtftables(narrow, auto_width = TRUE)[[1L]]
+  expect_lt(sum(q$column_widths_twips), 14112L)   # natural, not stretched
+})

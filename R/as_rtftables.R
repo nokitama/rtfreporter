@@ -1,3 +1,8 @@
+# Internal: writable width (twips) of rtfreporter's default page -- landscape
+# Letter (11in) with the default 0.6in left/right margins.  Used as the cap for
+# `auto_width` so an over-wide table is scaled to fit the page by default.
+.default_writable_twips <- function() as.integer((11 - 2 * 0.6) * 1440)
+
 # Internal: flatten a (possibly multi-row, possibly spanning) col_header into a
 # plain character vector of length `ncols`, where each element is the LONGEST
 # label seen at that column across every header row.  Used by `auto_width` so
@@ -127,7 +132,10 @@
 #' @param table_width_twips Optional total table width in twips, used only when
 #'   `auto_width = TRUE`.  When supplied, the auto-sized columns are scaled so
 #'   their widths sum to this value (e.g. to fill, or fit within, the writable
-#'   page width).  `NULL` (default) uses each column's natural content width.
+#'   page width).  `NULL` (default) uses each column's natural content width,
+#'   but **capped at the default page's writable width** (landscape Letter,
+#'   0.6in margins) so a naturally over-wide table is scaled down to fit the
+#'   page without you having to compute the width.
 #' @param border,style Passed to [rtftable()] for every page.  `border`
 #'   defaults to `"tfl"`.
 #' @param ... Further arguments forwarded to [rtftable()] for every page
@@ -248,10 +256,21 @@ as_rtftables <- function(x,
       is.null(user_args$column_widths_twips) &&
       is.null(user_args$col_rel_width)) {
     flat_hdr <- .flatten_col_header_labels(kw$col_header, ncol(body))
+    tw <- table_width_twips
+    # With no explicit width, use the natural content widths but cap them at
+    # the default page's writable width -- so a table that is naturally too
+    # wide (e.g. a tfrmt demographics table) is scaled down to fit the page,
+    # while narrower tables keep their natural widths.
+    if (is.null(tw)) {
+      nat <- tryCatch(auto_col_widths(body, col_header = flat_hdr),
+                      error = function(e) NULL)
+      if (!is.null(nat) && sum(nat) > .default_writable_twips()) {
+        tw <- .default_writable_twips()
+      }
+    }
     aw <- tryCatch(
       auto_col_widths(body, col_header = flat_hdr,
-                      table_width_twips = table_width_twips,
-                      protect_cols = 1L),
+                      table_width_twips = tw, protect_cols = 1L),
       error = function(e) NULL)
     if (!is.null(aw)) user_args$column_widths_twips <- aw
   }

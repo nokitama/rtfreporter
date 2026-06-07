@@ -44,16 +44,12 @@ make_footer <- function(built_with) {
     "Table object built with ", built_with,
     " (Pharmaverse Example); rendered to RTF by rtfreporter.")))
 }
-# One empty content title ("") = one blank line between header and table.
-blank_title <- function(n = 1L) rep(list(""), n)
 # AE tables (5 columns): row-label column left, data columns centred.
 ae_col_spec <- c(
   list(list(col = 1L, align = "left")),
   lapply(2:5, function(j) list(col = j, align = "center")))
 demog_title <- "Demographic and Baseline Characteristics"
 ae_title    <- "Adverse Events by System Organ Class and Preferred Term"
-# Writable width of the default landscape Letter page (11in, 0.6in margins).
-writable <- as.integer((11 - 2 * 0.6) * 1440)
 
 .write <- function(doc, file, npages = NULL) {
   path <- file.path(out_dir, file)
@@ -78,9 +74,7 @@ out_dm_tern <- .write(
       header = make_header("14.1.1a", paste(demog_title, "(tern)")),
       footer = make_footer("tern + rtables"))) |>
     rtf_tables(as_rtftables(dm_tern, blank_rows = "between_groups",
-                          auto_width = TRUE, table_width_twips = writable,
-                          cell_format = fmt_count_paren),
-               titles = blank_title()),
+                          auto_width = TRUE, cell_format = fmt_count_paren)),
   "pharmaverse-demographic-tern.rtf")
 
 # ---- 1b. Demographics (gtsummary + cards) ----------------------------------
@@ -102,9 +96,7 @@ out_dm_gts <- .write(
       header = make_header("14.1.1b", paste(demog_title, "(gtsummary)")),
       footer = make_footer("gtsummary + cards"))) |>
     rtf_tables(as_rtftables(dm_gts, blank_rows = "between_groups",
-                          auto_width = TRUE, table_width_twips = writable,
-                          cell_format = fmt_count_paren),
-               titles = blank_title()),
+                          auto_width = TRUE, cell_format = fmt_count_paren)),
   "pharmaverse-demographic-gtsummary.rtf")
 
 # ---- 1c. Demographics (tfrmt + cards) --------------------------------------
@@ -149,10 +141,8 @@ dm_tfrmt <- tfrmt(group = stat_variable, label = label, param = stat_name,
     rtf_section(page = 1, secinfo = list(
       header = make_header("14.1.1c", paste(demog_title, "(tfrmt)")),
       footer = make_footer("tfrmt + cards"))) |>
-    rtf_tables(as_rtftables(dm_tfrmt,
-                          auto_width = TRUE, table_width_twips = writable,
-                          cell_format = fmt_count_paren),
-               titles = blank_title()),
+    rtf_tables(as_rtftables(dm_tfrmt, auto_width = TRUE,
+                          cell_format = fmt_count_paren)),
   "pharmaverse-demographic-tfrmt.rtf")
 
 # ---- AE data prep ----------------------------------------------------------
@@ -193,7 +183,7 @@ out_ae_tern <- .write(
     rtf_section(page = 1, secinfo = list(
       header = make_header("14.3.1a", paste(ae_title, "(tern)")),
       footer = make_footer("tern + rtables"))) |>
-    rtf_tables(ae_tern_pages, titles = blank_title(length(ae_tern_pages))),
+    rtf_tables(ae_tern_pages),
   "pharmaverse-adverse-events-tern.rtf", length(ae_tern_pages))
 
 # ---- 2b. Adverse events (cards + tfrmt, paginated) -------------------------
@@ -252,7 +242,7 @@ ae_tfrmt_pages <- as_rtftables(ae_tfrmt, split = "group_force", max_rows = 36,
     rtf_section(page = 1, secinfo = list(
       header = make_header("14.3.1b", paste(ae_title, "(tfrmt)")),
       footer = make_footer("tfrmt + cards"))) |>
-    rtf_tables(ae_tfrmt_pages, titles = blank_title(length(ae_tfrmt_pages))),
+    rtf_tables(ae_tfrmt_pages),
   "pharmaverse-adverse-events-tfrmt.rtf", length(ae_tfrmt_pages))
 
 # ---- 3. Assembled deliverable (with a Table of Contents) -------------------

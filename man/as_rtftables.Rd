@@ -70,7 +70,10 @@ keeping paginated pages aligned.  Ignored if you pass an explicit
 \item{table_width_twips}{Optional total table width in twips, used only when
 `auto_width = TRUE`.  When supplied, the auto-sized columns are scaled so
 their widths sum to this value (e.g. to fill, or fit within, the writable
-page width).  `NULL` (default) uses each column's natural content width.}
+page width).  `NULL` (default) uses each column's natural content width,
+but **capped at the default page's writable width** (landscape Letter,
+0.6in margins) so a naturally over-wide table is scaled down to fit the
+page without you having to compute the width.}
 
 \item{border, style}{Passed to [rtftable()] for every page.  `border`
 defaults to `"tfl"`.}
