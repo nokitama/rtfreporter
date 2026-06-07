@@ -72,15 +72,10 @@ home:
           [Discussions (TBD)](https://github.com/ichirio/rtfreporter/discussions)
           ·
           [Contributing](https://github.com/ichirio/rtfreporter/blob/main/CONTRIBUTING.md)
-  links:
-    - text: Browse source on GitHub
-      href: https://github.com/ichirio/rtfreporter
-    - text: Open / triage issues
-      href: https://github.com/ichirio/rtfreporter/issues
-    - text: Release notes (NEWS.md)
-      href: news/index.html
-    - text: License (Apache 2.0)
-      href: https://github.com/ichirio/rtfreporter/blob/main/LICENSE.md
+  # The sidebar's "Links" section is auto-generated from DESCRIPTION's URL /
+  # BugReports ("Browse source code" / "Report a bug"); the License section
+  # is auto-generated too -- so we don't repeat them here.  Curated community
+  # links live in the `community` component above.
 
 navbar:
   structure:

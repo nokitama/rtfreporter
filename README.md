@@ -13,11 +13,12 @@
 
 `rtfreporter` is an R toolkit for generating **Rich Text Format (RTF)
 Tables, Listings and Figures (TFLs)** for clinical trial deliverables —
-in **exactly one report style**: the conventional clinical layout
-with a borderless header table, a centred title block, a clinical-TFL
-body table (column-header top + bottom rules, no body borders), and a
-left-aligned footnote.  The package logo above is literally the kind
-of page `generate_rtfreport()` produces.
+geared to **one familiar house style** we reach for every day: the
+conventional clinical layout with a borderless header table, a centred
+title block, a clinical-TFL body table (column-header top + bottom rules,
+no body borders), and a left-aligned footnote.  It is opinionated by
+design rather than a do-everything RTF engine.  The package logo above is
+literally the kind of page `generate_rtfreport()` produces.
 
 ## Why rtfreporter?
 

@@ -245,13 +245,36 @@ releases are throw-away experiments — see *First release* below.)
 
 ### Procedure — routine development bump (`vX.Y.Z`)
 
-1. When you land a notable change, bump the **PATCH** number in
-   `DESCRIPTION` (e.g. `0.1.0` → `0.1.1`).  Trivial doc-only tweaks need
-   not bump.
+**Each pull request raises the development version by exactly one PATCH.**
+
+1. As the **last step before you request review**, bump the `DESCRIPTION`
+   `Version:` PATCH by one (e.g. `0.1.3` → `0.1.4`).
 2. Add a bullet under the `# rtfreporter (development version)` heading in
    `NEWS.md`.
-3. `devtools::document()`, `devtools::test()`, `devtools::check()`.
-4. No git tag, no GitHub Release, no CRAN submission.
+3. Run `devtools::document()`, `devtools::test()`, `devtools::check()`.
+4. No git tag, no GitHub Release, no CRAN submission for a development bump.
+   (A pure typo / comment fix may skip the bump; when in doubt, bump.)
+
+**Avoiding version collisions across overlapping PRs.**  Because every PR
+edits the same `Version:` field, two open PRs can choose the same number.
+Keep the version on `main` strictly increasing:
+
+- Bump **as late as possible** — just before review / merge — not when you
+  open the branch.
+- Before merging, **rebase (or merge `main`) into your branch**.  If `main`'s
+  `Version:` is now equal to or ahead of yours, reset yours to *that* version
+  **+ 1** and re-run the checks.
+- If two PRs still race, the **second one to merge re-bumps** after rebasing;
+  a maintainer may also adjust the number at merge time.
+
+### Minor / major bumps are release actions (Collaborators only)
+
+Raising the **MINOR** (`vX.Y.0`) or **MAJOR** (`vX.0.0`) number is *not* part
+of an ordinary contribution PR.  It is a release, started from a dedicated
+**release Issue** and carried out with the procedures below.  **At present
+only repository Collaborators may open a release Issue and perform a
+minor/major bump.**  An ordinary PR should never change the MINOR or MAJOR
+position.
 
 ### Procedure — minor release (`vX.Y.0`)
 
