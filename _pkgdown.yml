@@ -98,6 +98,8 @@ navbar:
           href: articles/rtfreporter-quickstart.html
         - text: "Pipe API guide"
           href: articles/rtfreporter-pipes.html
+        - text: "Paginating with as_rtftables()"
+          href: articles/pagination.html
         # ── Worked clinical examples ────────────────────────────────────
         - text: -------
         - text: "Worked clinical examples"
@@ -319,6 +321,7 @@ articles:
       - rtfreporter-quickstart
       - rtfreporter-pipes
       - gt-integration
+      - articles/pagination
 
   - title: Worked clinical examples
     desc: End-to-end recipes for typical clinical TFL deliverables.

@@ -1,0 +1,240 @@
+---
+title: "Paginating tables with as_rtftables()"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
+                      message = FALSE, warning = FALSE)
+```
+
+```{r setup}
+library(rtfreporter)
+```
+
+`as_rtftables()` turns a table into a **list of `rtftable` page objects** --
+one per RTF page -- ready to hand to `rtf_tables()`. The `split =` argument
+decides *how* the rows are grouped into pages. This article walks through the
+ways to control that:
+
+1. the **built-in split strategies**,
+2. a **custom split function**,
+3. **pre-splitting** the data yourself, and
+4. an **advanced** hybrid that composes a built-in strategy.
+
+Throughout we use a small demographics-style table. By the clinical-TFL
+convention, a row whose first column starts with a non-space character opens a
+*group*, and the indented rows below it are that group's members -- which is how
+`as_rtftables()` auto-detects groups when `group_col = NULL`.
+
+```{r data}
+df <- data.frame(
+  Parameter = c("Age (years)", "  Mean", "  SD", "  Min", "  Max",
+                "Sex",         "  F", "  M",
+                "Race",        "  White", "  Black", "  Asian", "  Other"),
+  Value     = c("",     "75.1", "8.2", "50", "89",
+                "",     "179 (58%)", "127 (42%)",
+                "",     "273 (89%)", "29 (9%)", "2 (1%)", "2 (1%)"),
+  stringsAsFactors = FALSE
+)
+```
+
+A tiny helper to *show* how a result was paginated -- it prints the row-label
+column of each returned page:
+
+```{r helper}
+show_pages <- function(pages) {
+  for (i in seq_along(pages)) {
+    nm <- names(pages)[i]
+    tag <- if (!is.null(nm) && nzchar(nm)) sprintf(" (%s)", nm) else ""
+    cat(sprintf("--- Page %d%s ---\n", i, tag))
+    cat(paste0("  ", pages[[i]]$data[[1L]]), sep = "\n")
+    cat("\n")
+  }
+  invisible(pages)
+}
+```
+
+
+## 1. Built-in split strategies
+
+Pass `split =` one of the built-in strategy names.
+
+### `"none"` (default) -- one page
+
+The whole table stays on a single page; no row limit is checked.
+
+```{r none}
+pages <- as_rtftables(df)            # split = "none"
+length(pages)
+```
+
+### `"rows"` -- cut at explicit positions
+
+Give `split_rows` the row numbers at which a new page should start. Use this
+when you know exactly where the breaks go.
+
+```{r rows}
+pages <- as_rtftables(df, split = "rows", split_rows = c(6, 9))
+show_pages(pages)
+```
+
+### `"group_force"` -- fill `max_rows`, repeat the group label on a cut
+
+Pack up to `max_rows` rows on each page. When a page boundary falls *inside* a
+group, a continuation row is inserted at the top of the next page repeating the
+group label with a `" (Cont.)"` suffix, so the reader knows the group carries
+over.
+
+```{r group_force}
+pages <- as_rtftables(df, split = "group_force", max_rows = 6)
+show_pages(pages)
+```
+
+### `"group_safe"` -- never break a group across pages
+
+Pack *whole* groups onto a page; a group that would overflow is pushed to the
+next page instead of being split. (A single group larger than `max_rows` is
+still force-split as a fallback.)
+
+```{r group_safe}
+pages <- as_rtftables(df, split = "group_safe", max_rows = 6)
+show_pages(pages)
+```
+
+### `"by_value"` -- one page per group, named by the group
+
+Emit exactly one page per detected group; the returned list is **named** by the
+group label (which `rtf_tables()` can use, e.g. with `auto_section = TRUE`).
+
+```{r by_value}
+pages <- as_rtftables(df, split = "by_value")
+names(pages)
+```
+
+### The same strategies as reusable functions
+
+Each string strategy has an exported **factory** that returns the same splitter
+as a function. These are interchangeable with the string forms, but you can
+configure them once and reuse them, or pass them around:
+
+```{r factories}
+strategy <- page_split_group_safe(max_rows = 6, group_col = NULL)
+pages    <- as_rtftables(df, split = strategy)
+length(pages)
+```
+
+The factories are `page_split_none()`, `page_split_rows()`,
+`page_split_group_safe()`, `page_split_group_force()`, and
+`page_split_by_value()`.
+
+### Shared knobs
+
+These arguments shape pagination regardless of the strategy:
+
+| Argument | Effect |
+|----------|--------|
+| `max_rows` | Maximum data rows per page (required for the group strategies). |
+| `group_col` | Group column: a name, a 1-based index, or `NULL` to auto-detect groups from leading whitespace in the first column. |
+| `min_group_rows` | Widow/orphan control: avoid stranding a lone group header (or too few of its rows) at a page boundary. Set `0` to disable. |
+| `cont_label` | The continuation suffix (`" (Cont.)"`) repeated on a mid-group cut. |
+
+
+## 2. A custom split function
+
+When the built-ins don't fit, pass a **function** as `split =`. It is called on
+the (cell-formatted) body and must return a **list of data.frames** -- one per
+page. Named list elements become page names, exactly like `"by_value"`.
+
+```{r custom-basic}
+# Fixed blocks of four rows, ignoring groups entirely.
+by_four <- function(df, ...) {
+  split(df, (seq_len(nrow(df)) - 1L) %/% 4L)
+}
+pages <- as_rtftables(df, split = by_four)
+length(pages)
+```
+
+Your function only implements the split; the rest of the pipeline (blank rows,
+metadata, per-page assembly, and header/width/style replication) is applied to
+its output unchanged. Write it with a `...` so it tolerates the context
+arguments (`max_rows`, `group_col`, `cont_label`, `min_group_rows`) it does not
+use.
+
+To re-create the `" (Cont.)"` continuation row the built-in group strategies
+add, use `add_cont_label()`:
+
+```{r custom-cont}
+by_four_cont <- function(df, cont_label = " (Cont.)", ...) {
+  parts <- split(df, (seq_len(nrow(df)) - 1L) %/% 4L)
+  for (i in seq_along(parts)) {
+    if (i > 1L) parts[[i]] <- add_cont_label(parts[[i]], "…continued",
+                                             cont_label = cont_label)
+  }
+  parts
+}
+show_pages(as_rtftables(df, split = by_four_cont))
+```
+
+
+## 3. Pre-splitting the data yourself
+
+Sometimes the simplest thing is to split the data.frame *before* calling
+`as_rtftables()` and hand it a list. `as_rtftables()` flattens a list input into
+one page per element, carrying the list's names through as page names.
+
+```{r presplit}
+top    <- df[1:8, ]
+bottom <- df[9:13, ]
+
+pages <- as_rtftables(list("Demographics (1 of 2)" = top,
+                           "Demographics (2 of 2)" = bottom))
+names(pages)
+```
+
+This is handy when the split rule lives in your own data-wrangling code (for
+example `split(df, df$SOC)` for a list of adverse-event tables), or when each
+page comes from a different source entirely.
+
+
+## 4. Advanced: composing a built-in strategy
+
+The factories from section 1 are ordinary functions, so you can call one inside
+your own splitter and then post-process its output -- a hybrid of approaches 1
+and 2. For example, reuse `page_split_group_safe()` but drop any empty pages and
+relabel continuations:
+
+```{r compose}
+safe_trimmed <- function(df, ...) {
+  parts <- page_split_group_safe(max_rows = 6, group_col = NULL)(df)
+  Filter(function(p) nrow(p) > 0L, parts)   # keep only non-empty pages
+}
+length(as_rtftables(df, split = safe_trimmed))
+```
+
+
+## Choosing an approach
+
+| You want… | Use |
+|-----------|-----|
+| Everything on one page | `split = "none"` (default) |
+| Breaks at known row numbers | `split = "rows"` + `split_rows` |
+| As many rows as fit, groups may split (with a continuation label) | `split = "group_force"` + `max_rows` |
+| As many *whole groups* as fit, never split a group | `split = "group_safe"` + `max_rows` |
+| One page per group, named | `split = "by_value"` |
+| A bespoke rule | a custom `split =` function (+ `add_cont_label()`) |
+| The split already done upstream | pass a (named) list to `as_rtftables()` |
+| A built-in rule plus a tweak | wrap a `page_split_*()` factory |
+
+Whichever you choose, the result is the same shape -- a list of `rtftable`
+pages -- so the rest of your pipeline does not change:
+
+```{r pipeline, eval = FALSE}
+doc <- rtf_document() |>
+  rtf_section(page = 1, secinfo = list(header = NULL, footer = NULL)) |>
+  rtf_tables(as_rtftables(df, split = "group_safe", max_rows = 6))
+
+generate_rtfreport(doc, "demographics.rtf", overwrite = TRUE)
+```
+
+See `?as_rtftables` for the full `split =` contract and `?page_split` for the
+factory functions.
