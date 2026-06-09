@@ -103,3 +103,6 @@ export(toc_entry)
 # Column width utilities
 export(text_width_in)
 export(auto_col_widths)
+
+# Post-processing: text replacement in a rendered RTF file
+export(rtf_replace_text)

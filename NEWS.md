@@ -1,5 +1,12 @@
 # rtfreporter (development version)
 
+### `rtf_replace_text()` — post-processing find/replace on a rendered RTF
+
+New helper for the "last mile" of TLG production: perform find-and-replace
+directly on a generated `.rtf` file. Supports fixed or regex targets,
+case-insensitive matching, vectorised target/replacement, in-place editing with
+an automatic `.bak`, or writing to a separate `output_file` (#9).
+
 ### `rtf_tables()` accepts a single content item without `list()`
 
 `rtf_tables()` now auto-wraps a single content item, so you can write
