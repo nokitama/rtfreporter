@@ -46,6 +46,29 @@ issue ──▶ discuss / agree approach ──▶ branch off main ──▶ ope
   *Continuous integration*) and at least one maintainer approves.
 * **Merge** — the maintainer merges to `main`; the branch is deleted.
 
+## Execution-disposition labels (`exec:*`)
+
+Issues carry two independent kinds of label.  The **type** labels (`bug`,
+`enhancement`, `documentation`, …) say *what* the issue is.  The **`exec:`**
+labels say *how it should be acted on* — in particular whether the project's
+coding agent may pick it up.  The `exec:` prefix and a shared colour family keep
+the two axes from being confused; at most one `exec:*` label applies at a time.
+
+| Label | Meaning | Agent behaviour |
+|-------|---------|-----------------|
+| `exec:agent`  | Pre-approved for the agent to implement. | The agent works the issue (issue → branch → PR). |
+| `exec:human`  | A human will do this; the **assignee** names who. | The agent does **not** act. |
+| `exec:hold`   | Pending a maintainer decision. | The agent does **not** act; it only reports that the issue exists. |
+| `exec:wontdo` | Decided not to implement. | Ignored (or proposed for closing). |
+
+An issue with **no** `exec:*` label is treated like `exec:hold`: the agent
+reports it but does not start work.  To hand a freshly-filed (e.g. web-created)
+issue to the agent, add `exec:agent`.
+
+**Future agents.**  While there is a single agent, `exec:agent` is unambiguous.
+When more than one agent exists, split it into suffixed labels
+(`exec:agent-claude`, `exec:agent-codex`, …) so each agent picks up only its own.
+
 ## Reporting bugs
 
 Open an issue at
