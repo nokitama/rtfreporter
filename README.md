@@ -67,9 +67,11 @@ doc <- rtf_document() %>%
     )
   ) %>%
   rtf_tables(
-    list(df),
-    border           = "tfl",
-    row_height_twips = 280L,
+    # as_rtftables() turns the data into rtftable page objects -- the kind of
+    # object rtf_tables() is designed to consume (a bare data.frame also works,
+    # as a convenience). It is also the same entry point for gt / gtsummary /
+    # rtables tables.
+    as_rtftables(df, border = "tfl", row_height_twips = 280L),
     titles    = list(c("Subject Summary", "Safety Population")),
     footnotes = list(c("Source: ADaM ADSL"))
   )
