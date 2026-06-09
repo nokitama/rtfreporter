@@ -1,5 +1,13 @@
 # rtfreporter (development version)
 
+### Bug fix: portrait orientation is now honored
+
+`rtf_document(page = list(orientation = "portrait"))` now produces a portrait
+document. The document preamble previously hardcoded `\landscape`, which forced
+the first section landscape in many viewers regardless of the setting; the
+document-level `\landscape` is now emitted only for landscape pages (matching
+the already-correct section-level behaviour) (#31).
+
 ### Test suite strengthened (coverage > 90%)
 
 Added methodology-driven tests — defensive-contract / error-path coverage,

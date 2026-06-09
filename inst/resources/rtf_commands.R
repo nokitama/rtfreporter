@@ -3,7 +3,7 @@ rtf_commands <- list(
     rtf_header_open = "{\\rtf1\\ansi\\deff0",
     font_table_template = "{\\fonttbl{\\f0 {font_name};}}",
     color_table_default = "{\\colortbl;\\red0\\green0\\blue0;}",
-    page_settings_template = "\\paperw{width_twips}\\paperh{height_twips}\\landscape\\margl{margin_left_twips}\\margr{margin_right_twips}\\margt{margin_top_twips}\\margb{margin_bottom_twips}\\fs{font_size_half_points}",
+    page_settings_template = "\\paperw{width_twips}\\paperh{height_twips}{orientation_cmd}\\margl{margin_left_twips}\\margr{margin_right_twips}\\margt{margin_top_twips}\\margb{margin_bottom_twips}\\fs{font_size_half_points}",
     section_defaults = "\\sectd",
     page_break = "\\page",
     section_break = "\\sect",

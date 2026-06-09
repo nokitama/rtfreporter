@@ -1447,6 +1447,11 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
     .cmd_fmt(doc_cmd$page_settings_template, list(
       width_twips           = page_defaults$width_twips,
       height_twips          = page_defaults$height_twips,
+      # Document-level \landscape only when the page is landscape; otherwise
+      # omit it so portrait pages are not forced wide (the section-level
+      # \lndscpsxn is already orientation-aware).
+      orientation_cmd       = if (isTRUE(page_defaults$orientation == "landscape"))
+                                "\\landscape" else "",
       margin_left_twips     = page_defaults$margin_left_twips,
       margin_right_twips    = page_defaults$margin_right_twips,
       margin_top_twips      = page_defaults$margin_top_twips,
