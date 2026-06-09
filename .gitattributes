@@ -1,0 +1,11 @@
+# GitHub Linguist overrides — keep the Languages bar representative of the
+# R package, not its rendered documentation.
+#
+# Rendered vignette / Quarto article HTML (e.g. the ~1.9 MB
+# vignettes/articles/example-ae.html) are build artifacts, not source code.
+# Mark all HTML — plus the supporting CSS/JS that ships with the docs — as
+# documentation so they are excluded from the language statistics while
+# remaining browsable in the repo.
+*.html linguist-documentation
+*.css  linguist-documentation
+*.js   linguist-documentation
