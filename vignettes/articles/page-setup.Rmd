@@ -1,0 +1,187 @@
+---
+title: "Page and document setup"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
+                      message = FALSE, warning = FALSE)
+```
+
+```{r setup}
+library(rtfreporter)
+```
+
+Every report starts with `rtf_document()`, which carries the **document-wide**
+settings: page geometry, fonts, colours, and the default font size. The
+defaults are tuned for clinical TFL output, so you can usually call it with no
+arguments -- but each piece is configurable. This article walks through what you
+can set at the document level and how it cascades to the tables.
+
+```{r quick}
+df <- data.frame(
+  Parameter = c("Age (years)", "  Mean", "  SD"),
+  Value     = c("", "75.1", "8.2"),
+  stringsAsFactors = FALSE
+)
+
+# All defaults -- landscape Letter, 9pt Courier
+doc <- rtf_document() |>
+  rtf_tables(as_rtftables(df))
+```
+
+
+## Two entry points: `rtf_document()` and `rtf_config()`
+
+`rtf_document()` sets everything when you create the document. `rtf_config()`
+updates an **existing** document; only the arguments you pass are changed (a
+`NULL` argument leaves that setting untouched). They take the same four
+parameters: `page`, `font_table`, `color_table`, and `default_format`.
+
+```{r config}
+doc <- rtf_document()                                   # defaults
+doc <- rtf_config(doc, default_format = list(font_size_half_points = 20L))
+doc$document$default_format$font_size_half_points        # -> 20 (10pt)
+```
+
+
+## Page geometry -- `page`
+
+Pass `page = list(...)`. Dimensions and margins are given in **inches**; any key
+you omit falls back to its default.
+
+| Key | Meaning | Default |
+|-----|---------|---------|
+| `orientation` | `"landscape"` or `"portrait"` | `"landscape"` |
+| `width_in` | Paper width (inches) | `11` |
+| `height_in` | Paper height (inches) | `8.5` |
+| `margin_top_in` | Top margin | `0.9` |
+| `margin_bottom_in` | Bottom margin | `0.9` |
+| `margin_left_in` | Left margin | `0.6` |
+| `margin_right_in` | Right margin | `0.6` |
+
+The default is **landscape US Letter** (11 × 8.5 in), the usual clinical TFL
+page. For a portrait A4 page with wider margins:
+
+```{r portrait}
+doc <- rtf_document(
+  page = list(
+    orientation    = "portrait",
+    width_in       = 8.27, height_in = 11.69,   # A4
+    margin_left_in = 0.75, margin_right_in = 0.75,
+    margin_top_in  = 1.0,  margin_bottom_in = 1.0
+  )
+) |>
+  rtf_tables(as_rtftables(df))
+```
+
+The writable width (paper width minus the left/right margins) is what tables are
+sized against, so changing the margins automatically reflows full-width tables.
+
+
+## Fonts -- `font_table`
+
+`font_table` is a list of fonts; the **first** one is the primary font used
+throughout the report. The default is **Courier**, a monospaced font: in clinical
+listings, monospacing is what lets count/percent columns line up by character
+(see the count/percent formatters in the pagination article). Switch to a
+proportional font only if you do not rely on character alignment:
+
+```{r font}
+doc <- rtf_document(font_table = list(list(name = "Arial"))) |>
+  rtf_tables(as_rtftables(df))
+```
+
+
+## Document font size -- `default_format`
+
+The document font size lives in `default_format` and is expressed in
+**half-points** (the unit of the RTF `\fs` command): `18` = 9 pt, `20` = 10 pt,
+`24` = 12 pt, and so on. 9 pt is the package default.
+
+```{r fontsize}
+doc <- rtf_document(default_format = list(font_size_half_points = 22L)) |>  # 11pt
+  rtf_tables(as_rtftables(df))
+```
+
+The font size also **drives the default row height**: taller text needs taller
+rows, so rtfreporter picks a sensible default row height for the chosen size.
+
+```{r rowheight-default}
+# Internal lookup, shown here to illustrate the cascade:
+rtfreporter:::.default_row_height_twips(18L)   # 9pt  -> 230 twips
+rtfreporter:::.default_row_height_twips(22L)   # 11pt -> 270 twips
+```
+
+
+## Default cell / row height
+
+All table-shaped elements -- page header/footer rows, column-header rows, data
+rows, blank separator rows, and footnotes -- share a **font-size-aware default
+row height** (in twips; 1 twip = 1/1440 inch = 1/20 point). These defaults live
+in `inst/resources/rtfreporter_defaults.R` (admin-tunable, package-wide):
+
+| Font size | Default row height |
+|-----------|--------------------|
+| 8 pt (`16`) | 210 twips |
+| 9 pt (`18`) | 230 twips *(default)* |
+| 10 pt (`20`) | 250 twips |
+| 11 pt (`22`) | 270 twips |
+| 12 pt (`24`) | 290 twips |
+
+You rarely need to touch these. To change heights for a specific table, override
+them per table on `rtftable()` / `as_rtftables()`:
+
+```{r rowheight-override}
+doc <- rtf_document() |>
+  rtf_tables(as_rtftables(
+    df,
+    row_height_twips        = 280L,   # data rows
+    header_row_height_twips = 300L,   # column-header rows
+    blank_row_height_twips  = 140L    # blank separator rows (e.g. half height)
+  ))
+```
+
+Cell padding (the gap between the cell border and its text) defaults to `0`
+(text sits flush against the border, the typical clinical look) and is likewise
+configurable per table via `cell_padding_left_twips` / `cell_padding_right_twips`.
+
+
+## Colours -- `color_table`
+
+`color_table` is a vector of hex colours that make up the document's palette;
+border colours reference it. The default is a single black entry. Add colours
+you intend to use (for example a coloured rule line):
+
+```{r colors}
+doc <- rtf_document(color_table = c("#000000", "#1F4E79")) |>  # black + navy
+  rtf_tables(as_rtftables(df))
+```
+
+
+## A complete example
+
+Putting it together -- a portrait A4 page, Arial at 11 pt, custom margins, and a
+two-colour palette:
+
+```{r full, eval = FALSE}
+doc <- rtf_document(
+  page = list(
+    orientation    = "portrait",
+    width_in       = 8.27, height_in = 11.69,
+    margin_left_in = 0.75, margin_right_in = 0.75,
+    margin_top_in  = 1.0,  margin_bottom_in = 1.0
+  ),
+  font_table     = list(list(name = "Arial")),
+  color_table    = c("#000000", "#1F4E79"),
+  default_format = list(font_size_half_points = 22L)
+) |>
+  rtf_section(page = 1, secinfo = list(
+    header = rtf_header(rows = list(c(l = "Protocol XYZ-001", r = "Confidential"))),
+    footer = rtf_footer(c(c = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"))
+  )) |>
+  rtf_tables(as_rtftables(df, row_height_twips = 280L))
+
+generate_rtfreport(doc, "report.rtf", overwrite = TRUE)
+```
+
+See `?rtf_document` and `?rtf_config` for the full argument reference.

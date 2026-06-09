@@ -98,6 +98,8 @@ navbar:
           href: articles/rtfreporter-quickstart.html
         - text: "Pipe API guide"
           href: articles/rtfreporter-pipes.html
+        - text: "Page & document setup"
+          href: articles/page-setup.html
         - text: "Paginating with as_rtftables()"
           href: articles/pagination.html
         # ── Worked clinical examples ────────────────────────────────────
@@ -320,6 +322,7 @@ articles:
     contents:
       - rtfreporter-quickstart
       - rtfreporter-pipes
+      - articles/page-setup
       - gt-integration
       - articles/pagination
 
