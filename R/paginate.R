@@ -344,9 +344,6 @@ paginate.data.frame <- function(x, ...) {
     x <- .realign_count_pct_df(x)
   }
 
-  group_idx <- .resolve_group_col(group_col, x)
-  info      <- .compute_group_info(x, group_idx)
-
   # Preserve the input's class chain (so a tibble in → tibbles out).
   # We re-apply this to each chunk at the end because some internal
   # operations (rbind() with mixed inputs, row-index subsetting with
@@ -368,16 +365,19 @@ paginate.data.frame <- function(x, ...) {
            "data.frames.", call. = FALSE)
     }
   } else {
-    chunks <- switch(split,
-      none         = list(x),
-      rows         = .split_by_rows(x, split_rows),
-      group_safe   = .split_group_safe (x, info, max_rows, cont_label, group_idx,
-                                         min_group_rows),
-      group_force  = .split_group_force(x, info, max_rows, cont_label, group_idx,
-                                         min_group_rows),
-      by_value     = .split_by_value  (x, info, max_rows, cont_label, group_idx,
-                                         min_group_rows)
+    # The built-in string strategies are thin aliases for the exported
+    # strategy factories, so both paths share exactly one implementation.
+    strat_fn <- switch(split,
+      none         = page_split_none(),
+      rows         = page_split_rows(split_rows),
+      group_safe   = page_split_group_safe (max_rows, group_col,
+                                             min_group_rows, cont_label),
+      group_force  = page_split_group_force(max_rows, group_col,
+                                             min_group_rows, cont_label),
+      by_value     = page_split_by_value   (group_col, max_rows,
+                                             min_group_rows, cont_label)
     )
+    chunks <- strat_fn(x)
   }
   strategy <- if (is_custom_split) "custom" else split
 
@@ -533,6 +533,134 @@ add_cont_label <- function(chunk, label, cont_label = " (Cont.)", col = 1L) {
   out <- rbind(cont_row, chunk)
   rownames(out) <- NULL
   out
+}
+
+
+# -- Pagination strategy factories -------------------------------------------
+
+#' Built-in pagination strategies as reusable functions
+#'
+#' These factories return a *pagination function* suitable for the
+#' `split=` argument of [as_rtftables()].  They expose the package's built-in
+#' page-splitting strategies on the same footing as a hand-written custom
+#' `split=` function, so you can pass a strategy directly, reuse it across
+#' calls, or wrap one inside your own splitter.
+#'
+#' The string forms accepted by [as_rtftables()] are exact aliases:
+#' `split = "group_safe"` is equivalent to
+#' `split = page_split_group_safe()` with the call's `max_rows` / `group_col` /
+#' `min_group_rows` / `cont_label`.
+#'
+#' Each returned function takes the (cell-formatted) body and returns a list of
+#' data.frames -- one per page (named, for [page_split_by_value()]).  Arguments
+#' set on the factory take precedence; anything left `NULL` falls back to the
+#' value [as_rtftables()] passes at call time.
+#'
+#' @param split_rows Integer positions to cut at (for [page_split_rows()]).
+#' @param max_rows Maximum data rows per page.  Required for
+#'   [page_split_group_safe()] / [page_split_group_force()]; optional for
+#'   [page_split_by_value()] (force-splits an over-long group when set).
+#' @param group_col Group column: a name, a 1-based index, or `NULL` to
+#'   auto-detect groups from leading whitespace in the first column.
+#' @param min_group_rows Widow/orphan control (default `2`); see
+#'   [as_rtftables()].
+#' @param cont_label Continuation suffix for repeated group labels (default
+#'   `" (Cont.)"`).
+#'
+#' @return A function `f(df, ...)` returning a list of per-page data.frames.
+#'
+#' @seealso [as_rtftables()] for the `split=` contract and [add_cont_label()].
+#'
+#' @examples
+#' \dontrun{
+#' as_rtftables(tbl, split = page_split_group_safe(max_rows = 20,
+#'                                                  group_col = "visit"))
+#' }
+#'
+#' @name page_split
+NULL
+
+#' @rdname page_split
+#' @export
+page_split_none <- function() {
+  function(df, ...) list(df)
+}
+
+#' @rdname page_split
+#' @export
+page_split_rows <- function(split_rows = NULL) {
+  cfg <- split_rows
+  function(df, split_rows = NULL, ...) {
+    sr <- cfg %||% split_rows
+    if (is.null(sr)) {
+      stop("`split_rows` is required for row-position pagination.",
+           call. = FALSE)
+    }
+    .split_by_rows(df, sr)
+  }
+}
+
+#' @rdname page_split
+#' @export
+page_split_group_safe <- function(max_rows = NULL, group_col = NULL,
+                                  min_group_rows = 2L,
+                                  cont_label = " (Cont.)") {
+  cfg_mr  <- max_rows; cfg_gc <- group_col
+  cfg_mgr <- min_group_rows; cfg_cl <- cont_label
+  function(df, max_rows = NULL, group_col = NULL,
+           cont_label = " (Cont.)", min_group_rows = 2L, ...) {
+    mr  <- cfg_mr %||% max_rows
+    gc  <- cfg_gc %||% group_col
+    cl  <- cfg_cl %||% cont_label
+    mgr <- if (!is.null(cfg_mgr)) cfg_mgr else min_group_rows
+    if (is.null(mr)) {
+      stop("`max_rows` is required for group_safe pagination.", call. = FALSE)
+    }
+    gidx <- .resolve_group_col(gc, df)
+    info <- .compute_group_info(df, gidx)
+    .split_group_safe(df, info, mr, cl, gidx, mgr)
+  }
+}
+
+#' @rdname page_split
+#' @export
+page_split_group_force <- function(max_rows = NULL, group_col = NULL,
+                                   min_group_rows = 2L,
+                                   cont_label = " (Cont.)") {
+  cfg_mr  <- max_rows; cfg_gc <- group_col
+  cfg_mgr <- min_group_rows; cfg_cl <- cont_label
+  function(df, max_rows = NULL, group_col = NULL,
+           cont_label = " (Cont.)", min_group_rows = 2L, ...) {
+    mr  <- cfg_mr %||% max_rows
+    gc  <- cfg_gc %||% group_col
+    cl  <- cfg_cl %||% cont_label
+    mgr <- if (!is.null(cfg_mgr)) cfg_mgr else min_group_rows
+    if (is.null(mr)) {
+      stop("`max_rows` is required for group_force pagination.", call. = FALSE)
+    }
+    gidx <- .resolve_group_col(gc, df)
+    info <- .compute_group_info(df, gidx)
+    .split_group_force(df, info, mr, cl, gidx, mgr)
+  }
+}
+
+#' @rdname page_split
+#' @export
+page_split_by_value <- function(group_col = NULL, max_rows = NULL,
+                                min_group_rows = 2L,
+                                cont_label = " (Cont.)") {
+  cfg_gc  <- group_col; cfg_mr <- max_rows
+  cfg_mgr <- min_group_rows; cfg_cl <- cont_label
+  function(df, max_rows = NULL, group_col = NULL,
+           cont_label = " (Cont.)", min_group_rows = 2L, ...) {
+    gc  <- cfg_gc %||% group_col
+    mr  <- cfg_mr %||% max_rows
+    cl  <- cfg_cl %||% cont_label
+    mgr <- if (!is.null(cfg_mgr)) cfg_mgr else min_group_rows
+    gidx <- .resolve_group_col(gc, df)
+    info <- .compute_group_info(df, gidx)
+    .split_by_value(df, info, mr, cl, gidx, mgr)
+  }
 }
 
 

@@ -1,5 +1,14 @@
 # rtfreporter (development version)
 
+### Built-in pagination strategies exposed as reusable factories
+
+The built-in page-split strategies are now available as exported factory
+functions — `page_split_none()`, `page_split_rows()`, `page_split_group_safe()`,
+`page_split_group_force()`, `page_split_by_value()` — each returning a function
+usable as `as_rtftables(split = )`. The string forms (`split = "group_safe"`,
+…) are exact aliases that delegate to these factories, so built-in and custom
+splitters now share one contract and can be reused or composed (#22).
+
 ### `as_rtftables(split = )` accepts a custom pagination function
 
 `split` may now be a **function** for bespoke page-break rules, in addition to

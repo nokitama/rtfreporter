@@ -223,12 +223,13 @@ reference:
       - blank_rows_by_change
       - blank_rows_by_rule
 
-  # ── 7b. Pagination helpers ─────────────────────────────────────────────
-  - title: Pagination helpers
+  # ── 7b. Pagination strategies & helpers ────────────────────────────────
+  - title: Pagination strategies & helpers
     desc: >
-      Helpers for writing a custom `split=` pagination function for
-      `as_rtftables()`.
+      Built-in page-split strategies as reusable functions for the `split=`
+      argument of `as_rtftables()`, plus a helper for writing your own.
     contents:
+      - page_split
       - add_cont_label
 
   # ── 8. Borders ─────────────────────────────────────────────────────────
