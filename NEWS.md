@@ -1,5 +1,14 @@
 # rtfreporter (development version)
 
+### Test suite strengthened (coverage > 90%)
+
+Added methodology-driven tests — defensive-contract / error-path coverage,
+boundary-value analysis, equivalence partitioning on pure helpers, and
+behavioural checks of the `auto_width` path — covering `rtftable()` argument
+validation, multi-DF construction, the `rtf_tables()` override path,
+`.flatten_col_header_labels()`, the count/percent formatters, and the remaining
+`rtf_replace_text()` validation. Package coverage rises from ~89% to >90% (#25).
+
 ### Built-in pagination strategies exposed as reusable factories
 
 The built-in page-split strategies are now available as exported factory
