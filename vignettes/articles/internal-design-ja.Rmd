@@ -1,0 +1,107 @@
+---
+title: "内部クラス設計書（S3）"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+<p align="right">
+  <a class="btn btn-outline-secondary btn-sm" href="internal-design.html">In English</a>
+</p>
+
+本書は rtfreporter の**内部データ構造**（レンダラが扱う S3 オブジェクト）を、
+パッケージを拡張する人向けに説明します。公開 API は
+[外部インターフェース仕様書](external-api-ja.html) を参照してください。
+
+> すべて**純粋な S3**：`class` 属性を持つ素の `list` で、外部 OOP フレームワークは
+> 使いません。公開オブジェクトはコピーオンモディファイで、パイプ API は各ステップ
+> ごとに新しいオブジェクトを返します（その場で破壊的変更しません）。
+
+## 2 層モデル
+
+文書は深い階層では**ありません**。フラットなページ列＋セクションのオーバーレイ
+です。
+
+```
+rtf_document（公開・パイプで構築）
+ └─ レンダリング時に変換 →  rtfreport（内部）
+      ├─ document   : font_table, color_table, default_page, default_format
+      ├─ pages[]    : rtf_page    （1 ページ 1 コンテンツ）
+      └─ sections[] : rtf_sect    （ページ範囲へのヘッダー/フッター割当）
+```
+
+* **ページは文書直下でフラット**。**1 ページ = 1 コンテンツ**（`rtftable` または
+  `rtfplot`）。
+* **セクションはオーバーレイ**：各 `rtf_sect` はあるページから次のセクションまで
+  ヘッダー／フッターを割り当てる。コンテンツは内包しない。
+
+## 各オブジェクト
+
+### `rtf_document`（公開）
+
+パイプ API（`rtf_document()` ＋ `rtf_tables()` / `rtf_figures()` /
+`rtf_section()` …）で構築。スロット：`document`（font/color/page/format）、
+`contents`（ページ単位のコンテンツ）、`titles`、`footnotes`、`sections`。
+利用中はイミュータブルで、各パイプ動詞はコピーを返す。
+
+### `rtfreport`（内部）
+
+`.pipe_doc_to_rtfreport()` が `rtf_document` から生成するレンダリング用の形。
+解決済みの `document` 既定値、`rtf_page` のリスト、`rtf_sect` のリストを保持。
+構築時検証は `.rtfreport_validate()`。
+
+### `rtf_page`（内部・S3 タグ付きリスト）
+
+`structure(list(title, content, footnote), class = "rtf_page")` — 1 ページ：
+
+* `title` — コンテンツ上部に中央寄せで出す文字ベクトル；
+* `content` — `rtftable` または `rtfplot`（または `NULL`）；
+* `footnote` — コンテンツ下部に出す文字ベクトル。
+
+### `rtf_sect`（内部・S3 タグ付きリスト）
+
+`structure(list(header, footer, from_page), class = "rtf_sect")`：
+
+* `header` / `footer` — ヘッダー／フッター記述、または前セクション継承の `NULL`；
+* `from_page` — このセクションが適用される最初のページ。
+
+`.resolve_sections()` がレンダリング時に各 `from_page` を
+`(from_page, to_page)` の範囲へ写像する。
+
+### `rtftable`（公開）
+
+最もリッチなオブジェクト：表データ＋全書式。単一 DF モードは `data`、複数 DF
+モードは `data_list` を保持。加えて `col_header` / `col_header_list`、`col_spec`
+（列単位：整列、bold/italic/underline、indent、文字色 `color` …）、`border`
+（`rtf_table_border`）、`blank_rows`、幅設定、行高、セルパディング/縦整列、
+`cell_styles`（セル単位の上書き）。`as_rtftables()` はページ単位の
+`rtf_titles` / `rtf_footnotes` を属性として付け、`rtf_tables()` が消費する。
+
+### `rtfplot`（公開）
+
+`structure(list(path, width_twips, height_twips, align), class = "rtfplot")`。
+
+### スタイル・ボーダーオブジェクト
+
+`rtf_border`（辺ごとの線指定）、`rtf_table_border`（テーブルのゾーンボーダー）、
+`rtf_table_style`（再利用可能な既定値の束）はいずれも素の S3 リスト。
+`rtf_table_style` は**スナップショット**方式で、テーブルは構築時のスタイル状態を
+取り込み、`rtf_table_style_with()` は元を変更せず修正コピーを派生する。
+
+## レンダリング
+
+`generate_rtfreport()` は `rtf_document` を `rtfreport` に変換し、セクションを解決、
+（使用された border 色から）カラーテーブルを計算して RTF を出力する：フォント
+テーブル、カラーテーブル、ページ設定、続いてセクションごとに `{\header}` /
+`{\footer}` とページコンテンツ（テーブルは行レンダラ、図は画像レンダラ）。
+ページ番号トークン（`{AUTO_PAGE}` / `{AUTO_TOTAL_PAGES}` / `{PAGE}`）はここで
+置換される。補助関数（`.resolve_sections()`、`.render_footnote_table()`、
+`.compute_content_width()` …）は `R/generate_rtfreport.R` にある。
+
+## なぜここで S3 か
+
+オブジェクトが主に**データ**だから S3 が適する：一度構築してパイプを下り、
+レンダリングするだけ。素のリストは透過的（`str()`）で、シリアライズ可能、依存も
+ない。可変性は不要（パイプ API は共有状態を露出しない）なので、参照系より
+コピーオンモディファイの S3 のほうが単純で安全である。

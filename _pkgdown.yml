@@ -355,18 +355,20 @@ articles:
     contents:
       - articles/architecture
       - articles/extending-adapters
+      - articles/external-api
+      - articles/internal-design
 
   - title: コントリビューター向け資料（日本語 / Japanese）
     desc: >
-      Japanese versions of the contributor articles (reachable from the
-      "In Japanese" toggle), plus the authoritative in-depth design
-      specifications.  日本語のコントリビューター向け資料と詳細設計書です。
+      Japanese versions of the contributor articles, reachable from the
+      "In Japanese" toggle at the top of each English page.
+      日本語のコントリビューター向け資料です。
     navbar: ~
     contents:
       - articles/architecture-ja
       - articles/extending-adapters-ja
-      - articles/external-api
-      - articles/internal-design
+      - articles/external-api-ja
+      - articles/internal-design-ja
 
 # News configuration:
 # Until v0.1.0 we are publishing every dev release as one rolling section

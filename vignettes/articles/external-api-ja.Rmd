@@ -1,0 +1,103 @@
+---
+title: "外部インターフェース仕様書"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+<p align="right">
+  <a class="btn btn-outline-secondary btn-sm" href="external-api.html">In English</a>
+</p>
+
+rtfreporter の**公開 API**に関するコントリビューター向けリファレンスです。
+エクスポートされた関数、**それらが返す S3 クラスのオブジェクト**、そして全体を
+つなぐパイプの流れを説明します。全体像は
+[Architecture & internals](architecture.html)、内部データ構造は
+[内部クラス設計書](internal-design-ja.html) を参照してください。
+
+> rtfreporter は**純粋な S3** 実装で、実行時のハード依存はありません。公開
+> オブジェクトはすべて S3 `class` 属性を持つ素の `list` なので、`dput()` 可能で、
+> `str()` で中身を確認でき、シリアライズも安全です。
+
+## 用語
+
+「S3 関数」は曖昧なので、本書では次のように区別します。
+
+* **コンストラクタ関数** — **S3 クラスのオブジェクト**を生成して返すエクスポート
+  関数（例：`rtftable()` はクラス `"rtftable"` のオブジェクトを返す）。以下の公開
+  API の大半がこれにあたります。
+* **S3 ジェネリック / メソッド** — オブジェクトのクラスでディスパッチする
+  `print()` / `plot()`（例：`print.rtftable()`）。
+
+本書で「`f()` が返すオブジェクト」と書く場合、それはコンストラクタが生成する
+**S3 クラスのオブジェクト**を指し、ジェネリックではありません。
+
+## パイプの流れ
+
+レポートは `rtf_document` をコンテンツ／セクション呼び出しでパイプし、最後に
+レンダリングして構築します。
+
+```{r flow}
+library(rtfreporter)
+
+rtf_document() |>                                  # -> rtf_document
+  rtf_tables(as_rtftables(df)) |>                  # コンテンツページを追加
+  rtf_section(page = 1, secinfo = list(            # ヘッダー/フッターを割当
+    header = rtf_header(...), footer = rtf_footer(...))) |>
+  generate_rtfreport("out.rtf", overwrite = TRUE)  # ファイルへ出力
+```
+
+`rtf_document()` および `rtf_*()` パイプ動詞は**新しい** `rtf_document` を返します
+（コピーオンモディファイ。その場で破壊的変更はしません）。
+
+## 公開クラスとコンストラクタ
+
+| クラス | コンストラクタ | 役割 |
+|--------|----------------|------|
+| `rtf_document` | `rtf_document()`, `rtf_config()` | 組み立て中の文書（ページ＋セクション＋文書全体設定）。 |
+| `rtftable` | `rtftable()`, `as_rtftable()`, `as_rtftables()` | 1 つのテーブル（または分割後の 1 ページ）。 |
+| `rtfplot` | `rtfplot()` | 埋め込み図 1 つ。 |
+| `rtf_border` | `rtf_border()`, `rtf_border_side()`, `rtf_border_top()` / `_bottom()` / `_box()` / `_none()`, `rtf_border_with()` | ボーダー指定（辺ごとの線種/太さ/色）。 |
+| `rtf_table_border` | `rtf_table_border()`, `rtf_border_tfl()` | テーブルのゾーンボーダー（header / body / first-row / last-row …）。 |
+| `rtf_table_style` | `rtf_table_style()`, `rtf_table_style_with()`, `rtf_table_style_tfl()` | 再利用可能なスタイル（ボーダー＋パディング＋行高の既定値）。構築時にスナップショット取得。 |
+| `rtf_col_header` | `rtf_col_header()`, `col_cell()`, `add_col_header_row()` | 複数行／スパニングの列ヘッダー。 |
+
+`rtf_header()` / `rtf_footer()` はセクションのヘッダー／フッターを表す素の
+（クラス無し）リストを返し、`update_header_row()` / `update_footer_row()` は
+更新したコピーを返します。
+
+## コンテンツ・セクション・レンダリング
+
+* **コンテンツ** — `rtf_tables(doc, tables, ...)` と `rtf_figures(doc, figures, ...)`
+  がコンテンツページを追加（1 要素 = 1 ページ）。`rtf_titles()` / `rtf_footnotes()`
+  でページ単位のタイトル／脚注を付与。いずれも更新後の `rtf_document` を返す。
+* **セクション** — `rtf_section(doc, page, secinfo)` がページ範囲にヘッダー／
+  フッターを割り当てる（フラットなページ列へのオーバーレイ。`NULL` は前セクション
+  を継承）。
+* **レンダリング** — `generate_rtfreport(doc, file, overwrite)` が `.rtf` を書き出し、
+  パスを invisible で返す。
+
+## テーブルの取り込みと分割
+
+`as_rtftables(x, ...)` は統一入口で、`gt` / gtsummary / rtables の `VTableTree` /
+`data.frame` / tibble（およびそれらのリスト）を **`rtftable` ページオブジェクトの
+リスト**へ変換します。メタデータ読み取りと分割を 1 回の呼び出しで行います。
+`as_rtftable(x, ...)` は単一ページ版（`rtftable` 1 つ）。分割戦略は `page_split_*()`
+ファクトリ関数として公開され、自作の `split=` 関数も受け付けます。空行は
+`blank_rows` / `set_blank_rows()` で制御し、`count_blank_rows = TRUE` で `max_rows`
+にカウントできます。
+
+## 出力ヘルパー
+
+* `rtf_replace_text()` — 生成済み `.rtf` への後処理（検索置換）。
+* `assemble_rtf()`（および `assemble_files()` / `assemble_folder()` /
+  `assemble_spec()` / `assemble_from_spec()` / `assemble_toc()`,
+  `toc_heading()` / `toc_entry()`）— 複数 RTF を目次・ブックマーク付きで 1 つに結合。
+
+## S3 ジェネリック
+
+文書・スペックオブジェクトに `print()` メソッドがあり、`plot()` メソッドは
+ボーダー／テーブル／文書のワイヤーフレームをベースグラフィックスで描画し、
+レンダリング前のレイアウト確認に使えます。各関数の詳細は
+[関数リファレンス](../reference/index.html) を参照してください。

@@ -1,0 +1,113 @@
+---
+title: "Internal class design (S3)"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+<p align="right">
+  <a class="btn btn-outline-secondary btn-sm" href="internal-design-ja.html">日本語</a>
+</p>
+
+This document describes rtfreporter's **internal data structures** -- the S3
+objects the renderer works with -- for people extending the package. For the
+public API see [External API specification](external-api.html).
+
+> Everything is **pure S3**: plain `list`s with a `class` attribute, no external
+> OOP framework. Public objects use copy-on-modify semantics, so the pipe API
+> returns a new object at each step rather than mutating in place.
+
+## Two-layer model
+
+A document is **not** a deep hierarchy. It is a flat sequence of pages plus a set
+of section overlays:
+
+```
+rtf_document (public, pipe-built)
+ └─ converted at render time to →  rtfreport (internal)
+      ├─ document   : font_table, color_table, default_page, default_format
+      ├─ pages[]    : rtf_page    (one content item per page)
+      └─ sections[] : rtf_sect    (header/footer assigned to a page range)
+```
+
+* **Pages are flat** at the document level; **1 page = 1 content** (an
+  `rtftable` or an `rtfplot`).
+* **Sections are an overlay**: each `rtf_sect` assigns a header/footer starting
+  at a page and applying until the next section. They do not contain content.
+
+## The objects
+
+### `rtf_document` (public)
+
+Built by the pipe API (`rtf_document()` + `rtf_tables()` / `rtf_figures()` /
+`rtf_section()` / …). Slots: `document` (font/color/page/format), `contents`
+(the per-page content list), `titles`, `footnotes`, and `sections`. Immutable in
+use -- each pipe verb returns a copy.
+
+### `rtfreport` (internal)
+
+The render-ready form produced from an `rtf_document` by
+`.pipe_doc_to_rtfreport()`. It holds the resolved `document` defaults, a list of
+`rtf_page` objects, and a list of `rtf_sect` objects. Construction-time
+validation lives in `.rtfreport_validate()`.
+
+### `rtf_page` (internal, S3 tagged list)
+
+`structure(list(title, content, footnote), class = "rtf_page")` -- one page:
+
+* `title` — character vector (centred lines above the content);
+* `content` — an `rtftable` or `rtfplot` (or `NULL`);
+* `footnote` — character vector rendered below the content.
+
+### `rtf_sect` (internal, S3 tagged list)
+
+`structure(list(header, footer, from_page), class = "rtf_sect")`:
+
+* `header` / `footer` — a header/footer description, or `NULL` to inherit from
+  the previous section;
+* `from_page` — the first page this section applies to.
+
+`.resolve_sections()` maps each `from_page` to a `(from_page, to_page)` range at
+render time.
+
+### `rtftable` (public)
+
+The richest object: the table data plus all formatting. Single-DF mode stores
+`data`; multi-DF mode stores `data_list`. Plus `col_header` / `col_header_list`,
+`col_spec` (per-column: align, bold/italic/underline, indent, text `color`, …),
+`border` (an `rtf_table_border`), `blank_rows`, width settings, row heights,
+cell padding/valign, and `cell_styles` (per-cell overrides). `as_rtftables()`
+attaches page-level `rtf_titles` / `rtf_footnotes` as attributes for
+`rtf_tables()` to consume.
+
+### `rtfplot` (public)
+
+`structure(list(path, width_twips, height_twips, align), class = "rtfplot")`.
+
+### Style and border objects
+
+`rtf_border` (per-side line specs), `rtf_table_border` (zone borders for a
+table), and `rtf_table_style` (a reusable defaults bundle) are all plain S3
+lists. `rtf_table_style` uses **snapshot** semantics -- a table captures the
+style's state at construction; `rtf_table_style_with()` derives a modified copy
+without mutating the original.
+
+## Rendering
+
+`generate_rtfreport()` converts the `rtf_document` to an `rtfreport`, resolves
+sections, computes the colour table (from the border colours used), and emits
+the RTF: a font table, colour table, page settings, then per section a
+`{\header}` / `{\footer}` followed by the page content (tables via the row
+renderers, figures via the picture renderer). Page-number tokens
+(`{AUTO_PAGE}` / `{AUTO_TOTAL_PAGES}` / `{PAGE}`) are substituted here. Helper
+functions (`.resolve_sections()`, `.render_footnote_table()`,
+`.compute_content_width()`, …) live in `R/generate_rtfreport.R`.
+
+## Why S3 here
+
+S3 fits this design because the objects are mostly **data**: they are built once,
+passed down a pipe, and rendered. Plain lists are transparent (`str()`),
+serialisable, and dependency-free. Mutability is not needed -- the pipe API
+never exposes shared state -- so copy-on-modify S3 is both simpler and safer than
+a reference system would be.

@@ -1,0 +1,105 @@
+---
+title: "External API specification"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+<p align="right">
+  <a class="btn btn-outline-secondary btn-sm" href="external-api-ja.html">日本語</a>
+</p>
+
+This is the contributor-facing reference for rtfreporter's **public API**: the
+exported functions, the **S3-class objects they return**, and the pipe flow that
+ties them together. For the big picture see
+[Architecture & internals](architecture.html); for the internal data structures
+see [Internal class design (S3)](internal-design.html).
+
+> rtfreporter is **pure S3** with no hard runtime dependencies. Every public
+> object is a plain `list` carrying an S3 `class` attribute, so results are
+> `dput()`-able, easy to inspect with `str()`, and serialise without surprises.
+
+## Terminology
+
+"S3 functions" can be ambiguous, so to be precise:
+
+* **Constructor functions** — exported functions that build and return an
+  **object of an S3 class** (e.g. `rtftable()` returns an object of class
+  `"rtftable"`). These are most of the public API below.
+* **S3 generics / methods** — `print()` and `plot()` dispatch on the object's
+  class (e.g. `print.rtftable()`).
+
+When this document says "the object returned by `f()`", it means the S3-class
+object a constructor produces -- not a generic.
+
+## The pipe flow
+
+A report is built by piping an `rtf_document` through content and section calls,
+then rendering:
+
+```{r flow}
+library(rtfreporter)
+
+rtf_document() |>                                  # -> rtf_document
+  rtf_tables(as_rtftables(df)) |>                  # add a content page
+  rtf_section(page = 1, secinfo = list(            # assign a header/footer
+    header = rtf_header(...), footer = rtf_footer(...))) |>
+  generate_rtfreport("out.rtf", overwrite = TRUE)  # render to a file
+```
+
+`rtf_document()` and the `rtf_*()` pipe verbs return a **new** `rtf_document`
+(copy-on-modify); nothing is mutated in place.
+
+## Public classes and their constructors
+
+| Class | Constructor(s) | Role |
+|-------|----------------|------|
+| `rtf_document` | `rtf_document()`, `rtf_config()` | The document being assembled (pages + sections + document-wide settings). |
+| `rtftable` | `rtftable()`, `as_rtftable()`, `as_rtftables()` | One table (or one page of a paginated table). |
+| `rtfplot` | `rtfplot()` | One embedded figure. |
+| `rtf_border` | `rtf_border()`, `rtf_border_side()`, `rtf_border_top()` / `_bottom()` / `_box()` / `_none()`, `rtf_border_with()` | A border specification (line style/width/colour per side). |
+| `rtf_table_border` | `rtf_table_border()`, `rtf_border_tfl()` | Zone borders for a table (header / body / first-row / last-row …). |
+| `rtf_table_style` | `rtf_table_style()`, `rtf_table_style_with()`, `rtf_table_style_tfl()` | A reusable style (borders + padding + row-height defaults), captured by snapshot at construction. |
+| `rtf_col_header` | `rtf_col_header()`, `col_cell()`, `add_col_header_row()` | Multi-row / spanning column headers. |
+
+`rtf_header()` / `rtf_footer()` return plain (unclassed) lists describing a
+section's header / footer; `update_header_row()` / `update_footer_row()` return
+an updated copy.
+
+## Content, sections and rendering
+
+* **Content** — `rtf_tables(doc, tables, ...)` and `rtf_figures(doc, figures, ...)`
+  append content pages (one element = one page); `rtf_titles()` / `rtf_footnotes()`
+  attach per-page title/footnote blocks. Each returns the modified `rtf_document`.
+* **Sections** — `rtf_section(doc, page, secinfo)` assigns a header/footer to a
+  page range (an overlay on the flat page list; `NULL` inherits the previous
+  section).
+* **Render** — `generate_rtfreport(doc, file, overwrite)` writes the `.rtf` and
+  returns the path invisibly.
+
+## Importing and paginating tables
+
+`as_rtftables(x, ...)` is the unified entry point that converts a `gt` /
+gtsummary / rtables-`VTableTree` / `data.frame` / tibble (or a list of these)
+into a **list of `rtftable` page objects**, reading the source metadata and
+paginating in one call. `as_rtftable(x, ...)` is the single-page form (one
+`rtftable`). Pagination strategies are exposed as `page_split_*()` factory
+functions and a custom `split=` function is accepted; blank separator rows are
+controlled by `blank_rows` / `set_blank_rows()` (and may be counted toward
+`max_rows` with `count_blank_rows = TRUE`).
+
+## Output helpers
+
+* `rtf_replace_text()` — post-processing find/replace on a rendered `.rtf`.
+* `assemble_rtf()` (and `assemble_files()` / `assemble_folder()` /
+  `assemble_spec()` / `assemble_from_spec()` / `assemble_toc()`,
+  `toc_heading()` / `toc_entry()`) — combine several RTFs into one deliverable
+  with a table of contents and bookmarks.
+
+## S3 generics
+
+`print()` methods exist for the document and the spec objects; `plot()` methods
+give base-graphics wireframes of borders / tables / the document for
+sanity-checking a layout before rendering. See the
+[function reference](../reference/index.html) for the full per-function detail.
