@@ -16,6 +16,18 @@
   f
 }
 
+test_that('assemble_rtf(toc = "auto") extracts titles, incl. non-ASCII (#60)', {
+  f1 <- .write_demo_rtf("Table 14.1.1 Demographics")
+  f2 <- .write_demo_rtf("Lab µg/mL summary")   # mu -> escaped \u181? in RTF
+  out <- tempfile(fileext = ".rtf")
+  on.exit(unlink(c(f1, f2, out)), add = TRUE)
+  # Regression: this used to error (gsub() with a function replacement).
+  expect_silent(assemble_rtf(c(f1, f2), out, toc = "auto", overwrite = TRUE))
+  rtf <- paste(readLines(out, warn = FALSE), collapse = "\n")
+  # The extracted non-ASCII title is re-escaped into the TOC entry.
+  expect_true(grepl("\\u181?g/mL", rtf, fixed = TRUE))
+})
+
 test_that("assemble_rtf() concatenates 2 files into one document with \\sect breaks", {
   f1 <- .write_demo_rtf("Table 14.1.1")
   f2 <- .write_demo_rtf("Table 14.2.1")

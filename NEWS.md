@@ -1,5 +1,12 @@
 # rtfreporter (development version)
 
+### Bug fix: `assemble_rtf(toc = "auto")` no longer errors
+
+`assemble_rtf(toc = "auto")` errored on any input file that had a title
+(`.extract_first_title()` used a function replacement in `gsub()`, which base R
+does not support). Title extraction now un-escapes `\uN?` sequences via
+`regmatches()`, so auto-TOC works -- including non-ASCII titles (#60).
+
 ### Count blank rows toward `max_rows` during pagination (opt-in)
 
 `as_rtftables(count_blank_rows = TRUE)` now counts blank separator rows toward

@@ -228,9 +228,14 @@ toc_entry <- function(label, file = NULL, level = 2L) {
       title <- gsub("\\\\\\\\", "\\\\", g[2L])
       title <- gsub("\\\\\\{",   "{",   title)
       title <- gsub("\\\\\\}",   "}",   title)
-      title <- gsub("\\\\u(\\d+)\\?",
-                    function(m) intToUtf8(as.integer(sub("\\\\u", "", sub("\\?", "", m)))),
-                    title)
+      # \uN? -> the character with codepoint N.  base gsub() does NOT accept a
+      # function replacement, and this Windows R build has broken \\1 backrefs,
+      # so substitute each distinct escape literally via regmatches().
+      escs <- regmatches(title, gregexpr("\\\\u[0-9]+\\?", title))[[1L]]
+      for (e in unique(escs)) {
+        cp <- as.integer(regmatches(e, regexpr("[0-9]+", e)))
+        if (!is.na(cp)) title <- gsub(e, intToUtf8(cp), title, fixed = TRUE)
+      }
       return(trimws(title))
     }
   }
