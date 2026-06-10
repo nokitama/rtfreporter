@@ -108,6 +108,8 @@ navbar:
           href: articles/pagination.html
         - text: "Headers and footers (sections)"
           href: articles/headers-footers.html
+        - text: "Rendering, post-processing & assembly"
+          href: articles/output.html
         # ── Worked clinical examples ────────────────────────────────────
         - text: -------
         - text: "Worked clinical examples"
@@ -334,6 +336,7 @@ articles:
       - articles/importing-tables
       - articles/pagination
       - articles/headers-footers
+      - articles/output
 
   - title: Worked clinical examples
     desc: End-to-end recipes for typical clinical TFL deliverables.
