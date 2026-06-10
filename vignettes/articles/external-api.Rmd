@@ -55,7 +55,7 @@ rtf_document() |>                                  # -> rtf_document
 
 | Class | Constructor(s) | Role |
 |-------|----------------|------|
-| `rtf_document` | `rtf_document()`, `rtf_config()` | The document being assembled (pages + sections + document-wide settings). |
+| `rtf_document` | `rtf_document()` | The document being assembled (pages + sections + document-wide settings). |
 | `rtftable` | `rtftable()`, `as_rtftable()`, `as_rtftables()` | One table (or one page of a paginated table). |
 | `rtfplot` | `rtfplot()` | One embedded figure. |
 | `rtf_border` | `rtf_border()`, `rtf_border_side()`, `rtf_border_top()` / `_bottom()` / `_box()` / `_none()`, `rtf_border_with()` | A border specification (line style/width/colour per side). |
@@ -63,9 +63,19 @@ rtf_document() |>                                  # -> rtf_document
 | `rtf_table_style` | `rtf_table_style()`, `rtf_table_style_with()`, `rtf_table_style_tfl()` | A reusable style (borders + padding + row-height defaults), captured by snapshot at construction. |
 | `rtf_col_header` | `rtf_col_header()`, `col_cell()`, `add_col_header_row()` | Multi-row / spanning column headers. |
 
-`rtf_header()` / `rtf_footer()` return plain (unclassed) lists describing a
-section's header / footer; `update_header_row()` / `update_footer_row()` return
-an updated copy.
+Not every public function is a constructor. `rtf_config()` is a **configurator**,
+not a constructor: it takes an `rtf_document`, updates only the non-`NULL`
+fields, and returns a copy of the **same** `rtf_document` class (it sets no new
+class) -- just like the other pipe verbs (`rtf_tables()`, `rtf_section()`, …).
+Likewise `rtf_header()` / `rtf_footer()` return plain (unclassed) lists
+describing a section's header / footer, and `update_header_row()` /
+`update_footer_row()` return an updated copy.
+
+> **`rtf_document` vs `rtfreport`.** `rtf_document` is the *public* object you
+> build and hold via the pipe. It is converted to a separate *internal* class,
+> `rtfreport`, only at render time (by `generate_rtfreport()`); see
+> [Internal class design (S3)](internal-design.html). You do not construct or
+> handle `rtfreport` directly.
 
 ## Content, sections and rendering
 

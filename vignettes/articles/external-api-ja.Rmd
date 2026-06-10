@@ -55,7 +55,7 @@ rtf_document() |>                                  # -> rtf_document
 
 | クラス | コンストラクタ | 役割 |
 |--------|----------------|------|
-| `rtf_document` | `rtf_document()`, `rtf_config()` | 組み立て中の文書（ページ＋セクション＋文書全体設定）。 |
+| `rtf_document` | `rtf_document()` | 組み立て中の文書（ページ＋セクション＋文書全体設定）。 |
 | `rtftable` | `rtftable()`, `as_rtftable()`, `as_rtftables()` | 1 つのテーブル（または分割後の 1 ページ）。 |
 | `rtfplot` | `rtfplot()` | 埋め込み図 1 つ。 |
 | `rtf_border` | `rtf_border()`, `rtf_border_side()`, `rtf_border_top()` / `_bottom()` / `_box()` / `_none()`, `rtf_border_with()` | ボーダー指定（辺ごとの線種/太さ/色）。 |
@@ -63,9 +63,18 @@ rtf_document() |>                                  # -> rtf_document
 | `rtf_table_style` | `rtf_table_style()`, `rtf_table_style_with()`, `rtf_table_style_tfl()` | 再利用可能なスタイル（ボーダー＋パディング＋行高の既定値）。構築時にスナップショット取得。 |
 | `rtf_col_header` | `rtf_col_header()`, `col_cell()`, `add_col_header_row()` | 複数行／スパニングの列ヘッダー。 |
 
-`rtf_header()` / `rtf_footer()` はセクションのヘッダー／フッターを表す素の
-（クラス無し）リストを返し、`update_header_row()` / `update_footer_row()` は
-更新したコピーを返します。
+公開関数がすべてコンストラクタというわけではありません。`rtf_config()` は
+**コンストラクタではなく設定関数（configurator）**です。`rtf_document` を受け取り、
+非 `NULL` のフィールドだけ更新して、**同じ** `rtf_document` クラスのコピーを返します
+（新しいクラスは設定しません）。他のパイプ動詞（`rtf_tables()`、`rtf_section()` …）
+と同じ位置づけです。同様に `rtf_header()` / `rtf_footer()` はヘッダー／フッターを
+表す素の（クラス無し）リストを返し、`update_header_row()` / `update_footer_row()`
+は更新したコピーを返します。
+
+> **`rtf_document` と `rtfreport`。** `rtf_document` はパイプで構築・保持する
+> *公開* オブジェクトです。レンダリング時（`generate_rtfreport()`）にのみ、別の
+> *内部* クラス `rtfreport` へ変換されます（[内部クラス設計書（S3）](internal-design-ja.html)
+> 参照）。`rtfreport` を直接構築・操作することはありません。
 
 ## コンテンツ・セクション・レンダリング
 
