@@ -1,0 +1,204 @@
+---
+title: "Importing tables with as_rtftables()"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
+                      message = FALSE, warning = FALSE)
+.has_gt <- requireNamespace("gt", quietly = TRUE)
+```
+
+```{r setup}
+library(rtfreporter)
+```
+
+`as_rtftables()` is the single entry point for turning a **table object** into
+the `rtftable` page objects that `rtf_tables()` consumes. It does two jobs:
+
+1. **Read** the source table -- its rendered body plus the metadata the RTF
+   renderer can use (column labels, alignment, spanning headers, titles,
+   footnotes, …);
+2. **Paginate** -- split the body into one `rtftable` per page.
+
+This article covers the **reading / conversion** side. Pagination has its own
+guide: see [Paginating with as_rtftables()](pagination.html).
+
+```{r intro}
+df <- data.frame(
+  Parameter = c("Age (years)", "  Mean", "  SD"),
+  Placebo   = c("", "75.1", "8.2"),
+  Active    = c("", "74.4", "7.9"),
+  stringsAsFactors = FALSE
+)
+
+pages <- as_rtftables(df)     # a list of rtftable page objects
+length(pages)
+class(pages[[1]])
+```
+
+
+## Supported inputs
+
+`as_rtftables()` accepts any of:
+
+- a **`gt`** table (`gt::gt(...)`),
+- a **gtsummary** table (`tbl_summary()`, `tbl_regression()`, …; converted via
+  `gtsummary::as_gt()`),
+- an **rtables / tern** `VTableTree`,
+- a plain **`data.frame` / tibble**, or
+- a **`list`** of any of these (flattened to one page each, names propagated).
+
+It always returns a **list** of `rtftable` objects. For a single table where you
+do not need a list, use the singular convenience wrapper `as_rtftable()` -- it is
+exactly `as_rtftables(x, split = "none")[[1]]`:
+
+```{r singular}
+tbl <- as_rtftable(df)        # one rtftable, not a list
+class(tbl)
+```
+
+
+## Reading metadata -- `read_meta`
+
+For a rich source (gt / gtsummary / rtables), `as_rtftables()` reads the
+render-relevant metadata so you do not have to restate it. What is carried:
+
+| Metadata | gt / gtsummary | rtables / tern |
+|----------|----------------|----------------|
+| Column (leaf) labels | yes | yes |
+| Per-column alignment | yes | yes |
+| Spanning headers | yes | yes |
+| Column widths | yes (px/pct) | -- |
+| Title + subtitle | yes | yes |
+| Footnotes / source notes | yes | yes |
+| In-cell footnote marks | yes (superscript) | yes (superscript) |
+| Row-group rows + indent | yes (rendered) | yes (rendered) |
+
+**Not carried** (RTF cannot reproduce them, so they are intentionally ignored):
+per-cell bold / italic / underline, cell background fills, font/size styling, and
+Markdown inside labels or titles. A plain `data.frame` / tibble carries **no**
+metadata -- you set `col_header`, `col_spec`, etc. yourself (see *Pass-through*
+below).
+
+`read_meta` controls the extraction:
+
+- `TRUE` (default) -- read everything in the table above.
+- `FALSE` -- use only the rendered body (ignore labels / titles / notes).
+- a **character vector of tokens** -- selective opt-in, e.g.
+  `c("col_header", "alignment")`. Tokens for gt/gtsummary: `"col_header"`,
+  `"alignment"`, `"spanning"`, `"widths"`, `"titles"`, `"footnotes"`. For
+  rtables/tern: `"col_header"`, `"alignment"`, `"spanning"`, `"titles"`,
+  `"footnotes"`, `"indent"`, `"footnote_marks"`.
+
+```{r gt-meta, eval = .has_gt}
+library(gt)
+
+g <- gt(head(mtcars[, c("mpg", "cyl")], 3)) |>
+  cols_label(mpg = "Miles/gallon", cyl = "Cylinders") |>
+  cols_align("right", columns = c(mpg, cyl))
+
+tbl <- as_rtftable(g)               # reads the labels + alignment
+tbl$col_header                       # -> "Miles/gallon", "Cylinders"
+```
+
+```{r gt-meta-off, eval = .has_gt}
+# read_meta = FALSE keeps only the rendered body and ignores the labels, so no
+# col_header metadata is extracted (the body's own column names are used).
+plain <- as_rtftable(g, read_meta = FALSE)
+plain$col_header        # NULL -- nothing extracted
+names(plain$data)       # the body column names that headers fall back to
+```
+
+
+## Monospaced alignment -- `cell_format`
+
+Clinical tables often need count/percent columns to line up by character.
+`cell_format` re-formats the body **before** pagination, column by column. Pass a
+single function (applied to every data column; the row-label column 1 is left
+alone) or a list of functions taken positionally. rtfreporter ships a few:
+
+- `fmt_count_paren()` -- right-justify an integer count and the number inside the
+  parentheses, e.g. `"10 (11.6%)"` over `" 4 ( 4.7%)"`;
+- `fmt_right_align()` -- the minimal "right-justify a column" formatter and a
+  template for writing your own;
+- `align_count_pct = TRUE` -- the long-standing shorthand for the built-in
+  `"n (xx.x)"` realigner.
+
+```{r cellfmt}
+counts <- data.frame(
+  Group = c("A", "B"),
+  n_pct = c("4 (4.7%)", "10 (11.6%)"),
+  stringsAsFactors = FALSE
+)
+tbl <- as_rtftable(counts, cell_format = fmt_count_paren)
+tbl$data$n_pct                       # both cells padded to one width
+```
+
+A format function takes one column (a character vector) and returns a character
+vector of the same length, padding with the non-breaking space.
+
+
+## Column widths -- `auto_width`
+
+By default columns share the width evenly. With `auto_width = TRUE` each column
+is sized to its widest content (header label or data cell) so long labels do not
+wrap; the widths are computed once and applied to every page:
+
+```{r autowidth}
+tbl <- as_rtftable(df, auto_width = TRUE)
+tbl$column_widths_twips
+```
+
+Add `table_width_twips =` to scale those widths to a total (e.g. to fill, or fit
+within, the writable page width). An explicit `column_widths_twips` /
+`col_rel_width` always wins over `auto_width`.
+
+
+## Pass-through to `rtftable()`
+
+Any further argument is forwarded to [rtftable()] for **every** page, so you can
+set the table''s appearance in the same call -- and your explicit values always
+win over the metadata extracted from the source:
+
+```{r passthrough}
+tbl <- as_rtftable(
+  df,
+  border        = "tfl",
+  col_header    = c("Parameter", "Placebo (N=86)", "Active (N=84)"),
+  col_rel_width = c(2, 1, 1),
+  row_height_twips = 280L
+)
+tbl$col_header
+```
+
+See the [page & document setup](page-setup.html) article for document-wide
+settings, and `?rtftable` for the full list of per-table options (alignment,
+per-column/-cell styles and colours, blank rows, …).
+
+
+## Titles and footnotes
+
+When the source carries a title / subtitle or source notes, `as_rtftables()`
+attaches them to each page as the `rtf_titles` / `rtf_footnotes` attributes, and
+`rtf_tables()` renders them automatically -- you do not pass them again:
+
+```{r titles, eval = FALSE}
+doc <- rtf_document() |>
+  rtf_section(page = 1, secinfo = list(header = NULL, footer = NULL)) |>
+  rtf_tables(as_rtftables(my_gt_table))   # gt's title/source notes flow through
+```
+
+For a plain data.frame (no metadata), set them on `rtf_tables()` with `titles =`
+/ `footnotes =` instead.
+
+
+## Pagination
+
+Everything above is independent of how the table is split into pages. When the
+body is longer than one page, control the split with `as_rtftables()`s
+`split` / `max_rows` / `group_col` arguments (or a custom function) --
+all of that is covered in
+[Paginating with as_rtftables()](pagination.html).
+
+See `?as_rtftables` for the complete argument reference and the per-source
+*what is carried* table.
