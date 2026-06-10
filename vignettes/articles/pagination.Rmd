@@ -212,6 +212,75 @@ length(as_rtftables(df, split = safe_trimmed))
 ```
 
 
+## Blank separator rows
+
+Clinical tables often need **blank separator rows** -- empty rows that put a
+little air between groups. They are not part of the data; they are layout, added
+on top of the body.
+
+### Blank rows and the row count
+
+This matters for pagination: **`max_rows` counts data rows only.** Blank rows are
+inserted into each page *after* the split, so they do not use up the `max_rows`
+budget. For example, packing whole groups with `max_rows = 6` and a blank
+between groups:
+
+```{r blank-count}
+df_g <- data.frame(
+  label = c("Group A", "  a1", "  a2", "Group B", "  b1", "  b2",
+            "Group C", "  c1", "  c2"),
+  v = as.character(1:9), stringsAsFactors = FALSE
+)
+
+pages <- as_rtftables(df_g, split = "group_safe", max_rows = 6,
+                      blank_rows = "between_groups")
+nrow(pages[[1]]$data)          # 6 data rows -- the max_rows budget
+pages[[1]]$blank_rows          # plus a blank after row 3 (A -> B), not counted
+```
+
+So page 1 shows six data rows **and** a separator -- seven rows on the page --
+but only the six data rows counted toward `max_rows`.
+
+### Adding blank rows while paginating
+
+`as_rtftables()` takes the blank-row controls alongside the split arguments;
+they are applied to every page:
+
+- `blank_rows = "between_groups"` -- a blank at each group transition on a page;
+- `blank_rows = c(0, 3)` -- explicit positions (`0` = before the first row,
+  `k` = after row `k`), relative to each page;
+- `blank_row_first = TRUE` / `blank_row_end = TRUE` -- a blank at the top /
+  bottom of every page.
+
+### Paginating yourself: `set_blank_rows()`
+
+`set_blank_rows()` is the helper `as_rtftables()` calls on every chunk. If you do
+your own splitting, use it to attach the blank positions to a page-sized
+data.frame; `rtftable(read_attributes = TRUE)` (the default) then picks them up:
+
+```{r set-blank}
+page <- set_blank_rows(df_g, blank_rows = "between_groups")
+attr(page, "rtf_blank_rows")
+tbl <- rtftable(page)          # read_attributes = TRUE consumes the attribute
+```
+
+### Blank rows on a single (un-paginated) table
+
+You do not need pagination to use them: `rtftable(blank_rows = )` accepts integer
+positions (here `-1` also means "after the last row"), or the spec constructors
+[blank_rows_by_change()] (blank when a column value changes) and
+[blank_rows_by_rule()] (blank before/after rows matching a regex), or a `list`
+combining them:
+
+```{r blank-single}
+rtftable(df_g, blank_rows = blank_rows_by_change("label"))
+```
+
+Control the separator height with `blank_row_height_twips` (e.g. half the data
+row height); see [Page & document setup](page-setup.html). The full spec forms
+are documented in `?rtftable` and `?set_blank_rows`.
+
+
 ## Choosing an approach
 
 | You want… | Use |
