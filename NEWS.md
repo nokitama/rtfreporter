@@ -1,5 +1,12 @@
 # rtfreporter (development version)
 
+### `as_rtftable()` now accepts a data.frame / tibble
+
+`as_rtftable()` (singular) previously rejected plain data.frames even though
+`as_rtftables()` accepted them. It now accepts a `data.frame` / tibble too
+(returning one `rtftable`), making the singular and plural forms consistent
+(#48).
+
 ### Cell text colour, and `color_table` is now wired in
 
 Tables can now carry **text colour**: set `color = "#RRGGBB"` on a `col_spec`

@@ -108,9 +108,16 @@ test_that("as_rtftable() accepts tbl_regression", {
   expect_s3_class(tbl, "rtftable")
 })
 
-test_that("as_rtftable() errors informatively for non-gt/non-gtsummary input", {
-  expect_error(as_rtftable(data.frame(a = 1)), "gt_tbl")
-  expect_error(as_rtftable(list()),            "gt_tbl")
+test_that("as_rtftable() accepts a data.frame (consistent with as_rtftables())", {
+  df  <- data.frame(a = c("1", "2"), b = c("x", "y"), stringsAsFactors = FALSE)
+  tbl <- as_rtftable(df)
+  expect_s3_class(tbl, "rtftable")
+  expect_identical(tbl$data, as_rtftables(df)[[1L]]$data)
+})
+
+test_that("as_rtftable() still errors for inputs that are not a table object", {
+  expect_error(as_rtftable(list()), "gt_tbl")
+  expect_error(as_rtftable(42),     "gt_tbl")
 })
 
 

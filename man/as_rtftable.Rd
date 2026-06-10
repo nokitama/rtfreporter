@@ -7,8 +7,8 @@
 as_rtftable(gt_obj, read_meta = TRUE, ...)
 }
 \arguments{
-\item{gt_obj}{A `gt_tbl`, a gtsummary table, or an rtables/tern
-`VTableTree`.}
+\item{gt_obj}{A `gt_tbl`, a gtsummary table, an rtables/tern `VTableTree`,
+or a plain `data.frame` / tibble.}
 
 \item{read_meta}{`TRUE` (default, read all render-relevant metadata),
 `FALSE` (rendered body only), or a character vector of tokens.  See
@@ -22,10 +22,10 @@ An `rtftable` S3 object.
 }
 \description{
 Single-page convenience wrapper around [as_rtftables()]: takes a `gt_tbl`,
-a [gtsummary](https://www.danieldsjoberg.com/gtsummary/) table, or an
-rtables/tern `VTableTree` and returns one `rtftable` (rather than a list of
-pages).  It is exactly `as_rtftables(x, read_meta = read_meta,
-split = "none", ...)[[1]]`.
+a [gtsummary](https://www.danieldsjoberg.com/gtsummary/) table, an
+rtables/tern `VTableTree`, or a plain `data.frame` / tibble, and returns one
+`rtftable` (rather than a list of pages).  It is exactly
+`as_rtftables(x, read_meta = read_meta, split = "none", ...)[[1]]`.
 }
 \details{
 The body is the table's *rendered* body (gt via `gt::extract_body()`,

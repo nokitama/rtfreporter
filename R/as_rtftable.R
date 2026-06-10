@@ -1,10 +1,10 @@
 #' Convert one table object to a single rtftable
 #'
 #' Single-page convenience wrapper around [as_rtftables()]: takes a `gt_tbl`,
-#' a [gtsummary](https://www.danieldsjoberg.com/gtsummary/) table, or an
-#' rtables/tern `VTableTree` and returns one `rtftable` (rather than a list of
-#' pages).  It is exactly `as_rtftables(x, read_meta = read_meta,
-#' split = "none", ...)[[1]]`.
+#' a [gtsummary](https://www.danieldsjoberg.com/gtsummary/) table, an
+#' rtables/tern `VTableTree`, or a plain `data.frame` / tibble, and returns one
+#' `rtftable` (rather than a list of pages).  It is exactly
+#' `as_rtftables(x, read_meta = read_meta, split = "none", ...)[[1]]`.
 #'
 #' The body is the table's *rendered* body (gt via `gt::extract_body()`,
 #' rtables via `formatters::matrix_form()`); only render-relevant metadata is
@@ -13,8 +13,8 @@
 #' titles, footnotes and in-cell footnote marks are carried; per-cell
 #' bold/italic styling, cell fills and Markdown are not.
 #'
-#' @param gt_obj A `gt_tbl`, a gtsummary table, or an rtables/tern
-#'   `VTableTree`.
+#' @param gt_obj A `gt_tbl`, a gtsummary table, an rtables/tern `VTableTree`,
+#'   or a plain `data.frame` / tibble.
 #' @param read_meta `TRUE` (default, read all render-relevant metadata),
 #'   `FALSE` (rendered body only), or a character vector of tokens.  See
 #'   [as_rtftables()].
@@ -43,9 +43,10 @@ as_rtftable <- function(gt_obj, read_meta = TRUE, ...) {
   }
   is_gt  <- .is_gt_tbl(gt_obj)
   is_rtb <- .is_rtables_tbl(gt_obj)
-  if (!is_gt && !is_rtb) {
-    stop("`gt_obj` must be a gt_tbl, a gtsummary table, or an ",
-         "rtables/tern table (VTableTree).", call. = FALSE)
+  is_df  <- is.data.frame(gt_obj)
+  if (!is_gt && !is_rtb && !is_df) {
+    stop("`gt_obj` must be a gt_tbl, a gtsummary table, an rtables/tern ",
+         "table (VTableTree), or a data.frame/tibble.", call. = FALSE)
   }
   if (is_gt && !requireNamespace("gt", quietly = TRUE)) {
     stop("`as_rtftable()` requires the `gt` package.  Install it with ",
