@@ -1,5 +1,16 @@
 # rtfreporter (development version)
 
+### Count blank rows toward `max_rows` during pagination (opt-in)
+
+`as_rtftables(count_blank_rows = TRUE)` now counts blank separator rows toward
+`max_rows`, so a paginated page (data rows + blanks) does not overflow the
+budget. The blank positions resolved from `blank_rows` (and from any
+`rtf_blank_rows` attribute already on the input) are materialised before the
+split and re-attached per page afterwards, with a leading blank suppressed at
+the top of each page. `blank_row_first` / `blank_row_end` remain post-split page
+furniture and are not counted. Default `FALSE` keeps the previous behaviour
+(blanks added after the split, not counted) (#58).
+
 ### Bug fix: `border = "none"` now works
 
 `rtftable(border = "none")` (and the `rtf_tables()` `border = "none"` override)

@@ -125,6 +125,16 @@
 #'   to the next page.  This prevents a lone group header being stranded at the
 #'   foot of a page with none (or too few) of its members.  Set to `0` to
 #'   disable (the previous behaviour).
+#' @param count_blank_rows Logical (default `FALSE`).  When `TRUE`, blank
+#'   separator rows are **counted toward `max_rows`** during pagination, so a
+#'   page (data rows + blanks) does not overflow the budget.  The blank
+#'   positions resolved from `blank_rows` (and from any `rtf_blank_rows`
+#'   attribute already on the input) are materialised before the split and
+#'   re-attached per page afterwards, with a leading blank suppressed at the top
+#'   of each page.  `blank_row_first` / `blank_row_end` remain page furniture
+#'   added after the split and are **not** counted (so they may still exceed
+#'   `max_rows`).  When `FALSE` (default) blank rows are added after the split
+#'   and do not affect the row count.
 #' @param cell_format Optional cell re-formatter applied column-by-column to
 #'   the body **before** pagination, for monospaced alignment.  Either a single
 #'   function -- applied to every data column (columns 2..N; the row-label
@@ -185,6 +195,7 @@ as_rtftables <- function(x,
                          blank_rows      = NULL,
                          blank_row_first = FALSE,
                          blank_row_end   = FALSE,
+                         count_blank_rows = FALSE,
                          align_count_pct = FALSE,
                          cell_format     = NULL,
                          auto_width        = FALSE,
@@ -208,7 +219,8 @@ as_rtftables <- function(x,
         split_rows = split_rows, group_col = group_col, cont_label = cont_label,
         min_group_rows = min_group_rows,
         blank_rows = blank_rows, blank_row_first = blank_row_first,
-        blank_row_end = blank_row_end, align_count_pct = align_count_pct,
+        blank_row_end = blank_row_end, count_blank_rows = count_blank_rows,
+        align_count_pct = align_count_pct,
         cell_format = cell_format,
         auto_width = auto_width, table_width_twips = table_width_twips,
         border = border, style = style, ...)
@@ -297,6 +309,7 @@ as_rtftables <- function(x,
     group_col = group_col, cont_label = cont_label,
     min_group_rows = min_group_rows, blank_rows = blank_rows,
     blank_row_first = blank_row_first, blank_row_end = blank_row_end,
+    count_blank_rows = count_blank_rows,
     align_count_pct = align_count_pct, cell_format = cell_format)
   page_names <- names(pages)
 

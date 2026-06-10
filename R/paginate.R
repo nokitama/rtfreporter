@@ -314,6 +314,7 @@ paginate.data.frame <- function(x, ...) {
                                  blank_rows       = NULL,
                                  blank_row_first  = FALSE,
                                  blank_row_end    = FALSE,
+                                 count_blank_rows = FALSE,
                                  align_count_pct  = FALSE,
                                  cell_format      = NULL,
                                  ...) {
@@ -342,6 +343,28 @@ paginate.data.frame <- function(x, ...) {
     if (!is.null(fl)) x <- .apply_cell_format(x, fl)
   } else if (isTRUE(align_count_pct)) {
     x <- .realign_count_pct_df(x)
+  }
+
+  # count_blank_rows: materialise the resolved blank positions as empty marker
+  # rows BEFORE splitting, so they count toward `max_rows`.  Positions come from
+  # the `blank_rows` spec (resolved on the full body, via set_blank_rows()) plus
+  # any `rtf_blank_rows` attribute already on the input.  The markers are
+  # collapsed back to the public attribute per page in Step 2.
+  materialised_blanks <- FALSE
+  if (isTRUE(count_blank_rows)) {
+    base_pos <- attr(
+      set_blank_rows(x, blank_rows = blank_rows, group_col = group_col),
+      "rtf_blank_rows", exact = TRUE)
+    in_attr  <- attr(x, "rtf_blank_rows", exact = TRUE)
+    pos <- sort(unique(c(
+      if (is.numeric(base_pos)) as.integer(base_pos) else integer(0),
+      if (is.numeric(in_attr))  as.integer(in_attr)  else integer(0)
+    )))
+    pos <- pos[pos >= 1L & pos <= nrow(x)]
+    if (length(pos) > 0L) {
+      x <- .materialize_blank_markers(x, pos)
+      materialised_blanks <- TRUE
+    }
   }
 
   # Preserve the input's class chain (so a tibble in → tibbles out).
@@ -390,11 +413,20 @@ paginate.data.frame <- function(x, ...) {
     # Restore the input's class chain so tibble-ness survives.
     class(chunk) <- input_class
     rownames(chunk) <- NULL
-    chunk <- set_blank_rows(chunk,
-                             blank_rows      = blank_rows,
-                             blank_row_first = blank_row_first,
-                             blank_row_end   = blank_row_end,
-                             group_col       = group_col)
+    if (materialised_blanks) {
+      # Collapse the materialised markers back to the public attribute; the
+      # blank positions are already counted, so only blank_row_first/_end (page
+      # furniture) are added on top here.
+      chunk <- .collapse_blank_markers(chunk,
+                                       blank_row_first = blank_row_first,
+                                       blank_row_end   = blank_row_end)
+    } else {
+      chunk <- set_blank_rows(chunk,
+                               blank_rows      = blank_rows,
+                               blank_row_first = blank_row_first,
+                               blank_row_end   = blank_row_end,
+                               group_col       = group_col)
+    }
     attr(chunk, "rtf_paginate_meta") <- list(
       strategy    = strategy,
       page_index  = i,
@@ -473,6 +505,14 @@ paginate.data.frame <- function(x, ...) {
   }
 
   col <- as.character(df[[group_idx]])
+  # count_blank_rows marker transparency: a materialised blank row joins the
+  # preceding group (carry the previous group value forward) so it does not
+  # break the run-length grouping. (Indent-based detection above already treats
+  # an empty first-column row as a member of the current group.)
+  if (".__rtf_blank__" %in% names(df)) {
+    mk <- as.logical(df[[".__rtf_blank__"]]); mk[is.na(mk)] <- FALSE
+    for (i in seq_len(n)) if (mk[i]) col[i] <- if (i > 1L) col[i - 1L] else col[i]
+  }
   rl  <- rle(col)
   id  <- as.integer(rep(seq_along(rl$lengths), rl$lengths))
   labels <- rep(rl$values, rl$lengths)
@@ -661,6 +701,71 @@ page_split_by_value <- function(group_col = NULL, max_rows = NULL,
     info <- .compute_group_info(df, gidx)
     .split_by_value(df, info, mr, cl, gidx, mgr)
   }
+}
+
+
+# -- count_blank_rows: materialise / collapse blank markers -------------------
+
+# Insert empty "marker" rows into `df` at the given blank positions so the
+# split strategies count them toward max_rows.  `positions` are in the same
+# convention as set_blank_rows() (k = after data row k); 0 / nrow edge
+# positions are handled by the leading/trailing logic in the collapse step and
+# by blank_row_first/end, so only 1..nrow are materialised here.  A hidden
+# logical column `.__rtf_blank__` flags the inserted rows.
+.materialize_blank_markers <- function(df, positions) {
+  n <- nrow(df)
+  positions <- sort(unique(as.integer(positions)))
+  positions <- positions[positions >= 1L & positions <= n]
+  flag_col <- ".__rtf_blank__"
+  df[[flag_col]] <- FALSE
+  if (length(positions) == 0L) return(df)
+
+  # Build one empty row template (matching df's column types).
+  blank_row <- df[1L, , drop = FALSE]
+  for (j in seq_along(blank_row)) {
+    blank_row[1L, j] <- if (is.character(df[[j]])) "" else NA
+  }
+  blank_row[[flag_col]] <- TRUE
+
+  pieces <- list()
+  prev <- 0L
+  for (p in positions) {
+    if (p > prev) pieces[[length(pieces) + 1L]] <- df[(prev + 1L):p, , drop = FALSE]
+    pieces[[length(pieces) + 1L]] <- blank_row
+    prev <- p
+  }
+  if (prev < n) pieces[[length(pieces) + 1L]] <- df[(prev + 1L):n, , drop = FALSE]
+  out <- do.call(rbind, pieces)
+  rownames(out) <- NULL
+  out
+}
+
+# Reverse of the above, applied per page: turn the marker rows back into a
+# `rtf_blank_rows` attribute (relative to the page's DATA rows), drop the marker
+# rows and the flag column, and suppress a blank at the very top of the page.
+# Returns the cleaned chunk; `extra` are additional positions (blank_row_first /
+# _end) to union in afterwards.
+.collapse_blank_markers <- function(chunk, blank_row_first = FALSE,
+                                    blank_row_end = FALSE) {
+  flag_col <- ".__rtf_blank__"
+  if (!flag_col %in% names(chunk)) return(chunk)
+  mk <- as.logical(chunk[[flag_col]]); mk[is.na(mk)] <- FALSE
+
+  # Position of each marker = number of DATA rows at or above it (0 = top).
+  data_above <- cumsum(!mk)
+  pos <- data_above[mk]
+  pos <- pos[pos > 0L]                       # drop a leading blank at page top
+
+  data <- chunk[!mk, , drop = FALSE]
+  data[[flag_col]] <- NULL
+  rownames(data) <- NULL
+
+  if (isTRUE(blank_row_first)) pos <- c(0L, pos)
+  if (isTRUE(blank_row_end))   pos <- c(pos, nrow(data))
+  pos <- sort(unique(as.integer(pos)))
+  pos <- pos[pos >= 0L & pos <= nrow(data)]
+  attr(data, "rtf_blank_rows") <- if (length(pos)) pos else NULL
+  data
 }
 
 

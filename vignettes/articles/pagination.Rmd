@@ -241,6 +241,21 @@ pages[[1]]$blank_rows          # plus a blank after row 3 (A -> B), not counted
 So page 1 shows six data rows **and** a separator -- seven rows on the page --
 but only the six data rows counted toward `max_rows`.
 
+To make the blanks count -- so a page (data + blanks) never exceeds `max_rows`
+-- set `count_blank_rows = TRUE`. The blank positions are then resolved on the
+full table and counted during the split (a leading blank is suppressed at the
+top of each page):
+
+```{r blank-counted}
+pages2 <- as_rtftables(df_g, split = "group_safe", max_rows = 6,
+                       blank_rows = "between_groups", count_blank_rows = TRUE)
+vapply(pages2, function(p) nrow(p$data) + length(p$blank_rows), integer(1))
+```
+
+Every page now fits within six rows. (`blank_row_first` / `blank_row_end` below
+are page furniture added *after* the split and are never counted, so they may
+still push a page past `max_rows`.)
+
 ### Adding blank rows while paginating
 
 `as_rtftables()` takes the blank-row controls alongside the split arguments;
