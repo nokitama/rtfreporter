@@ -105,3 +105,47 @@ rtf_document（公開・パイプで構築）
 レンダリングするだけ。素のリストは透過的（`str()`）で、シリアライズ可能、依存も
 ない。可変性は不要（パイプ API は共有状態を露出しない）なので、参照系より
 コピーオンモディファイの S3 のほうが単純で安全である。
+
+## S3 の規約とクラスの役割
+
+各クラスが**なぜ存在するか**を知ると、扱い方が分かります。rtfreporter では
+S3 クラスは次の 3 役割のいずれかを担います。
+
+1. **ジェネリックディスパッチ。** 一部のクラスは `print()` / `plot()` メソッドを
+   持つ（読みやすいコンソール出力、ベースグラフィックスのレイアウト確認用）。
+   `paginate()` も S3 ジェネリックだが、ディスパッチ対象は**入力の型**
+   （`data.frame` / `gt_tbl` / `list`）であり、rtfreporter のクラスではない。
+2. **`inherits()` 用の型タグ。** 大半のクラスは、通常の `if` 分岐で
+   `inherits(x, "<class>")` により識別されるために存在する。レンダラとパイプ動詞は
+   この方法でオブジェクト種別を判定する。メソッドは介在しない。
+3. **内部構造マーカー。** `rtf_page` / `rtf_sect` は可読性と `str()` /
+   デバッグ出力のためだけにクラスを持つ。何もディスパッチせず、レンダラは
+   フィールド名でアクセスする。
+
+| クラス | 役割 |
+|--------|------|
+| `rtf_document` | ディスパッチ（`print`, `plot`）＋ `inherits()` |
+| `rtftable` | ディスパッチ（`plot`）＋ `inherits()` |
+| `rtf_border_side`, `rtf_border`, `rtf_table_border` | ディスパッチ（`print`, `plot`）＋ `inherits()` |
+| `rtf_table_style`, `rtf_col_cell`, `rtf_col_header` | ディスパッチ（`print`）＋ `inherits()` |
+| `rtfplot` | `inherits()` 型タグ（メソッド無し） |
+| `rtf_blank_rows_by_change`, `rtf_blank_rows_by_rule` | `inherits()`（空行リゾルバの分岐） |
+| `rtf_toc_heading`, `rtf_toc_entry` | `inherits()`（TOC 正規化） |
+| `rtfreport`, `rtf_auto_section_item` | `inherits()`（内部） |
+| `rtf_page`, `rtf_sect` | 内部構造マーカー（ディスパッチ無し） |
+
+### 拡張時に従う規約
+
+* **構築**は `structure(list(...), class = "<class>")` を、公開コンストラクタ
+  または `.new_*()` 内部ヘルパーの中で行う。
+* **型判定**は `class(x) == "<class>"` ではなく `inherits(x, "<class>")` を使う
+  （複数クラスを持つ場合でも頑健）。
+* **検証**は `stop(msg, call. = FALSE)` で行う（先頭の関数名ノイズを出さない）。
+* **コピーオンモディファイ。** すべての変更系（パイプ動詞、`*_with()` 派生：
+  `rtf_border_with()`、`rtf_table_style_with()`）は**新しい**オブジェクトを返し、
+  その場で破壊的変更しない。
+* **クラス階層を作らない。** クラスは単一のフラットなタグ。ボーダー族は継承では
+  なく**コンポジション**：`rtf_table_border` が `rtf_border` を含み、それが
+  `rtf_border_side` を含む。
+* クラスを付ける価値があるのは、**何かがディスパッチするか `inherits()` で判定
+  する**場合のみ。そうでなければ素のリストで十分。
