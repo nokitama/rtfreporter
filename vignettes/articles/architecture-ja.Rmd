@@ -11,17 +11,18 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 </p>
 
 この記事は、rtfreporter を**拡張・コントリビュート**したい方のための日本語の入口です。
-全体像を解説します。権威ある詳細設計書は同じく日本語で、末尾にリンクしています。
+全体像を解説します。詳細設計書は末尾にリンクしています（各ページは英語で開き、
+日本語トグルがあります）。
 
 > 🌐 **詳細設計書：**
-> [内部クラス設計書](internal-design.html) ·
-> [外部インターフェース仕様書](external-api.html)
+> [内部クラス設計書（S3）](internal-design-ja.html) ·
+> [外部インターフェース仕様書](external-api-ja.html)
 
 ## 設計原則
 
-* **全面 S3。** すべてのオブジェクトは素の S3 リストです。R6 は使いません
-  （v0.0.19 で除去）。そのため `dput()` 可能で、`saveRDS()` でも素直に
-  シリアライズできます。
+* **全面 S3。** すべてのオブジェクトは素の S3 リストで、外部 OOP フレームワークは
+  使いません。そのため `dput()` 可能で、`saveRDS()` でも素直にシリアライズ
+  できます。
 * **ハード依存ゼロ。** `Imports:` は `methods`（R 同梱）だけです。任意連携
   （gt, gtsummary, rtables/tern, ggplot2 …）はすべて `Suggests:` に置き、
   `requireNamespace()` で確認し、未インストール時は親切なエラーを出します。
@@ -132,7 +133,7 @@ list(
 ## さらに読むには
 
 * 関数ごとのリファレンス：[Reference](../reference/index.html) 索引。
-* 公開 S3 の正確な契約：[外部インターフェース仕様書](external-api.html)。
-* 内部クラス設計とヘルパー一覧：[内部クラス設計書](internal-design.html)。
+* 公開 S3 の正確な契約：[外部インターフェース仕様書](external-api-ja.html)。
+* 内部クラス設計とヘルパー一覧：[内部クラス設計書（S3）](internal-design-ja.html)。
 * コントリビュートの流れとコードスタイル：
   [CONTRIBUTING.md](https://github.com/ichirio/rtfreporter/blob/main/CONTRIBUTING.md)。

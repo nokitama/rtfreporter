@@ -11,19 +11,18 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 </p>
 
 This article is the English entry point for people who want to **extend or
-contribute to** rtfreporter. It gives the big picture; the two
-authoritative deep-dive documents are in Japanese and are linked at the
-bottom.
+contribute to** rtfreporter. It gives the big picture; the two deep-dive
+documents are linked below (each opens in English with a Japanese toggle).
 
-> 🌐 **Full design specifications (Japanese):**
-> [Internal class design / 内部クラス設計書](internal-design.html) ·
-> [External API specification / 外部インターフェース仕様書](external-api.html)
+> 🌐 **Design specifications:**
+> [Internal class design (S3)](internal-design.html) ·
+> [External API specification](external-api.html)
 
 ## Design principles
 
-* **S3 throughout.** Every object is a plain S3 list. There is no R6 (it
-  was removed in v0.0.19). Objects are therefore `dput()`-able and
-  serialise cleanly with `saveRDS()`.
+* **S3 throughout.** Every object is a plain S3 list, with no external OOP
+  framework. Objects are therefore `dput()`-able and serialise cleanly with
+  `saveRDS()`.
 * **Zero hard runtime dependencies.** `Imports:` is only `methods` (ships
   with R). Every optional integration (gt, gtsummary, rtables/tern,
   ggplot2, ...) lives in `Suggests:` and is reached through
@@ -138,8 +137,8 @@ is a small, well-contained job** — see
 
 * Per-function reference: the [Reference](../reference/index.html) index.
 * The exact public S3 contract:
-  [外部インターフェース仕様書 (Japanese)](external-api.html).
+  [External API specification](external-api.html).
 * The internal class design and helper catalogue:
-  [内部クラス設計書 (Japanese)](internal-design.html).
+  [Internal class design (S3)](internal-design.html).
 * Contribution workflow and code style:
   [CONTRIBUTING.md](https://github.com/ichirio/rtfreporter/blob/main/CONTRIBUTING.md).
