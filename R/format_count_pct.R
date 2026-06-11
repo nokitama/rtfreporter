@@ -164,16 +164,26 @@ realign_count_pct <- function(x, nbsp = "\u00a0") {
 # not a count cell).  Used by paginate(align_count_pct = TRUE).
 #
 # After re-padding the "n (xx.x[%])" cells, bare-integer cells in the same
-# column (e.g. a lone "0" for a zero count) are right-padded to the column's
-# display width too, so they line up with the count-percent cells instead of
-# sitting flush-left.  Empty cells (group-label rows) are left empty.
+# column (e.g. a lone "0" collapsed from "0 (0.0)") are right-padded to the
+# column's display width too, so they line up with the count-percent cells
+# instead of sitting flush-left.
+#
+# This padding is applied ONLY when the column actually contains count-percent
+# (parenthesised) cells.  A column that is purely integers -- e.g. a plain "n"
+# count column with no "n (xx.x)" cells -- is a different kind of data and must
+# pass through untouched; padding it would wrongly insert leading spaces before
+# values such as "3" (see issue #80).  Empty cells (group-label rows) are left
+# empty.
 .realign_count_pct_df <- function(df, nbsp = "\u00a0") {
   if (ncol(df) < 2L) return(df)
   df[, -1L] <- lapply(df[, -1L, drop = FALSE], function(col) {
     if (!is.character(col)) return(col)
     col <- realign_count_pct(col, nbsp = nbsp)
-    is_int <- grepl("^\\s*\\d+\\s*$", col)             # a lone count, no paren
-    if (any(is_int)) {
+    has_paren <- grepl("(", col, fixed = TRUE)         # a count-percent cell
+    is_int    <- grepl("^\\s*\\d+\\s*$", col)          # a lone count, no paren
+    # Only align bare integers against count-percent cells when the column
+    # genuinely mixes the two; never reformat an integer-only column.
+    if (any(has_paren) && any(is_int)) {
       width <- max(nchar(col[nzchar(trimws(col))]), 0L)
       pad   <- if (identical(nbsp, " ")) " " else nbsp
       col[is_int] <- vapply(col[is_int], function(x) {

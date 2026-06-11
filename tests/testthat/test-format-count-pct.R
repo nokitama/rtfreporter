@@ -107,6 +107,32 @@ test_that("paginate(align_count_pct = FALSE) leaves columns untouched (default)"
   expect_identical(pages[[1L]]$a[2L], "5 (33.3)")
 })
 
+test_that(".realign_count_pct_df() leaves an integer-only column untouched (#80)", {
+  # A plain count column with no "n (xx.x)" cells must NOT be padded:
+  # values like "3" must stay flush-left with no leading spaces inserted.
+  df <- data.frame(
+    label = c("Group", "  A", "  B"),
+    n     = c("",      "3",   "12"),
+    stringsAsFactors = FALSE
+  )
+  out <- rtfreporter:::.realign_count_pct_df(df, nbsp = " ")
+  expect_identical(out$n, c("", "3", "12"))
+})
+
+test_that(".realign_count_pct_df() aligns a bare 0 only against count-pct cells (#80)", {
+  # When the column mixes a lone "0" with "n (xx.x)" cells, the "0" is padded
+  # to the count-percent width so it lines up.
+  df <- data.frame(
+    label = c("Sex", "  Female", "  Male"),
+    a     = c("",    "16 (53.3)", "0"),
+    stringsAsFactors = FALSE
+  )
+  out <- rtfreporter:::.realign_count_pct_df(df, nbsp = " ")
+  non_empty <- nzchar(out$a)
+  expect_true(all(nchar(out$a[non_empty]) == nchar(out$a[2L])))
+  expect_true(endsWith(out$a[3L], "0"))
+})
+
 test_that("realign_count_pct() aligns percent-sign cells, keeping the %", {
   out <- realign_count_pct(c("8 (28.6%)", "10 (35.7%)", "3 (100%)", "5 (5.0%)"),
                            nbsp = " ")
