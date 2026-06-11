@@ -2,6 +2,14 @@
 
 ### Documentation
 
+- `as_rtftables()` help is now exhaustive and per-argument. The pagination
+  controls that were lumped into a single `@param` block are split into one
+  entry each (`split`, `max_rows`, `split_rows`, `group_col`, `cont_label`,
+  `blank_rows`, `blank_row_first`/`blank_row_end`, `align_count_pct`), `split`
+  enumerates every strategy and what it requires, `blank_rows` documents all
+  accepted value forms (integer positions incl. `0`/`-1`,
+  `blank_rows_by_change()`, `blank_rows_by_rule()`, and combining `list()`s),
+  and runnable `@examples` now cover the common arguments (#85).
 - The "Importing tables" article now documents how to write a custom
   `cell_format` function: the calling contract (one column-vector argument,
   same-length character return, leave non-matching cells unchanged, pad with

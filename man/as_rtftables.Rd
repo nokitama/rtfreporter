@@ -39,9 +39,21 @@ gt/gtsummary: `"col_header"`, `"alignment"`, `"spanning"`, `"widths"`,
 `"alignment"`, `"spanning"`, `"titles"`, `"footnotes"`, `"indent"`,
 `"footnote_marks"`.}
 
-\item{max_rows, split, split_rows, group_col, cont_label, blank_rows, blank_row_first, blank_row_end, align_count_pct}{Pagination controls.  Identical meaning to the (now deprecated)
-  `paginate()`.  `split = "none"` (default) keeps the whole table as a
-  single page.
+\item{max_rows}{Integer or `NULL`.  Maximum body rows per page for the
+`"group_safe"` / `"group_force"` splits (required by them).  Ignored by
+`"none"`, `"rows"` (which uses `split_rows`) and `"by_value"`.}
+
+\item{split}{How to break the body into pages.  One of:
+  * `"none"` (default) -- one page, no row limit checked;
+  * `"rows"` -- fixed chunk size; requires `split_rows`;
+  * `"group_safe"` -- fill up to `max_rows` but never split a group
+    (defined by `group_col`) across a page boundary; requires `max_rows`
+    and `group_col`;
+  * `"group_force"` -- like `"group_safe"` but a single group larger than
+    `max_rows` is allowed to span pages (with a continuation label);
+    requires `max_rows` and `group_col`;
+  * `"by_value"` -- one page per distinct value of `group_col`; the pages
+    are named by that value.
 
   `split` may also be a **custom function** for bespoke page-break rules.
   It is called as
@@ -54,6 +66,17 @@ gt/gtsummary: `"col_header"`, `"alignment"`, `"spanning"`, `"widths"`,
   with a `...` so it tolerates the context arguments it does not use, and see
   [add_cont_label()] for re-creating the `" (Cont.)"` continuation row.}
 
+\item{split_rows}{Integer or `NULL`.  Rows per page for `split = "rows"`
+(required by it; ignored otherwise).}
+
+\item{group_col}{Character or `NULL`.  Name of the column that defines a
+group, used by `"group_safe"`, `"group_force"` and `"by_value"`.  A group
+is a maximal run of rows sharing this column's value.}
+
+\item{cont_label}{Character (default `" (Cont.)"`).  Suffix appended to a
+group's label on the second and later pages it continues onto (the
+group-aware splits), marking a continued group.}
+
 \item{min_group_rows}{Integer (default `2`).  Widow/orphan control for the
 group-aware splits (`"group_force"`, `"group_safe"`, `"by_value"`): when a
 page would end on a group that *starts* on that page while showing fewer
@@ -61,6 +84,29 @@ than `min_group_rows` of the group's child rows, the whole group is moved
 to the next page.  This prevents a lone group header being stranded at the
 foot of a page with none (or too few) of its members.  Set to `0` to
 disable (the previous behaviour).}
+
+\item{blank_rows}{Where to insert blank separator rows in the body.  `NULL`
+  (default) inserts none (but an `rtf_blank_rows` attribute already on the
+  input is still honoured).  Accepts any of, or a `list()` combining, three
+  forms:
+  * an **integer vector of positions** -- a blank row is inserted *after*
+    each given data-row index; `0` means before the first row and `-1` means
+    after the last row, e.g. `c(0, 5, -1)`;
+  * a **[blank_rows_by_change()]** object -- insert a blank whenever the
+    value of one or more columns changes;
+  * a **[blank_rows_by_rule()]** object -- insert a blank before/after rows
+    whose column matches a regular expression.
+
+  For example
+  `blank_rows = list(c(-1), blank_rows_by_change("Visit"))` adds a trailing
+  blank and a blank at every change of `Visit`.  By default these blanks are
+  added *after* the split and do not count toward `max_rows`; see
+  `count_blank_rows` to count them.}
+
+\item{blank_row_first, blank_row_end}{Logical (default `FALSE`).  Add a single
+blank row at the very top (`blank_row_first`) or bottom (`blank_row_end`)
+of **every** page, as page furniture.  These are applied after the split
+and are never counted toward `max_rows`.}
 
 \item{count_blank_rows}{Logical (default `FALSE`).  When `TRUE`, blank
 separator rows are **counted toward `max_rows`** during pagination, so a
@@ -72,6 +118,11 @@ of each page.  `blank_row_first` / `blank_row_end` remain page furniture
 added after the split and are **not** counted (so they may still exceed
 `max_rows`).  When `FALSE` (default) blank rows are added after the split
 and do not affect the row count.}
+
+\item{align_count_pct}{Logical (default `FALSE`).  Shorthand to realign
+`"n (xx.x)"` count/percent cells to a uniform width before pagination (the
+built-in [realign_count_pct()]).  Ignored when `cell_format` is supplied,
+which takes precedence.}
 
 \item{cell_format}{Optional cell re-formatter applied column-by-column to
 the body **before** pagination, for monospaced alignment.  Either a single
@@ -163,6 +214,23 @@ metadata at all -- set `col_header`, `col_spec`, etc. yourself.
 }
 
 \examples{
+# A plain data.frame: one page, no splitting.
+df <- data.frame(
+  Parameter = c("Age", "  Mean", "  SD", "Sex", "  F", "  M"),
+  Value     = c("", "75.1", "8.2", "", "53\%", "47\%"),
+  stringsAsFactors = FALSE
+)
+pages <- as_rtftables(df)               # length-1 list of rtftable
+length(pages)
+
+# Fixed-size pagination: 3 body rows per page.
+pages <- as_rtftables(df, split = "rows", split_rows = 3)
+length(pages)                           # 2 pages
+
+# Blank separator rows: after row 3 and after the last row.
+pages <- as_rtftables(df, blank_rows = c(3, -1))
+pages[[1]]$blank_rows
+
 \dontrun{
 library(gtsummary)
 tbl <- trial |>
