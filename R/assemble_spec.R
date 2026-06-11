@@ -31,7 +31,9 @@
 
 # Extract the `{\header ...}` group from an RTF string (balanced braces).
 .rtf_header_block <- function(txt) {
-  pos <- regexpr("\\\\header", txt)
+  # Match `\header` as a complete RTF control word (not the page-setting
+  # `\headery`, which shares the prefix and now precedes the group).
+  pos <- regexpr("\\\\header(?![a-z])", txt, perl = TRUE)
   if (pos < 0L) return("")
   open <- pos
   while (open > 1L && substr(txt, open, open) != "{") open <- open - 1L

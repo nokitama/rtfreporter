@@ -1,9 +1,23 @@
 rtf_commands <- list(
   document = list(
-    rtf_header_open = "{\\rtf1\\ansi\\deff0",
-    font_table_template = "{\\fonttbl{\\f0 {font_name};}}",
+    # Document header. Hardened for portable, renderer-independent output:
+    #   \ansicpg1252  declare the ANSI code page (correct 8-bit fallback chars)
+    #   \deflang1033  default language (US English)
+    #   \uc1          every \uN unicode escape is followed by exactly ONE
+    #                 fallback char -- matches the "\uN?" form this package
+    #                 emits, so readers consume the right number of bytes.
+    rtf_header_open = "{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang1033\\uc1",
+    # \fnil\fcharset0: unknown font family, ANSI charset. Declaring the charset
+    # makes glyph mapping deterministic across viewers without assuming a
+    # specific family (mono vs proportional).
+    font_table_template = "{\\fonttbl{\\f0\\fnil\\fcharset0 {font_name};}}",
     color_table_default = "{\\colortbl;\\red0\\green0\\blue0;}",
-    page_settings_template = "\\paperw{width_twips}\\paperh{height_twips}{orientation_cmd}\\margl{margin_left_twips}\\margr{margin_right_twips}\\margt{margin_top_twips}\\margb{margin_bottom_twips}\\fs{font_size_half_points}",
+    # Page settings.
+    #   \headery / \footery  distance (twips) of the header/footer band from
+    #                        the page edge, coordinated with the top/bottom
+    #                        margins so the band sits inside the margin.
+    #   \widowctrl           widow/orphan control (standard for body text).
+    page_settings_template = "\\paperw{width_twips}\\paperh{height_twips}{orientation_cmd}\\margl{margin_left_twips}\\margr{margin_right_twips}\\margt{margin_top_twips}\\margb{margin_bottom_twips}\\headery{header_dist_twips}\\footery{footer_dist_twips}\\widowctrl\\fs{font_size_half_points}",
     section_defaults = "\\sectd",
     page_break = "\\page",
     section_break = "\\sect",
