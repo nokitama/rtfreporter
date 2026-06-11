@@ -2,6 +2,12 @@
 
 ### Documentation
 
+- The "Importing tables" article now documents how to write a custom
+  `cell_format` function: the calling contract (one column-vector argument,
+  same-length character return, leave non-matching cells unchanged, pad with
+  the non-breaking space), how single-function vs list dispatch picks columns,
+  and a complete runnable example that appends a unit and right-aligns a column
+  via a one-argument closure (#84).
 - CONTRIBUTING.md now describes a concrete backlog/progress-tracking scheme
   for multiple contributors: a "rtfreporter roadmap" GitHub Projects board with
   defined Status columns (Backlog/Ready/In progress/In review/Blocked/Done),

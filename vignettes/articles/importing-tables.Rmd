@@ -134,8 +134,65 @@ tbl <- as_rtftable(counts, cell_format = fmt_count_paren)
 tbl$data$n_pct                       # both cells padded to one width
 ```
 
-A format function takes one column (a character vector) and returns a character
-vector of the same length, padding with the non-breaking space.
+### Writing your own `cell_format` function
+
+When none of the built-ins matches your data's notation, write your own. The
+contract is small:
+
+* **Signature.** The framework calls your function with **one argument** -- a
+  character vector holding the cells of a single column. (The built-ins also
+  accept a second `nbsp =` argument with a default, but `cell_format` never
+  passes it, so a plain `function(x)` is enough.) Your function is called **once
+  per column**, and is not told *which* column it is, so base every decision on
+  `x` alone.
+* **Return value.** A character vector of the **same length** as `x` -- one
+  element per row. Returning a different length is an error; never drop or add
+  rows.
+* **Leave non-matching cells alone.** Cells you do not intend to touch -- empty
+  group-label cells, totals, anything not matching your pattern -- must be
+  returned unchanged.
+* **Pad with the non-breaking space `" "`, not a normal space.** RTF and
+  Word collapse runs of ordinary spaces, which would silently undo your
+  alignment.
+* **Which columns it sees.** A *single* function is applied to columns
+  `2..ncol` (column 1 is the row label, left alone by clinical convention). To
+  target specific columns, pass a **list** instead: `cell_format[[j]]` formats
+  column `j`, and `NULL` entries leave a column untouched.
+
+Here is a complete formatter that appends a unit and right-aligns a numeric
+column, leaving blanks and non-numbers as they are:
+
+```{r cellfmt-custom}
+# Right-align a numeric column and append a unit (e.g. "mg"), padding on the
+# left with non-breaking spaces so the values line up in a monospaced font.
+fmt_with_unit <- function(x, unit = "mg", nbsp = " ") {
+  x <- as.character(x)
+  is_num <- grepl("^[0-9]+(\\.[0-9]+)?$", trimws(x))   # which cells to touch
+  labelled <- x
+  labelled[is_num] <- paste0(trimws(x[is_num]), " ", unit)
+  width <- max(nchar(labelled[is_num]), 0L)            # widest labelled cell
+  out <- x
+  out[is_num] <- formatC(labelled[is_num], width = width)   # right-justify
+  gsub(" ", nbsp, out, fixed = TRUE)                   # protect the padding
+}
+
+dose <- data.frame(
+  Arm  = c("Low", "High", "Total"),
+  Dose = c("5", "12.5", ""),                           # blank cell left as-is
+  stringsAsFactors = FALSE
+)
+
+# A list targets one column by position; column 1 (Arm) is left untouched.
+tbl <- as_rtftable(
+  dose,
+  cell_format = list(NULL, function(x) fmt_with_unit(x, unit = "mg"))
+)
+tbl$data$Dose
+```
+
+Because `cell_format` passes only the column vector, wrap a parameterised
+formatter in a one-argument closure (`function(x) fmt_with_unit(x, unit = "mg")`)
+to fix its extra arguments -- exactly as shown above.
 
 
 ## Column widths -- `auto_width`
