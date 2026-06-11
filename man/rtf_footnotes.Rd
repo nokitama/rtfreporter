@@ -20,3 +20,10 @@ character vector whose entries become rows of the footnote block.  Magic
 tokens are honoured.  `NULL` per element suppresses the footnote for
 that page.
 }
+\examples{
+df <- data.frame(A = 1:2, B = c("x", "y"))
+doc <- rtf_document() |>
+  rtf_tables(df) |>
+  rtf_footnotes(list(c("Source: ADaM ADSL")))
+
+}

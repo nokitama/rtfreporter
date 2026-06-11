@@ -42,3 +42,10 @@ creates one new page. Display dimensions and alignment apply to every
 bare path in `figures`; elements already constructed via [rtfplot()] keep
 their own settings.
 }
+\examples{
+\dontrun{
+doc <- rtf_document() |>
+  rtf_figures(list("scatter.png"), width_twips = 6000L, align = "center")
+}
+
+}

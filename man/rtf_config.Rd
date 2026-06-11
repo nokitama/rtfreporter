@@ -31,3 +31,9 @@ Update font, color, page, or default formatting for the document.
 This function is typically called once after creating a document.
 Only non-NULL parameters are updated (NULL = no change).
 }
+\examples{
+doc <- rtf_document() |>
+  rtf_config(default_format = list(font_size_half_points = 20L))  # 10pt
+doc$document$default_format$font_size_half_points
+
+}

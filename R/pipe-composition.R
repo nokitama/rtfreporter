@@ -103,6 +103,11 @@ rtf_document <- function(font_table = NULL, color_table = NULL, page = NULL,
 #'
 #' @return Modified rtf_document object (new copy, original unchanged).
 #'
+#' @examples
+#' doc <- rtf_document() |>
+#'   rtf_config(default_format = list(font_size_half_points = 20L))  # 10pt
+#' doc$document$default_format$font_size_half_points
+#'
 #' @export
 rtf_config <- function(doc, font_table = NULL, color_table = NULL, page = NULL,
                        default_format = NULL) {
@@ -485,6 +490,12 @@ rtf_tables <- function(doc, tables,
 #'
 #' @return Modified rtf_document with appended figure contents.
 #'
+#' @examples
+#' \dontrun{
+#' doc <- rtf_document() |>
+#'   rtf_figures(list("scatter.png"), width_twips = 6000L, align = "center")
+#' }
+#'
 #' @export
 rtf_figures <- function(doc, figures,
                          width_twips = NULL, height_twips = NULL,
@@ -597,6 +608,12 @@ rtf_titles <- function(doc, titles) {
 #' @param footnotes A list of length equal to the number of pages.
 #'
 #' @return Modified rtf_document.
+#'
+#' @examples
+#' df <- data.frame(A = 1:2, B = c("x", "y"))
+#' doc <- rtf_document() |>
+#'   rtf_tables(df) |>
+#'   rtf_footnotes(list(c("Source: ADaM ADSL")))
 #'
 #' @export
 rtf_footnotes <- function(doc, footnotes) {
@@ -722,6 +739,12 @@ rtf_section <- function(doc, page = NULL, secinfo) {
 #'
 #' @param x An rtf_document object.
 #' @param ... Additional arguments (unused).
+#'
+#' @return `x`, invisibly. Called for the side effect of printing a one-line
+#'   summary (page count, sections defined, page size).
+#'
+#' @examples
+#' print(rtf_document())
 #'
 #' @export
 print.rtf_document <- function(x, ...) {
