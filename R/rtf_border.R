@@ -40,17 +40,25 @@
 #' Use this as an argument to [rtf_border()].
 #'
 #' @param style Line style.  One of `"single"` (default), `"double"`,
-#'   `"thick"`, `"dash"`, `"dot"`.
-#' @param width Line weight in twips.  Default `15` ≈ 0.5 pt.
+#'   `"thick"`, `"dash"`, `"dot"`, or `"none"`.  Use `"none"` to build an
+#'   *explicit no-line* side: unlike `NULL` (which simply leaves a side
+#'   unset), a `"none"` side **overrides** any inherited border when it is
+#'   merged on top of another spec.  This is how a per-cell border can
+#'   remove an automatically-drawn rule -- e.g. suppressing the group
+#'   underline under one spanning column-header cell.
+#' @param width Line weight in twips.  Default `15` ≈ 0.5 pt.  Ignored when
+#'   `style = "none"`.
 #' @param color Line colour.  `NULL` (default) = black.  Or a 6-digit hex
 #'   string such as `"#003366"`.
 #'
 #' @return A list of class `"rtf_border_side"`.
 #' @export
 rtf_border_side <- function(style = "single", width = 15L, color = NULL) {
-  style <- match.arg(style, .valid_border_styles)
+  style <- match.arg(style, c(.valid_border_styles, "none"))
   width <- as.integer(width)
-  if (width < 1L) stop("`width` must be a positive integer (twips).", call. = FALSE)
+  if (!identical(style, "none") && width < 1L) {
+    stop("`width` must be a positive integer (twips).", call. = FALSE)
+  }
   .check_hex_color(color)
   structure(
     list(style = style, width = width, color = color),

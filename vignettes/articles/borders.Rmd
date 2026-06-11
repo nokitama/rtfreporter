@@ -1,0 +1,183 @@
+---
+title: "Borders and rules"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
+                      message = FALSE, warning = FALSE)
+```
+
+```{r setup}
+library(rtfreporter)
+```
+
+Clinical tables live and die by their rules: a top and bottom line around the
+column header, a group underline beneath a spanning label, an occasional rule
+under the last data row. rtfreporter gives you three levels of control, from a
+one-word preset down to a single cell. This article walks through all three,
+with runnable code.
+
+The border objects are plain S3 records (no reference semantics), so a border
+you build can be reused across tables safely. The vocabulary is small:
+
+* `rtf_border_side(style, width, color)` -- one **edge** (a line).
+* `rtf_border(top, bottom, left, right)` -- the four edges of one **cell/row**.
+* `rtf_table_border(header, spanning, body, first_row, last_row)` -- the
+  per-**zone** borders of a whole table.
+
+
+## Level 1 -- a preset
+
+The `border` argument of `rtftable()` (and `rtf_tables()`, `as_rtftables()`)
+accepts a shorthand string:
+
+```{r preset}
+df <- data.frame(Parameter = c("Age (years)", "  Mean", "  SD"),
+                 Value     = c("", "75.1", "8.2"), stringsAsFactors = FALSE)
+
+tbl <- rtftable(df, border = "tfl")   # clinical TFL preset
+```
+
+* `"tfl"` -- the clinical preset: a rule on **top of the first** header row and
+  **below the last** header row, multi-column spanning cells get an automatic
+  group underline, and the data area has **no** borders. This is the default.
+* `"none"` (or `NULL`) -- no borders anywhere.
+
+`"tfl"` is exactly `rtf_border_tfl()`:
+
+```{r tfl-object}
+rtf_border_tfl()
+```
+
+
+## Level 2 -- zones with `rtf_table_border()`
+
+When the preset is not enough, build the zones yourself. A table has five
+border zones:
+
+| Zone | Applies to |
+|------|------------|
+| `header` | column-header label rows (top on first, bottom on last) |
+| `spanning` | spanning-header rows (falls back to `header` when `NULL`) |
+| `body` | every data row |
+| `first_row` | the first data row (merged **on top of** `body`) |
+| `last_row` | the last data row (merged on top of `body`) |
+
+Each zone is an `rtf_border()`; each side is an `rtf_border_side()`. For
+example, a header boxed top and bottom plus a thin rule under the **last data
+row** (a common "close the table" look):
+
+```{r zones}
+line <- rtf_border_side()                       # single, 15 twips (~0.5pt), black
+
+tbl <- rtftable(
+  df,
+  border = rtf_table_border(
+    header   = rtf_border(top = line, bottom = line),
+    last_row = rtf_border(bottom = line)
+  )
+)
+```
+
+`rtf_border_side()` controls the look of a line:
+
+```{r side}
+rtf_border_side(style = "double", width = 30L, color = "#003366")
+```
+
+`style` is one of `"single"`, `"double"`, `"thick"`, `"dash"`, `"dot"` -- and
+`"none"`, which we meet below.
+
+### Body (data-area) borders
+
+Body rules are **per row, not per column**: the `body` / `first_row` /
+`last_row` zones apply the same edge to every column of the row. To draw a grid
+around every data cell, set all four sides on `body`:
+
+```{r body-grid}
+box <- rtf_border_box()        # all four sides, single line
+
+tbl <- rtftable(
+  data.frame(A = c("1", "2"), B = c("x", "y"), stringsAsFactors = FALSE),
+  border = rtf_table_border(body = box)
+)
+```
+
+
+## Level 3 -- single columns and single cells
+
+The header is where fine control matters most. Two mechanisms reach inside it.
+
+### A whole column, with `col_spec`
+
+A per-column `border` in `col_spec` is merged on top of the header zone for the
+header cell(s) **in that column** -- e.g. a thicker rule under just column 2:
+
+```{r col-spec-border}
+tbl <- rtftable(
+  df,
+  border   = "tfl",
+  col_spec = list(
+    list(col = "Value",
+         border = rtf_border(bottom = rtf_border_side("thick")))
+  )
+)
+```
+
+### A single header cell, with `col_cell(border = )`
+
+For a multi-row header, the unit of control is one cell. Build the header with
+`rtf_col_header()` / `col_cell()` and give the cell its own `border`. Because a
+per-cell border overrides **everything** -- the zone border *and* the automatic
+group underline -- this is how you add or **remove** an individual rule.
+
+Take a 5-column header with two treatment groups. By default each spanning cell
+("Drug A", "Drug B") is underlined:
+
+```{r header-default}
+df5 <- data.frame(Item = "Age", A_N = 30L, A_Mean = 45.2,
+                  B_N = 30L, B_Mean = 46.1, stringsAsFactors = FALSE)
+
+hdr <- rtf_col_header(
+  list(col_cell(1, ""),
+       col_cell(c(2, 3), "Drug A"),
+       col_cell(c(4, 5), "Drug B")),
+  c("Item", "N", "Mean", "N", "Mean")
+)
+tbl <- rtftable(df5, col_header = hdr, border = "tfl")
+```
+
+To **remove** the underline beneath "Drug A" only, give that one cell a `"none"`
+bottom. Unlike `NULL` (which just leaves a side unset and so inherits the
+automatic rule), a `"none"` side is an explicit "no line" that wins on merge:
+
+```{r header-suppress}
+hdr <- rtf_col_header(
+  list(col_cell(1, ""),
+       col_cell(c(2, 3), "Drug A",
+                border = rtf_border(bottom = rtf_border_side("none"))),
+       col_cell(c(4, 5), "Drug B")),
+  c("Item", "N", "Mean", "N", "Mean")
+)
+tbl <- rtftable(df5, col_header = hdr, border = "tfl")
+```
+
+The same field can **add** a rule to a single cell (e.g. a thick bottom under
+"Drug B" only) -- pass an `rtf_border()` with the sides you want instead of
+`"none"`.
+
+### How a cell's final border is decided
+
+For a header cell the renderer merges, in order of increasing precedence:
+
+1. the **zone** border (`header` / `spanning`, reduced to top-on-first /
+   bottom-on-last by the outer frame);
+2. the automatic **group underline** (multi-column spanning cells that are not
+   the last header row);
+3. `col_spec[[col]]$border` for the cell's leftmost column;
+4. `col_cell(border = )` on the cell itself.
+
+Later steps override earlier ones side-by-side, so a `"none"` side at step 3 or
+4 erases a line drawn by step 1 or 2, and a real line at step 4 replaces one
+from step 3. That single rule -- *last writer wins, per side* -- is all you need
+to reason about any combination.

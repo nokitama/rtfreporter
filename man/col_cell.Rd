@@ -10,7 +10,8 @@ col_cell(
   align = NULL,
   bold = FALSE,
   italic = FALSE,
-  underline = FALSE
+  underline = FALSE,
+  border = NULL
 )
 }
 \arguments{
@@ -24,6 +25,14 @@ be `>= 1`.}
 (default) inherits the leftmost covered column's `header_align`.}
 
 \item{bold, italic, underline}{Logical.  Default `FALSE`.}
+
+\item{border}{Optional [rtf_border()] applied to **this header cell
+only**, overriding the zone border and the automatic group-underline.
+This is how you fine-tune individual rules in a multi-row header --
+for example removing the bottom line under one spanning cell with
+`border = rtf_border(bottom = rtf_border_side("none"))`, or adding a
+thicker rule under one column.  `NULL` (default) inherits the normal
+zone borders.}
 }
 \value{
 A list of class `"rtf_col_cell"`.
@@ -40,5 +49,9 @@ the underlying data columns, not to the previous header row.
 \examples{
 col_cell(1, "Item")
 col_cell(c(2, 5), "Treatment", align = "center", underline = TRUE)
+
+# Remove the group underline under just this spanning cell:
+col_cell(c(2, 3), "Drug A",
+         border = rtf_border(bottom = rtf_border_side("none")))
 
 }

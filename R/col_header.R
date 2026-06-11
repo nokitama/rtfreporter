@@ -59,6 +59,13 @@
 #' @param align Optional `"left"`, `"center"`, or `"right"`.  `NULL`
 #'   (default) inherits the leftmost covered column's `header_align`.
 #' @param bold,italic,underline Logical.  Default `FALSE`.
+#' @param border Optional [rtf_border()] applied to **this header cell
+#'   only**, overriding the zone border and the automatic group-underline.
+#'   This is how you fine-tune individual rules in a multi-row header --
+#'   for example removing the bottom line under one spanning cell with
+#'   `border = rtf_border(bottom = rtf_border_side("none"))`, or adding a
+#'   thicker rule under one column.  `NULL` (default) inherits the normal
+#'   zone borders.
 #'
 #' @return A list of class `"rtf_col_cell"`.
 #'
@@ -66,9 +73,14 @@
 #' col_cell(1, "Item")
 #' col_cell(c(2, 5), "Treatment", align = "center", underline = TRUE)
 #'
+#' # Remove the group underline under just this spanning cell:
+#' col_cell(c(2, 3), "Drug A",
+#'          border = rtf_border(bottom = rtf_border_side("none")))
+#'
 #' @export
 col_cell <- function(pos, label = "", align = NULL,
-                     bold = FALSE, italic = FALSE, underline = FALSE) {
+                     bold = FALSE, italic = FALSE, underline = FALSE,
+                     border = NULL) {
   if (!is.numeric(pos) || !length(pos) %in% c(1L, 2L) || any(is.na(pos))) {
     stop("`pos` must be a numeric of length 1 or 2.", call. = FALSE)
   }
@@ -81,6 +93,9 @@ col_cell <- function(pos, label = "", align = NULL,
     stop("`align` must be NULL, \"left\", \"center\", or \"right\".",
          call. = FALSE)
   }
+  if (!is.null(border) && !inherits(border, "rtf_border")) {
+    stop("`border` must be NULL or an rtf_border object.", call. = FALSE)
+  }
   spec <- list(
     pos   = pos,
     label = if (is.null(label)) "" else as.character(label)[1L]
@@ -89,6 +104,7 @@ col_cell <- function(pos, label = "", align = NULL,
   if (isTRUE(bold))      spec$bold      <- TRUE
   if (isTRUE(italic))    spec$italic    <- TRUE
   if (isTRUE(underline)) spec$underline <- TRUE
+  if (!is.null(border))  spec$border    <- border
   structure(spec, class = "rtf_col_cell")
 }
 

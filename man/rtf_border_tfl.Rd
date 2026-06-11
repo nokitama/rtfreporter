@@ -8,9 +8,15 @@ rtf_border_tfl(style = "single", width = 15L, color = NULL)
 }
 \arguments{
 \item{style}{Line style.  One of `"single"` (default), `"double"`,
-`"thick"`, `"dash"`, `"dot"`.}
+`"thick"`, `"dash"`, `"dot"`, or `"none"`.  Use `"none"` to build an
+*explicit no-line* side: unlike `NULL` (which simply leaves a side
+unset), a `"none"` side **overrides** any inherited border when it is
+merged on top of another spec.  This is how a per-cell border can
+remove an automatically-drawn rule -- e.g. suppressing the group
+underline under one spanning column-header cell.}
 
-\item{width}{Line weight in twips.  Default `15` ≈ 0.5 pt.}
+\item{width}{Line weight in twips.  Default `15` ≈ 0.5 pt.  Ignored when
+`style = "none"`.}
 
 \item{color}{Line colour.  `NULL` (default) = black.  Or a 6-digit hex
 string such as `"#003366"`.}

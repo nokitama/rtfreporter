@@ -120,6 +120,44 @@ test_that("explicit border$last_row still renders under the last data row", {
   expect_identical(.count_bottom(txt), 4L)
 })
 
+test_that("col_cell(border = none) removes the group underline under one cell (#81)", {
+  hdr_default <- rtf_col_header(
+    list(col_cell(1, ""), col_cell(c(2, 3), "Drug A"),
+         col_cell(c(4, 5), "Drug B")),
+    c("Item", "N", "Mean", "N", "Mean")
+  )
+  hdr_suppressed <- rtf_col_header(
+    list(col_cell(1, ""),
+         col_cell(c(2, 3), "Drug A",
+                  border = rtf_border(bottom = rtf_border_side("none"))),
+         col_cell(c(4, 5), "Drug B")),
+    c("Item", "N", "Mean", "N", "Mean")
+  )
+  n_default    <- .count_bottom(.render_tbl(
+    rtftable(.df_5col(), col_header = hdr_default)))
+  n_suppressed <- .count_bottom(.render_tbl(
+    rtftable(.df_5col(), col_header = hdr_suppressed)))
+  # Exactly one fewer bottom rule once the Drug A underline is removed.
+  expect_identical(n_suppressed, n_default - 1L)
+})
+
+test_that("col_cell(border = ...) adds a per-cell rule and validates its type (#81)", {
+  expect_error(col_cell(1, "x", border = "oops"),
+               "must be NULL or an rtf_border")
+  cc <- col_cell(1, "x", border = rtf_border(bottom = rtf_border_side("thick")))
+  expect_true(inherits(cc$border, "rtf_border"))
+})
+
+test_that('rtf_border_side("none") builds no command but overrides on merge (#81)', {
+  none <- rtf_border_side("none")
+  expect_identical(none$style, "none")
+  expect_identical(rtfreporter:::.build_border_commands(
+    rtf_border(bottom = none)), "")
+  merged <- rtfreporter:::.merge_rtf_border(
+    rtf_border(bottom = rtf_border_side()), rtf_border(bottom = none))
+  expect_identical(merged$bottom$style, "none")
+})
+
 test_that("rtf_table_style_tfl() leaves body / first_row / last_row at NULL", {
   sty <- rtf_table_style_tfl()
   expect_null(sty$border_body)

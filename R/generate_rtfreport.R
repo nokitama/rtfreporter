@@ -304,6 +304,9 @@
     .side <- function(side) {
       b <- border_spec[[side]]
       if (is.null(b)) return("")
+      # An explicit "none" side draws no line (it exists only to override an
+      # inherited border when merged on top of another spec).
+      if (identical(b$style, "none")) return("")
       s <- styles[[b$style]]
       if (is.null(s)) stop(sprintf("Unknown border style: '%s'", b$style), call. = FALSE)
       color_cmd <- ""
@@ -512,6 +515,13 @@
         if (!is.null(cb)) {
           eff <- if (is.null(eff)) cb else .merge_rtf_border(eff, cb)
         }
+      }
+      # A per-cell border on the header cell itself (col_cell(border = ...))
+      # takes precedence over everything above -- including the automatic
+      # group-underline -- so an author can fine-tune or remove individual
+      # rules (see col_cell()).
+      if (!is.null(sp$border)) {
+        eff <- if (is.null(eff)) sp$border else .merge_rtf_border(eff, sp$border)
       }
     } else if (!is.null(single_col_idx) && !is.null(col_spec) &&
                 single_col_idx <= length(col_spec)) {

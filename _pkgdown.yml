@@ -102,6 +102,8 @@ navbar:
           href: articles/page-setup.html
         - text: "Adding tables and figures"
           href: articles/adding-content.html
+        - text: "Borders and rules"
+          href: articles/borders.html
         - text: "Importing tables with as_rtftables()"
           href: articles/importing-tables.html
         - text: "Paginating with as_rtftables()"
@@ -331,6 +333,7 @@ articles:
       - rtfreporter-pipes
       - articles/page-setup
       - articles/adding-content
+      - articles/borders
       - gt-integration
       - articles/importing-tables
       - articles/pagination

@@ -1,5 +1,17 @@
 # rtfreporter (development version)
 
+### New features
+
+- Fine-grained column-header borders. `col_cell()` gains a `border` argument:
+  an `rtf_border()` applied to that one header cell, overriding the zone border
+  and the automatic group underline. Combined with the new
+  `rtf_border_side("none")` ("explicit no line", which overrides on merge),
+  this lets you add or remove individual rules in a multi-row header -- e.g.
+  suppress the underline beneath a single spanning cell (#81).
+- New article "Borders and rules" documenting the three levels of border
+  control (preset, `rtf_table_border()` zones, per-column `col_spec` and
+  per-cell `col_cell()`) with runnable examples (#81).
+
 ### Bug fixes
 
 - `as_rtftables(align_count_pct = TRUE)` no longer reformats integer-only
