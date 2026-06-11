@@ -184,18 +184,88 @@ Before pushing, reproduce CI locally with `devtools::document()`,
 
 ## Project tracking (GitHub Projects / labels)
 
-Lightweight tracking lives on GitHub:
+Backlog and progress are tracked on GitHub so that, as the project grows
+beyond a single maintainer, anyone can see *what is planned, what is in
+flight, and who is acting on it* at a glance.  Three mechanisms work
+together; each answers a different question.
 
-* **Labels** classify issues/PRs: `bug`, `enhancement`,
-  `good first issue`, `documentation`, `help wanted`.  Start with a
-  *good first issue* if you are new.
+### The three axes
+
+| Mechanism | Answers | Source of truth for |
+|-----------|---------|---------------------|
+| **Labels** | *What kind* of work, and *who may act* | triage + agent dispatch |
+| **Milestones** | *Which release* it targets | release planning |
+| **Project board** | *What stage* it is at right now | day-to-day progress |
+
+* **Labels.**  Two independent families (see *Execution-disposition labels*
+  above): the **type** labels (`bug`, `enhancement`, `documentation`,
+  `good first issue`, `help wanted`) and the **`exec:*`** labels
+  (`exec:agent` / `exec:human` / `exec:hold` / `exec:wontdo`).  The `exec:*`
+  label remains the **authoritative dispatch signal** — the board visualises
+  status but never overrides who is allowed to start work.
 * **Milestones** group issues for a target release (e.g. `v0.1.0`),
   mirroring the major/minor entries in `NEWS.md` / `CHANGELOG.md`.
-* **GitHub Projects (board)** — an optional kanban (`Backlog → In progress
-  → In review → Done`) for planning a release.  Issues and PRs are added
-  as cards; the *In review* column maps to "open PR, CI green, awaiting
-  review".  This is for coordination only; the source of truth for *what
-  shipped* remains `NEWS.md`.
+
+### The board — "rtfreporter roadmap"
+
+A single org/user-level **GitHub Projects (v2)** board gives the kanban view.
+Issues *and* PRs are added as items; the board is for coordination only — the
+record of *what shipped* stays in `NEWS.md` / `CHANGELOG.md`.
+
+**Status** (single-select; the columns):
+
+| Status | Meaning | Typical label/PR state |
+|--------|---------|------------------------|
+| **Backlog** | Captured, not yet scheduled. | no `exec:*`, or `exec:hold` |
+| **Ready** | Approved and scoped; ready to pick up. | `exec:agent` / `exec:human` (assignee set) |
+| **In progress** | Someone (or the agent) is actively working it. | branch exists |
+| **In review** | PR open, CI green, awaiting review. | open PR |
+| **Blocked** | Needs a decision or an upstream fix. | `exec:hold` |
+| **Done** | Merged / closed. | issue closed via `Closes #N` |
+
+**Custom fields** (so the board can be sliced):
+
+* **Priority** — `P0` (urgent) / `P1` (normal) / `P2` (someday).
+* **Area** — `renderer` / `adapters` (gt, rtables/tern) / `pagination` /
+  `borders` / `docs` / `infra-ci`.
+* **Agent** — `claude` / `codex` / `human`.  This mirrors the planned
+  `exec:agent-<name>` split so multi-agent dispatch and the board stay in
+  sync.
+
+**Built-in automation** (Project *Workflows* tab — no code):
+
+* *Item added to project* → set **Status = Backlog**.
+* *Issue/PR opened* (auto-add) → added to the board.
+* *Pull request opened* → **Status = In review**.
+* *Issue or PR closed* → **Status = Done**.
+
+### One-time setup (maintainer)
+
+Creating the board needs the `project` scope, which the default `gh` login
+does not carry.  A maintainer runs this **once**:
+
+```bash
+gh auth refresh -s project,read:project          # grant the scope
+
+# create the board and capture its number
+gh project create --owner ichirio --title "rtfreporter roadmap"
+
+# add the custom single-select fields (repeat --single-select-option per value)
+gh project field-create <N> --owner ichirio --name Priority \
+  --data-type SINGLE_SELECT --single-select-options P0,P1,P2
+gh project field-create <N> --owner ichirio --name Area \
+  --data-type SINGLE_SELECT \
+  --single-select-options renderer,adapters,pagination,borders,docs,infra-ci
+gh project field-create <N> --owner ichirio --name Agent \
+  --data-type SINGLE_SELECT --single-select-options claude,codex,human
+```
+
+Then, in the board's web UI, enable **Workflows** (the four automations
+above) and turn on **auto-add** for the `rtfreporter` repository.  Existing
+open issues can be bulk-added from the board's *＋ Add items* search.
+
+Until the board exists, labels + milestones already give a usable backlog
+view via the Issues tab (filter by `exec:agent`, by milestone, or by type).
 
 ## Code style
 

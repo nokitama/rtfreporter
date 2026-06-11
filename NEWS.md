@@ -1,5 +1,14 @@
 # rtfreporter (development version)
 
+### Documentation
+
+- CONTRIBUTING.md now describes a concrete backlog/progress-tracking scheme
+  for multiple contributors: a "rtfreporter roadmap" GitHub Projects board with
+  defined Status columns (Backlog/Ready/In progress/In review/Blocked/Done),
+  Priority/Area/Agent custom fields, built-in automation, and the one-time
+  maintainer setup commands -- alongside how it relates to the existing
+  `exec:*` dispatch labels and release milestones (#83).
+
 ### Output robustness
 
 - Generated RTF now emits `\headery` / `\footery` (header/footer band distance
