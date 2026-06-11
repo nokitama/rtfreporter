@@ -176,6 +176,7 @@ green.
 | **R-CMD-check** | `R-CMD-check.yaml` | `R CMD check` on a matrix of OS / R versions (the standard `r-lib/actions` recipe).  Must be 0 errors / 0 warnings. |
 | **test-coverage** | `test-coverage.yaml` | Runs the testthat suite under `covr` and uploads coverage to Codecov. |
 | **pkgdown** | `pkgdown.yaml` | Builds the documentation site and (on `main` / on a published release) deploys it to the `gh-pages` branch. |
+| **version-guard** | `version-guard.yaml` | Fails a PR that raises the **MINOR or MAJOR** position of `DESCRIPTION` `Version:` unless the PR carries the `release` label (see *Versioning & releases*). A PATCH bump or no change always passes. |
 
 All three also accept `workflow_dispatch` (run-on-demand from the Actions
 tab).  Releases additionally re-trigger pkgdown on `release: published`.
@@ -339,6 +340,12 @@ releases are throw-away experiments — see *First release* below.)
 ### Procedure — routine development bump (`vX.Y.Z`)
 
 **Each pull request raises the development version by exactly one PATCH.**
+
+> **Enforced by CI.**  The `version-guard` workflow fails any PR that raises the
+> MINOR or MAJOR position without the `release` label, so an ordinary
+> development PR can only bump the PATCH (or leave the version unchanged).  A
+> MINOR/MAJOR bump is therefore a deliberate, labelled release action — never an
+> accident.
 
 1. As the **last step before you request review**, bump the `DESCRIPTION`
    `Version:` PATCH by one (e.g. `0.1.3` → `0.1.4`).

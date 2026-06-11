@@ -1,0 +1,80 @@
+# Blocks a pull request that raises the MINOR or MAJOR position of the
+# DESCRIPTION Version unless the PR carries the `release` label.
+#
+# Rationale: ordinary development PRs may bump only the PATCH position; MINOR /
+# MAJOR bumps are maintainer-directed release actions (see CONTRIBUTING.md
+# "Versioning & releases"). This makes that rule machine-enforced rather than
+# relying on reviewer memory.
+name: version-guard
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  version-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out PR (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guard against unintended MINOR/MAJOR bumps
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HAS_RELEASE_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'release') }}
+        run: |
+          set -euo pipefail
+
+          read_ver() { grep -E '^Version:' | head -n1 | sed -E 's/^Version:[[:space:]]*//' | tr -d '[:space:]'; }
+          head_ver="$(read_ver < DESCRIPTION)"
+          base_ver="$(git show "${BASE_SHA}:DESCRIPTION" | read_ver)"
+
+          echo "Base version : ${base_ver}"
+          echo "Head version : ${head_ver}"
+          echo "release label: ${HAS_RELEASE_LABEL}"
+
+          # Version must be digits-and-dots only (R rejects e.g. 0.3.0-alpha).
+          if ! printf '%s' "$head_ver" | grep -qE '^[0-9]+(\.[0-9]+)*$'; then
+            echo "::error::DESCRIPTION Version '${head_ver}' must be digits and dots only."
+            exit 1
+          fi
+
+          if [ "$head_ver" = "$base_ver" ]; then
+            echo "No version change — OK."
+            exit 0
+          fi
+
+          # Parse MAJOR / MINOR with parameter expansion (no heredocs).
+          first_field() { printf '%s' "${1%%.*}"; }
+          second_field() {
+            case "$1" in
+              *.*) local rest="${1#*.}"; printf '%s' "${rest%%.*}";;
+              *)   printf '0';;
+            esac
+          }
+          hmaj="$(first_field "$head_ver")";  hmin="$(second_field "$head_ver")"
+          bmaj="$(first_field "$base_ver")";  bmin="$(second_field "$base_ver")"
+          hmaj=${hmaj:-0}; hmin=${hmin:-0}; bmaj=${bmaj:-0}; bmin=${bmin:-0}
+
+          raises_minor_major=false
+          if [ "$hmaj" -gt "$bmaj" ]; then
+            raises_minor_major=true
+          elif [ "$hmaj" -eq "$bmaj" ] && [ "$hmin" -gt "$bmin" ]; then
+            raises_minor_major=true
+          fi
+
+          if [ "$raises_minor_major" = "true" ]; then
+            if [ "$HAS_RELEASE_LABEL" = "true" ]; then
+              echo "MINOR/MAJOR bump ${base_ver} -> ${head_ver} with 'release' label — OK."
+              exit 0
+            fi
+            echo "::error::Version ${base_ver} -> ${head_ver} raises the MINOR/MAJOR position without a 'release' label. Development PRs may bump the PATCH only; MINOR/MAJOR bumps are maintainer-directed releases. Add the 'release' label if this is intentional."
+            exit 1
+          fi
+
+          echo "PATCH-level change ${base_ver} -> ${head_ver} — OK."
