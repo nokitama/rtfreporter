@@ -36,8 +36,8 @@ The package is not on CRAN yet. Install from GitHub:
 ``` r
 # install.packages("remotes")
 
-# Stable release (v0.1.0)
-remotes::install_github("ichirio/rtfreporter@v0.1.0")
+# Latest release (v0.3.4)
+remotes::install_github("ichirio/rtfreporter@v0.3.4")
 
 # Development version (latest main)
 remotes::install_github("ichirio/rtfreporter")
@@ -177,22 +177,23 @@ The full pkgdown site is at <https://ichirio.github.io/rtfreporter/>:
 `lifecycle: experimental` badge; the API may still change in
 backward-incompatible ways before v1.0.0.
 
-- **Latest published release: `v0.1.0`** — first public GitHub release, pkgdown
-  site live.
-- **Development version on `main`: `0.3.x`** — installable from GitHub
-  (`remotes::install_github("ichirio/rtfreporter")`); not yet on CRAN. Each
-  pull request advances only the development *patch* number; published
-  `0.x.0` releases are cut by the maintainer on request, not on a fixed
-  schedule. Recent development work includes fine-grained column-header
-  borders, hardened/portable RTF output, custom `cell_format` functions, and
-  expanded documentation — see [`NEWS.md`](NEWS.md).
+- **Latest release: `v0.3.4`** — the current stable version, installable from
+  GitHub (`remotes::install_github("ichirio/rtfreporter@v0.3.4")`); not yet on
+  CRAN. It includes fine-grained column-header borders, hardened/portable RTF
+  output, custom `cell_format` functions, and expanded documentation — see
+  [`NEWS.md`](NEWS.md).
+- **Development version on `main`** tracks ongoing work; each pull request
+  advances only the development *patch* number. A MINOR/MAJOR bump is a
+  deliberate, labelled release action (enforced by the `version-guard` CI), not
+  an accident.
 
-Themes for upcoming published releases (in no fixed order):
+Planned release milestones:
 
-- full `R CMD check --as-cran` clean, increased test coverage, and **CRAN
-  submission considered**;
-- `pharmaverse` candidacy and further feature work (e.g. repeated column
-  headers per `pageby` group, cell background colour).
+| Version | Goal |
+|---------|------|
+| **v0.4.0** | CRAN-submission **preparation** — full `R CMD check --as-cran` clean, increased test coverage, documentation/metadata polish. |
+| **v0.5.0** | **CRAN registration** — initial CRAN release. |
+| **v1.0.0** | **Stable API** — the `lifecycle: experimental` badge is removed; "the API may change" wording is dropped. |
 
 See [`NEWS.md`](NEWS.md) for the user-facing changelog and
 [`CHANGELOG.md`](CHANGELOG.md) for detailed per-version notes.

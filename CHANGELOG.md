@@ -4,6 +4,33 @@ All notable changes to rtfreporter are documented in this file. Changes are reco
 
 ---
 
+## v0.3.4
+
+> **Status**: Published as the current stable version. This is an **exceptional
+> patch-level release** — it pins the development line (which had inadvertently
+> advanced to 0.3.x) as a stable reference point. Planned milestones from here:
+> **v0.4.0** CRAN-submission preparation, **v0.5.0** CRAN registration,
+> **v1.0.0** stable API (`lifecycle: experimental` removed).
+
+Rolls up all development since v0.1.0. Highlights:
+
+* Fine-grained column-header borders — per-cell `col_cell(border = )` and
+  `rtf_border_side("none")` (explicit no-line) for adding/removing individual
+  header rules; new "Borders and rules" article.
+* More robust RTF output — `\headery` / `\footery` coordinated with the
+  margins, and a hardened preamble (`\ansicpg1252`, `\deflang1033`, `\uc1`,
+  `\fcharset0`, `\widowctrl`).
+* Bug fix — `align_count_pct = TRUE` no longer over-formats integer-only
+  columns.
+* Internal cleanup — removed long-deprecated no-op `rtf_*_format()` functions
+  and the thin constructor wrapper layer; pure S3 throughout.
+* Documentation — custom `cell_format` contract, exhaustive `as_rtftables()`
+  help, and a concrete contributor backlog/tracking scheme.
+
+See [`NEWS.md`](NEWS.md) for the full per-item list.
+
+---
+
 ## v0.1.0
 
 > **Status**: First public GitHub release. CRAN submission is deferred to v0.2.0.

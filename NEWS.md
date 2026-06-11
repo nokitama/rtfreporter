@@ -1,11 +1,17 @@
-# rtfreporter (development version)
+# rtfreporter 0.3.4
+
+This release rolls up all development work since v0.1.0 and is published as the
+current stable version. Going forward the planned milestones are **v0.4.0**
+(CRAN-submission preparation), **v0.5.0** (CRAN registration) and **v1.0.0**
+(stable API; the `lifecycle: experimental` badge is removed).
 
 ### Documentation
 
-- README "Status & roadmap" rewritten to reflect the actual state: latest
-  published release is `v0.1.0`, with `0.3.x` as the GitHub-only development
-  version. Clarified that each PR advances only the development patch number
-  and that published `0.x.0` releases are cut by the maintainer on request.
+- README "Status & roadmap" rewritten to reflect the current state: `v0.3.4` is
+  the latest release, with the development version on `main` advancing only the
+  patch per PR, and the v0.4.0 / v0.5.0 / v1.0.0 milestones laid out. A
+  `version-guard` CI workflow blocks an unintended MINOR/MAJOR bump (a labelled
+  `release` PR is required) (#83, #92, #94).
 - `as_rtftables()` help is now exhaustive and per-argument. The pagination
   controls that were lumped into a single `@param` block are split into one
   entry each (`split`, `max_rows`, `split_rows`, `group_col`, `cont_label`,
