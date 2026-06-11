@@ -35,6 +35,26 @@ test_that("border colours are auto-collected into the RTF \\colortbl", {
   expect_match(txt, "\\\\red31\\\\green78\\\\blue121")
 })
 
+test_that("hardened RTF preamble: codepage, \\uc1, charset, widowctrl (#82)", {
+  txt <- .render_to_string(.simple_doc())
+  expect_match(txt, "\\\\ansicpg1252")
+  expect_match(txt, "\\\\uc1")
+  expect_match(txt, "\\\\deflang1033")
+  expect_match(txt, "\\\\fcharset0")
+  expect_match(txt, "\\\\widowctrl")
+})
+
+test_that("header/footer band distance is emitted and coordinated with margins (#82)", {
+  # Default top/bottom margin is 0.9in = 1296 twips, so headery/footery = 648.
+  df  <- data.frame(A = c("1", "2"), B = c("x", "y"), stringsAsFactors = FALSE)
+  doc <- rtf_document() |>
+    rtf_tables(as_rtftables(df)) |>
+    rtf_section(page = 1, secinfo = list(header = "H", footer = "F"))
+  txt <- .render_to_string(doc)
+  expect_match(txt, "\\\\headery648")
+  expect_match(txt, "\\\\footery648")
+})
+
 test_that("the document font size is emitted as a document-level \\fs<n>", {
   txt22 <- .render_to_string(
     .simple_doc(default_format = list(font_size_half_points = 22L)))

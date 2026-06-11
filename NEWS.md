@@ -1,5 +1,16 @@
 # rtfreporter (development version)
 
+### Output robustness
+
+- Generated RTF now emits `\headery` / `\footery` (header/footer band distance
+  from the page edge), set to half the top/bottom margin so the header and
+  footer sit inside the margin instead of at Word's built-in default, which
+  could place them outside the body (#82).
+- Hardened the document preamble for portable, renderer-independent output:
+  `\ansicpg1252` (code page), `\deflang1033` (default language), `\uc1`
+  (one fallback char per `\uN` Unicode escape, matching the `\uN?` form this
+  package emits), `\fcharset0` on the font, and `\widowctrl` (#82).
+
 ### New features
 
 - Fine-grained column-header borders. `col_cell()` gains a `border` argument:

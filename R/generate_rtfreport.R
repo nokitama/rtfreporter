@@ -1485,6 +1485,13 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
   doc_cmd  <- cmds$document
   para_cmd <- cmds$paragraph
 
+  # Header/footer band distance from the page edge. Coordinated with the
+  # margins -- half the top/bottom margin -- so the header/footer text sits
+  # inside the margin area instead of at the RTF/Word built-in default
+  # (720 twips), which can land outside the body and look misplaced.
+  header_dist_twips <- max(0L, as.integer(page_defaults$margin_top_twips    %||% 1440L) %/% 2L)
+  footer_dist_twips <- max(0L, as.integer(page_defaults$margin_bottom_twips %||% 1440L) %/% 2L)
+
   total_pages     <- length(report$pages)
   doc_colors      <- .collect_report_colors(report)
   color_table_str <- .build_color_table_rtf(doc_colors)
@@ -1506,6 +1513,8 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
       margin_right_twips    = page_defaults$margin_right_twips,
       margin_top_twips      = page_defaults$margin_top_twips,
       margin_bottom_twips   = page_defaults$margin_bottom_twips,
+      header_dist_twips     = header_dist_twips,
+      footer_dist_twips     = footer_dist_twips,
       font_size_half_points = doc$default_format$font_size_half_points
     ))
   )
@@ -1567,7 +1576,11 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
         "\\marglsxn", pg$margin_left_twips,
         "\\margrsxn", pg$margin_right_twips,
         "\\margtsxn", pg$margin_top_twips,
-        "\\margbsxn", pg$margin_bottom_twips
+        "\\margbsxn", pg$margin_bottom_twips,
+        # Re-assert the header/footer band distance per section (\sectd reset
+        # it); these have no ...sxn variant and apply to the current section.
+        "\\headery",  header_dist_twips,
+        "\\footery",  footer_dist_twips
       ))
 
       header_rtf <- .render_header_footer(cur_header_hf, writable_w, is_footer = FALSE,
