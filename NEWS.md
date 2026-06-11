@@ -1,5 +1,13 @@
 # rtfreporter (development version)
 
+### Bug fixes
+
+- `as_rtftables(align_count_pct = TRUE)` no longer reformats integer-only
+  columns. Previously a plain count column (cells like `3`, with no
+  `n (xx.x)` cells anywhere in the column) had leading spaces wrongly inserted.
+  Bare-integer alignment is now applied only to columns that actually mix
+  integers with count-percent cells (#80).
+
 ### Internal: constructor cleanup (no API change)
 
 Collapsed the thin `rtftable()` / `rtfplot()` wrapper layer (a vestige of the
