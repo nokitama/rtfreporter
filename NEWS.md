@@ -2,6 +2,10 @@
 
 ### Documentation
 
+- README "Status & roadmap" rewritten to reflect the actual state: latest
+  published release is `v0.1.0`, with `0.3.x` as the GitHub-only development
+  version. Clarified that each PR advances only the development patch number
+  and that published `0.x.0` releases are cut by the maintainer on request.
 - `as_rtftables()` help is now exhaustive and per-argument. The pagination
   controls that were lumped into a single `@param` block are split into one
   entry each (`split`, `max_rows`, `split_rows`, `group_col`, `cont_label`,

@@ -173,14 +173,26 @@ The full pkgdown site is at <https://ichirio.github.io/rtfreporter/>:
 
 ## Status & roadmap
 
-`rtfreporter` is in active development; the API may still change in
-backward-incompatible ways before v1.0.0. A short-term roadmap:
+`rtfreporter` is in active **pre-1.0 development** and carries the
+`lifecycle: experimental` badge; the API may still change in
+backward-incompatible ways before v1.0.0.
 
-- **v0.1.0 — first public GitHub release, pkgdown site live.** (current)
-- v0.2.0 — full `R CMD check --as-cran` clean, increased test coverage, and
-  **CRAN submission considered**.
-- v0.3+ — `pharmaverse` candidacy; further feature work
-  (e.g. repeated column headers per `pageby` group, cell background colour).
+- **Latest published release: `v0.1.0`** — first public GitHub release, pkgdown
+  site live.
+- **Development version on `main`: `0.3.x`** — installable from GitHub
+  (`remotes::install_github("ichirio/rtfreporter")`); not yet on CRAN. Each
+  pull request advances only the development *patch* number; published
+  `0.x.0` releases are cut by the maintainer on request, not on a fixed
+  schedule. Recent development work includes fine-grained column-header
+  borders, hardened/portable RTF output, custom `cell_format` functions, and
+  expanded documentation — see [`NEWS.md`](NEWS.md).
+
+Themes for upcoming published releases (in no fixed order):
+
+- full `R CMD check --as-cran` clean, increased test coverage, and **CRAN
+  submission considered**;
+- `pharmaverse` candidacy and further feature work (e.g. repeated column
+  headers per `pageby` group, cell background colour).
 
 See [`NEWS.md`](NEWS.md) for the user-facing changelog and
 [`CHANGELOG.md`](CHANGELOG.md) for detailed per-version notes.
