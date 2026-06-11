@@ -177,36 +177,3 @@ test_that("rtf_section(page = vector, scalar secinfo) errors", {
   expect_error(rtf_section(d, page = c(1, 2), secinfo = "oops"),
                "list of section objects")
 })
-
-# ──────── Deprecated formatters: still return the doc with a warning ──────
-
-test_that("rtf_table_format() / rtf_header_format() etc warn and return doc", {
-  d <- rtf_document()
-  expect_warning(d2 <- rtf_table_format(d),  "deprecated")
-  expect_identical(d2, d)
-  expect_warning(d2 <- rtf_header_format(d), "deprecated")
-  expect_identical(d2, d)
-  expect_warning(d2 <- rtf_footer_format(d), "deprecated")
-  expect_identical(d2, d)
-  expect_warning(d2 <- rtf_figure_format(d), "deprecated")
-  expect_identical(d2, d)
-})
-
-test_that("deprecated formatters reject non-rtf_document `doc`", {
-  expect_warning(
-    expect_error(rtf_table_format("x"), "rtf_document"),
-    "deprecated"
-  )
-  expect_warning(
-    expect_error(rtf_header_format("x"), "rtf_document"),
-    "deprecated"
-  )
-  expect_warning(
-    expect_error(rtf_footer_format("x"), "rtf_document"),
-    "deprecated"
-  )
-  expect_warning(
-    expect_error(rtf_figure_format("x"), "rtf_document"),
-    "deprecated"
-  )
-})

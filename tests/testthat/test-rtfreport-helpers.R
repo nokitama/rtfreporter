@@ -26,17 +26,9 @@ test_that("rtf_header() rejects a non-rtf_border `border`", {
                "rtf_border object")
 })
 
-test_that("rtf_header() warns on deprecated `top_border` and respects TRUE/FALSE", {
-  expect_warning(
-    h1 <- rtf_header(rows = c(c = "x"), top_border = TRUE),
-    "top_border.*deprecated"
-  )
-  expect_s3_class(h1$border, "rtf_border")
-  expect_warning(
-    h2 <- rtf_header(rows = c(c = "x"), top_border = FALSE),
-    "deprecated"
-  )
-  expect_null(h2$border)
+test_that("rtf_header() takes border = rtf_border_top() for a header rule", {
+  h <- rtf_header(rows = c(c = "x"), border = rtf_border_top())
+  expect_s3_class(h$border, "rtf_border")
 })
 
 test_that("rtf_footer() defaults to a top border", {
@@ -53,19 +45,6 @@ test_that("rtf_footer() accepts border = NULL to drop the default rule", {
 test_that("rtf_footer() rejects non-rtf_border `border`", {
   expect_error(rtf_footer(rows = c(c = "x"), border = "dot"),
                "rtf_border object")
-})
-
-test_that("rtf_footer() warns on deprecated `top_border`", {
-  expect_warning(
-    f1 <- rtf_footer(rows = c(c = "x"), top_border = TRUE),
-    "top_border.*deprecated"
-  )
-  expect_s3_class(f1$border, "rtf_border")
-  expect_warning(
-    f2 <- rtf_footer(rows = c(c = "x"), border = NULL, top_border = FALSE),
-    "deprecated"
-  )
-  expect_null(f2$border)
 })
 
 # ──────── update_header_row / update_footer_row ───────────────────────────

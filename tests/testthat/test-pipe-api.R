@@ -82,18 +82,6 @@ test_that("rtf_section() supports single and multiple page assignments", {
   expect_length(d2$sections, 2L)
 })
 
-test_that("deprecated rtf_*_format() functions warn and return the doc unchanged", {
-  df <- data.frame(A = 1:3)
-  base_doc <- rtf_tables(rtf_document(), list(df))
-  for (fn_name in c("rtf_table_format", "rtf_header_format",
-                    "rtf_footer_format", "rtf_figure_format")) {
-    fn <- get(fn_name, envir = asNamespace("rtfreporter"))
-    expect_warning(out <- fn(base_doc, pages = "all", border = "tfl"),
-                   regexp = "deprecated", ignore.case = TRUE)
-    expect_identical(out, base_doc)
-  }
-})
-
 test_that("print(rtf_document) prints a summary header", {
   df1 <- data.frame(A = 1:3, B = c("x", "y", "z"))
   doc <- rtf_section(rtf_tables(rtf_document(), list(df1, df1, df1)),

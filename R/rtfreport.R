@@ -144,8 +144,6 @@ update_footer_row <- function(footer, row, content) {
 #'   on the left / right side of each header (or footer) cell, matching the
 #'   content-table convention. `NULL` (default) reads from
 #'   `inst/resources/rtfreporter_defaults.R` (0L for both since v0.0.21).
-#' @param top_border **Deprecated.** Use `border = rtf_border_top()` or
-#'   `border = NULL` instead.
 #'
 #' @return A named list with elements `rows`, `border`, `width_twips`, and
 #'   `row_height_twips`.
@@ -167,14 +165,7 @@ rtf_header <- function(rows,
                         width_twips              = NULL,
                         row_height_twips         = NULL,
                         cell_padding_left_twips  = NULL,
-                        cell_padding_right_twips = NULL,
-                        top_border               = NULL) {
-  if (!is.null(top_border)) {
-    warning("`top_border` is deprecated in rtf_header(). ",
-            "Use `border = rtf_border_top()` or `border = NULL` instead.",
-            call. = FALSE)
-    if (is.null(border)) border <- if (isTRUE(top_border)) rtf_border_top() else NULL
-  }
+                        cell_padding_right_twips = NULL) {
   if (!is.null(border) && !inherits(border, "rtf_border")) {
     stop("`border` must be NULL or an rtf_border object.", call. = FALSE)
   }
@@ -193,18 +184,7 @@ rtf_footer <- function(rows,
                         width_twips              = NULL,
                         row_height_twips         = NULL,
                         cell_padding_left_twips  = NULL,
-                        cell_padding_right_twips = NULL,
-                        top_border               = NULL) {
-  if (!is.null(top_border)) {
-    warning("`top_border` is deprecated in rtf_footer(). ",
-            "Use `border = rtf_border_top()` or `border = NULL` instead.",
-            call. = FALSE)
-    if (!missing(border) && identical(border, rtf_border_top())) {
-      border <- if (isTRUE(top_border)) rtf_border_top() else NULL
-    } else if (missing(border)) {
-      border <- if (isTRUE(top_border)) rtf_border_top() else NULL
-    }
-  }
+                        cell_padding_right_twips = NULL) {
   if (!is.null(border) && !inherits(border, "rtf_border")) {
     stop("`border` must be NULL or an rtf_border object.", call. = FALSE)
   }

@@ -316,7 +316,6 @@ reference:
   # ── 14. Deprecated ─────────────────────────────────────────────────────
   - title: Deprecated
     contents:
-      - rtf_format-deprecated
       - paginate
 
 # Articles index page (/articles/).  Grouped so users land on the

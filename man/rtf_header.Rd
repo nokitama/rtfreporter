@@ -11,8 +11,7 @@ rtf_header(
   width_twips = NULL,
   row_height_twips = NULL,
   cell_padding_left_twips = NULL,
-  cell_padding_right_twips = NULL,
-  top_border = NULL
+  cell_padding_right_twips = NULL
 )
 
 rtf_footer(
@@ -21,8 +20,7 @@ rtf_footer(
   width_twips = NULL,
   row_height_twips = NULL,
   cell_padding_left_twips = NULL,
-  cell_padding_right_twips = NULL,
-  top_border = NULL
+  cell_padding_right_twips = NULL
 )
 }
 \arguments{
@@ -45,9 +43,6 @@ the value from `inst/resources/rtfreporter_defaults.R`.}
 on the left / right side of each header (or footer) cell, matching the
 content-table convention. `NULL` (default) reads from
 `inst/resources/rtfreporter_defaults.R` (0L for both since v0.0.21).}
-
-\item{top_border}{**Deprecated.** Use `border = rtf_border_top()` or
-`border = NULL` instead.}
 }
 \value{
 A named list with elements `rows`, `border`, `width_twips`, and

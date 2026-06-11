@@ -1,5 +1,16 @@
 # rtfreporter (development version)
 
+### Breaking changes: removed no-op deprecated functions
+
+Pre-CRAN cleanup of long-deprecated no-ops:
+
+- Removed `rtf_table_format()`, `rtf_header_format()`, `rtf_footer_format()`,
+  and `rtf_figure_format()` (they only warned and returned the document
+  unchanged). Pass the formatting arguments to `rtf_tables()` / `rtf_figures()`,
+  or build items with `rtftable()` / `rtfplot()`.
+- Removed the deprecated `top_border` argument of `rtf_header()` /
+  `rtf_footer()`. Use `border = rtf_border_top()` (or `border = NULL`). (#70)
+
 ### Bug fix: `assemble_rtf(toc = "auto")` no longer errors
 
 `assemble_rtf(toc = "auto")` errored on any input file that had a title
