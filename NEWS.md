@@ -1437,6 +1437,7 @@ re-applied to each returned chunk after the splitter has finished.
   it explicitly:
   `rtf_table_border(last_row = rtf_border(bottom = rtf_border_side()))`.
 
-# Earlier versions
+----
 
-See [`CHANGELOG.md`](CHANGELOG.md) for the detailed pre-v0.0.18 history.
+**Earlier versions:** see [`CHANGELOG.md`](CHANGELOG.md) for the detailed
+pre-v0.0.18 history.
