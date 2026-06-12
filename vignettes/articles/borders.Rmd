@@ -39,8 +39,9 @@ tbl <- rtftable(df, border = "tfl")   # clinical TFL preset
 ```
 
 * `"tfl"` -- the clinical preset: a rule on **top of the first** header row and
-  **below the last** header row, multi-column spanning cells get an automatic
-  group underline, and the data area has **no** borders. This is the default.
+  **below the last** header row, a multi-column spanning cell gets an automatic
+  group underline where the grouping changes below it (the next row subdivides
+  the span), and the data area has **no** borders. This is the default.
 * `"none"` (or `NULL`) -- no borders anywhere.
 
 `"tfl"` is exactly `rtf_border_tfl()`:
@@ -172,8 +173,9 @@ For a header cell the renderer merges, in order of increasing precedence:
 
 1. the **zone** border (`header` / `spanning`, reduced to top-on-first /
    bottom-on-last by the outer frame);
-2. the automatic **group underline** (multi-column spanning cells that are not
-   the last header row);
+2. the automatic **group underline** (a multi-column spanning cell, drawn only
+   where the column grouping changes below it -- i.e. the next header row
+   subdivides the span);
 3. `col_spec[[col]]$border` for the cell's leftmost column;
 4. `col_cell(border = )` on the cell itself.
 

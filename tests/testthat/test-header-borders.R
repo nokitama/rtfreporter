@@ -158,6 +158,27 @@ test_that('rtf_border_side("none") builds no command but overrides on merge (#81
   expect_identical(merged$bottom$style, "none")
 })
 
+test_that("group underline only where the column grouping changes below (#102)", {
+  df  <- data.frame(a = "x", b = "1", c = "2", d = "3", stringsAsFactors = FALSE)
+  hdr <- rtf_col_header(
+    list(col_cell(1, ""), col_cell(c(2, 4), "G")),   # row 1: 1 | (2-4)
+    list(col_cell(1, ""), col_cell(c(2, 4), "G")),   # row 2: 1 | (2-4)  (same)
+    c("a", "b", "c", "d")                            # row 3: 1 | 2 | 3 | 4
+  )
+  txt  <- .render_tbl(rtftable(df, col_header = hdr))
+  rows <- regmatches(txt, gregexpr("\\\\trowd.*?\\\\row", txt))[[1L]]
+  cnt  <- function(r, pat) {
+    m <- gregexpr(pat, r)[[1L]]; if (m[1L] == -1L) 0L else length(m)
+  }
+  bottoms <- vapply(rows[seq_len(3L)], cnt, integer(1L), pat = "\\\\clbrdrb")
+  # row 1: grouping unchanged below -> NO group underline.
+  expect_identical(unname(bottoms[1L]), 0L)
+  # row 2: span (2-4) splits into 2,3,4 below -> underline on the span cell.
+  expect_identical(unname(bottoms[2L]), 1L)
+  # row 3: last header row -> outer-frame bottom on every column.
+  expect_identical(unname(bottoms[3L]), 4L)
+})
+
 test_that("rtf_table_style_tfl() leaves body / first_row / last_row at NULL", {
   sty <- rtf_table_style_tfl()
   expect_null(sty$border_body)

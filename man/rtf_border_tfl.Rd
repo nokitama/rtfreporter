@@ -32,9 +32,11 @@ borders in the data area by default.  Specifically:
 \details{
 * `header$top`    -- top border on the topmost header row
 * `header$bottom` -- bottom border on the bottommost header row
-* Multi-column spanning cells additionally receive a bottom border
-  (group underline) when they are not themselves the last header
-  row -- this is added automatically by the renderer.
+* A multi-column spanning cell additionally receives a bottom border
+  (group underline) **only where the column grouping changes below it**
+  -- that is, when the next header row subdivides the columns the span
+  covers.  A span repeated unchanged on the following row is not
+  underlined.  This is added automatically by the renderer.
 * No vertical lines.
 * **No borders on the data section** (`body` / `first_row` /
   `last_row` all `NULL`).  Callers who want a bottom rule under the

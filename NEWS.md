@@ -1,5 +1,13 @@
 # rtfreporter (development version)
 
+### Bug fixes
+
+- The automatic spanning-header **group underline** is now drawn only where the
+  column grouping actually changes below the cell (the next header row
+  subdivides the span). Previously every multi-column spanning cell that was not
+  on the last header row was underlined, so a span repeated unchanged across two
+  header rows got a spurious rule between them (#102).
+
 ### New features
 
 - New `row_title` argument on `rtftable()` (and `rtf_tables()` /

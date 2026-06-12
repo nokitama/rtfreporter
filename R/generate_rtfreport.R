@@ -478,11 +478,45 @@
 # label" look.  Pass NULL to suppress (e.g. when this spanning row is
 # itself the last header row and the row-level bottom already covers
 # the whole span).
+# Per-column "cell id" coverage for one header row, so adjacent columns that
+# belong to the same cell share an id.  Used to decide where the column
+# grouping changes between two header rows.
+#   * labels row (character vector) -> every column is its own cell.
+#   * spanning row (list of {from,to,...}) -> covered columns share an id;
+#     any uncovered (gap) column becomes its own single-column cell.
+.header_row_coverage <- function(row, kind, ncols) {
+  if (!identical(kind, "spanning")) return(seq_len(ncols))
+  cov <- integer(ncols)
+  k   <- 0L
+  for (cell in row) {
+    f <- as.integer(cell$from); t <- as.integer(cell$to)
+    if (is.na(f) || is.na(t)) next
+    k <- k + 1L
+    cov[f:t] <- k
+  }
+  for (j in seq_len(ncols)) if (cov[j] == 0L) { k <- k + 1L; cov[j] <- k }
+  cov
+}
+
+# Internal cell-break positions of a header row: position b (1..ncols-1) is a
+# boundary when columns b and b+1 belong to different cells.
+.header_row_boundaries <- function(cov) {
+  n <- length(cov)
+  if (n < 2L) return(integer(0))
+  which(cov[-n] != cov[-1L])
+}
+
+# `next_boundaries`: the cell-break positions of the FOLLOWING header row (see
+# .header_row_boundaries).  A multi-column spanning cell receives the group
+# underline only when its column range is broken below -- i.e. some boundary in
+# the next row falls strictly inside the span.  NULL means "unknown" and keeps
+# the legacy behaviour of underlining every multi-column cell.
 .render_spanning_rows <- function(spanning_header, cellx, border_spec,
                                    row_height_twips, pad_l, pad_r, valign_cmd,
                                    col_spec = NULL,
                                    table_align = "left",
-                                   group_bottom_side = NULL) {
+                                   group_bottom_side = NULL,
+                                   next_boundaries = NULL) {
   if (is.null(spanning_header) || length(spanning_header) == 0L) return(character())
   ncols <- length(cellx)
 
@@ -506,7 +540,12 @@
       from_idx  <- as.integer(sp$from)
       to_idx    <- as.integer(sp$to)
       multi_col <- to_idx > from_idx
-      if (multi_col && !is.null(group_bottom_side)) {
+      # Underline a multi-column cell only when the grouping changes below it:
+      # the next header row must break the span somewhere inside [from, to-1].
+      # `next_boundaries = NULL` keeps the legacy "always underline" behaviour.
+      span_broken <- is.null(next_boundaries) ||
+        any(next_boundaries >= from_idx & next_boundaries <= to_idx - 1L)
+      if (multi_col && !is.null(group_bottom_side) && span_broken) {
         if (is.null(eff)) eff <- rtf_border()
         eff <- .merge_rtf_border(eff, rtf_border(bottom = group_bottom_side))
       }
@@ -734,6 +773,15 @@
     zone    <- if (kind == "spanning") span_border else hdr_border
     row_b   <- .header_outer_border(idx, n_hdr_rows, zone)
     if (kind == "spanning") {
+      # Boundaries of the next header row -- used to underline a spanning cell
+      # only where the column grouping actually changes below it.
+      nb <- if (idx < n_hdr_rows) {
+        .header_row_boundaries(
+          .header_row_coverage(header_rows[[idx + 1L]],
+                               header_kind[[idx + 1L]], ncols))
+      } else {
+        integer(0)
+      }
       lines <- c(lines, .render_spanning_rows(
         hdr_row, cellx, row_b, hdr_h, pad_l, pad_r, valign_cmd,
         col_spec = col_spec, table_align = table_align,
@@ -741,7 +789,8 @@
           (hdr_border$bottom %||% span_border$bottom %||% rtf_border_side())
         } else {
           NULL   # last header row's outer frame already supplies the bottom
-        }
+        },
+        next_boundaries = nb
       ))
     } else {
       lines <- c(lines, .render_header_row(
