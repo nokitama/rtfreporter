@@ -1,0 +1,22 @@
+linters: linters_with_defaults(
+    # --- Enabled (kept at defaults) -------------------------------------------
+    # The substance-oriented default linters stay on: assignment_linter
+    # (no `=` for assignment), T_and_F_symbol_linter, equals_na_linter,
+    # seq_linter (1:length()), vector_logic_linter, etc.  These catch real
+    # mistakes and the code already passes them.
+    object_name_linter = object_name_linter(
+      styles = c("snake_case", "symbols", "SNAKE_CASE")   # allow .SCREAMING constants
+    ),
+    # --- Deferred (disabled for now) ------------------------------------------
+    # These are purely stylistic and would require a large, risky reformat that
+    # does not belong in the CI-integration change.  They are intentionally
+    # left for a dedicated formatting pass and can be re-enabled incrementally.
+    line_length_linter    = NULL,  # long aligned arg lists / roxygen @param lines
+    indentation_linter    = NULL,  # noisy with the aligned-continuation style used throughout
+    brace_linter          = NULL,  # brace placement (stylistic)
+    semicolon_linter      = NULL,  # a few compact guard clauses use ';' deliberately
+    commented_code_linter = NULL,  # many comments contain illustrative example code
+    object_usage_linter   = NULL   # cross-file static analysis gives false positives
+  )
+encoding: "UTF-8"
+exclusions: list("tests", "vignettes", "data-raw")

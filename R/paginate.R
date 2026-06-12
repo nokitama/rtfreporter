@@ -393,12 +393,12 @@ paginate.data.frame <- function(x, ...) {
     strat_fn <- switch(split,
       none         = page_split_none(),
       rows         = page_split_rows(split_rows),
-      group_safe   = page_split_group_safe (max_rows, group_col,
-                                             min_group_rows, cont_label),
+      group_safe   = page_split_group_safe(max_rows, group_col,
+                                            min_group_rows, cont_label),
       group_force  = page_split_group_force(max_rows, group_col,
-                                             min_group_rows, cont_label),
-      by_value     = page_split_by_value   (group_col, max_rows,
-                                             min_group_rows, cont_label)
+                                            min_group_rows, cont_label),
+      by_value     = page_split_by_value(group_col, max_rows,
+                                         min_group_rows, cont_label)
     )
     chunks <- strat_fn(x)
   }

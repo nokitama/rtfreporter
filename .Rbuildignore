@@ -31,3 +31,4 @@
 ^CODE_OF_CONDUCT\.md$
 ^rtfreporter-tests$
 ^.*\.Rcheck$
+^\.lintr$

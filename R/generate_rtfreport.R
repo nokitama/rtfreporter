@@ -1532,7 +1532,6 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
 
   cmds     <- .load_rtf_commands()
   doc_cmd  <- cmds$document
-  para_cmd <- cmds$paragraph
 
   # Header/footer band distance from the page edge. Coordinated with the
   # margins -- half the top/bottom margin -- so the header/footer text sits

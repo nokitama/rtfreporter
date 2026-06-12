@@ -177,6 +177,7 @@ green.
 | **test-coverage** | `test-coverage.yaml` | Runs the testthat suite under `covr` and uploads coverage to Codecov. |
 | **pkgdown** | `pkgdown.yaml` | Builds the documentation site and (on `main` / on a published release) deploys it to the `gh-pages` branch. |
 | **version-guard** | `version-guard.yaml` | Fails a PR that raises the **MINOR or MAJOR** position of `DESCRIPTION` `Version:` unless the PR carries the `release` label (see *Versioning & releases*). A PATCH bump or no change always passes. |
+| **lint** | `lint.yaml` | Runs `lintr::lint_package()` and fails on any lint. Scope and rules are set by the repository-root `.lintr` (currently lints `R/` only). |
 
 All three also accept `workflow_dispatch` (run-on-demand from the Actions
 tab).  Releases additionally re-trigger pkgdown on `release: published`.
@@ -280,6 +281,13 @@ view via the Issues tab (filter by `exec:agent`, by milestone, or by type).
 - Two-space indentation, `<-` for assignment, and `snake_case` for
   public functions; internal helpers are prefixed with a dot
   (`.helper_name`).
+- **Lint** with [`lintr`](https://lintr.r-lib.org/): run
+  `lintr::lint_package()` before opening a PR (the **lint** CI workflow runs
+  the same check and must pass). The enforced rule set lives in the
+  repository-root `.lintr`. It is intentionally a baseline: several purely
+  stylistic linters (line length, indentation, braces, ...) are deferred to a
+  future dedicated formatting pass — see the comments in `.lintr` — so adding
+  them back is a follow-up, not a blocker today.
 - See
   [`AGENTS.md`](https://github.com/ichirio/rtfreporter/blob/main/AGENTS.md)
   for the repository layout and the internal architecture, and
