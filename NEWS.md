@@ -1,5 +1,15 @@
 # rtfreporter (development version)
 
+### New features
+
+- Page `orientation` is now authoritative: when set, the long/short page sides
+  are assigned to match it, so `rtf_document(page = list(orientation =
+  "landscape", width_in = 8.27, height_in = 11.69))` (A4 sizes in either order)
+  reliably produces A4 landscape. When `orientation` is omitted it is inferred
+  from the dimensions (`width_in >= height_in` means landscape), and an invalid
+  orientation is now rejected. Applies to `rtf_document(page=)` and
+  `rtf_config(page=)` (#106).
+
 ### Bug fixes
 
 - The automatic spanning-header **group underline** is now drawn only where the

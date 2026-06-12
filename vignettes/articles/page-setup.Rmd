@@ -76,6 +76,18 @@ you omit falls back to its default.
 | `margin_left_in` | Left margin | `0.6` |
 | `margin_right_in` | Right margin | `0.6` |
 
+**`orientation` is authoritative.** The long and short page sides are assigned
+to match it, so you do not have to remember which of `width_in` / `height_in`
+is the larger. Both of these give **A4 landscape** (11.69 × 8.27 in):
+
+```{r a4-landscape, eval = FALSE}
+rtf_document(page = list(orientation = "landscape", width_in = 11.69, height_in = 8.27))
+rtf_document(page = list(orientation = "landscape", width_in =  8.27, height_in = 11.69))
+```
+
+If you omit `orientation`, it is inferred from the dimensions
+(`width_in >= height_in` means landscape).
+
 The default is **landscape US Letter** (11 × 8.5 in), the usual clinical TFL
 page. For a portrait A4 page with wider margins:
 

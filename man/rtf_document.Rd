@@ -20,9 +20,18 @@ the document's colour table (so they are available by index). Default
 `color` are added automatically, so you only need this to declare colours
 you reference elsewhere. Black/white are reserved and added implicitly.}
 
-\item{page}{Optional page settings (orientation, dimensions, margins).
-Default: landscape letter 11x8.5", margins 0.9 inch
-(top/bottom) and 0.6 inch (left/right).}
+\item{page}{Optional page settings as a named list. Recognised keys (all in
+  inches unless noted): `orientation` (`"landscape"` / `"portrait"`),
+  `width_in`, `height_in`, and `margin_top_in` / `margin_bottom_in` /
+  `margin_left_in` / `margin_right_in`. Default: landscape letter 11x8.5",
+  margins 0.9 inch (top/bottom) and 0.6 inch (left/right).
+
+  `orientation` is **authoritative**: the long and short page sides are
+  assigned to match it, so `orientation = "landscape"` always yields a wide
+  page regardless of the order you give `width_in` / `height_in`. For example
+  `list(orientation = "landscape", width_in = 8.27, height_in = 11.69)` (A4
+  sizes) produces A4 landscape. When `orientation` is omitted it is inferred
+  from the dimensions (`width_in >= height_in` means landscape).}
 
 \item{default_format}{Optional document-wide default formatting.}
 }

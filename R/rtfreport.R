@@ -3,6 +3,35 @@
   as.integer(round(x * 1440))
 }
 
+# Make page dimensions agree with the page orientation, so the RTF orientation
+# flag and the paper dimensions never contradict each other.
+#
+#   * orientation = "landscape" -> width is the LONG side, height the short one.
+#   * orientation = "portrait"  -> width is the short side, height the long one.
+#   * orientation = NULL        -> inferred from the dimensions
+#                                  (width >= height => landscape, else portrait).
+#
+# Returns list(orientation, width_twips, height_twips).
+.orient_page <- function(width_twips, height_twips, orientation = NULL) {
+  width_twips  <- as.integer(width_twips)
+  height_twips <- as.integer(height_twips)
+  long  <- max(width_twips, height_twips)
+  short <- min(width_twips, height_twips)
+  if (is.null(orientation)) {
+    orientation <- if (width_twips >= height_twips) "landscape" else "portrait"
+    return(list(orientation = orientation,
+                width_twips = width_twips, height_twips = height_twips))
+  }
+  if (!orientation %in% c("landscape", "portrait")) {
+    stop("`orientation` must be \"landscape\" or \"portrait\".", call. = FALSE)
+  }
+  if (orientation == "landscape") {
+    list(orientation = "landscape", width_twips = long,  height_twips = short)
+  } else {
+    list(orientation = "portrait",  width_twips = short, height_twips = long)
+  }
+}
+
 # Internal utility: merge two named lists (override wins).
 .merge_list <- function(base, override) {
   if (is.null(override)) return(base)

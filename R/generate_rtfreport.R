@@ -1391,10 +1391,18 @@
   }
   if (!is.null(pipe_doc$document$page)) {
     ps <- pipe_doc$document$page
+    # Resolve orientation + dimensions consistently: when an orientation is
+    # given it is authoritative and the long/short sides are assigned to match
+    # it; when omitted, orientation is inferred from the dimensions.
+    op <- .orient_page(
+      .in_to_twips(ps$width_in  %||% 11),
+      .in_to_twips(ps$height_in %||% 8.5),
+      ps$orientation
+    )
     report <- .rtfreport_set_default_page(report, list(
-      orientation         = ps$orientation        %||% "landscape",
-      width_twips         = .in_to_twips(ps$width_in        %||% 11),
-      height_twips        = .in_to_twips(ps$height_in       %||% 8.5),
+      orientation         = op$orientation,
+      width_twips         = op$width_twips,
+      height_twips        = op$height_twips,
       margin_left_twips   = .in_to_twips(ps$margin_left_in  %||% 0.6),
       margin_right_twips  = .in_to_twips(ps$margin_right_in %||% 0.6),
       margin_top_twips    = .in_to_twips(ps$margin_top_in   %||% 0.9),
