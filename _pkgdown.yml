@@ -55,14 +55,15 @@ home:
       devnotes:
         title: Dev stage
         text: |
-          v0.1.0 released; API may still change before v1.0.0.
+          v0.3.4 released (current stable); pre-1.0, the API may still change
+          before v1.0.0.
 
           Roadmap:
 
-          - **v0.1.0** — first public GitHub release, pkgdown site live. (current)
-          - **v0.2.0** — `R CMD check --as-cran` clean, lifted coverage,
-            CRAN submission considered.
-          - **v0.3+**  — `pharmaverse` candidacy; further features.
+          - **v0.4.0** — CRAN-submission preparation (`R CMD check --as-cran`
+            clean, lifted coverage, docs/metadata polish).
+          - **v0.5.0** — CRAN registration.
+          - **v1.0.0** — stable API; `lifecycle: experimental` removed.
       community:
         title: Community
         text: |
