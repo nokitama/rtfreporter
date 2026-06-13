@@ -244,12 +244,17 @@ first) rather than relying on the environment, and can record
 
 ## Colours
 
-Colours are specified where they are used -- on **borders** -- via
-`rtf_border(color = ...)`. rtfreporter then collects every border colour used in
-the report and builds the RTF colour table automatically; you do not maintain a
-palette yourself. For example, a navy rule under a header:
+Colours are given as `"#RRGGBB"` hex strings, and rtfreporter collects every
+colour you reference and builds the RTF colour table automatically -- you never
+maintain a palette. Two things can be coloured, which together cover the usual
+clinical TFL needs.
 
-```{r colors}
+**Borders** -- `rtf_border(color = ...)` / `rtf_border_side(color = ...)`,
+anywhere a border is accepted (column-header rules, the body / first-row /
+last-row zones, spanning headers, and the page header/footer band border). For
+example, a navy rule under a header:
+
+```{r colors-border}
 navy_rule <- rtf_border(bottom = rtf_border_side(color = "#1F4E79"))
 
 doc <- rtf_document() |>
@@ -260,9 +265,22 @@ doc <- rtf_document() |>
   rtf_tables(as_rtftables(df))
 ```
 
-(The `color_table` argument on `rtf_document()` is currently **not** consumed by
-the renderer -- the colour table is derived from the border colours above. See
-the border helpers in the function reference for where colours can be set.)
+**Body (data-cell) text** -- per column via `col_spec`'s `color`, or per cell
+via `cell_styles`'s `color` (which overrides the column colour). Useful, for
+example, to flag an out-of-range value in red:
+
+```{r colors-text}
+doc <- rtf_document() |>
+  rtf_tables(as_rtftables(
+    df,
+    col_spec = list(list(col = 2, color = "#C00000"))   # column 2 text in red
+  ))
+```
+
+**What is not coloured (by design, for now):** cell background / fill, and the
+text of column headers, the page header/footer, titles, and footnotes -- these
+render in the default black. The `color_table` argument on `rtf_document()` only
+pre-declares colours in the table; it does not style anything by itself.
 
 
 ## A complete example
