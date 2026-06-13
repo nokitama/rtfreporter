@@ -66,16 +66,19 @@ element must be one of:
 
 \item{cell_padding_left_twips, cell_padding_right_twips, cell_valign}{Cell layout settings applied to bare `data.frame` elements. See [rtftable()] for details.}
 
-\item{titles}{`NULL` (default) or a list of length `length(tables)`. Each
-element is a character vector -- one element per row of that page's
-title.  Magic tokens \code{"\{HALF_BLANK_ROW\}"} and
-\code{"\{BLANK_ROW\}"} are honoured.  Use `NULL` per element to
-fall back to the default (\code{\{HALF_BLANK_ROW\}} -- one
-half-height blank row).}
+\item{titles}{`NULL` (default) or a list of length `length(tables)` **or
+length 1** (a single block applied to every page). Each element is a
+title **block**: either a character vector (one entry per row, default
+styling) or a list of rows, where a row is a string or a styled
+`list(text=, align=, bold=, italic=, underline=, color=, border=)`. An
+empty string (`""`) is a blank row. The block renders as a single-column
+table the same width as the content (so it lines up); title rows default
+to centred + bold.}
 
-\item{footnotes}{`NULL` (default) or a list of length `length(tables)`.
-Same structure as `titles`; each element becomes one row in the
-footnote block.  Magic tokens supported.}
+\item{footnotes}{`NULL` (default) or a list of length `length(tables)` or
+length 1 (common to all). Same block structure as `titles`; footnote rows
+default to left-aligned, and the first row carries a top rule (the
+separator) unless that row sets its own `border`.}
 
 \item{auto_section}{Logical. When `TRUE` and `tables` is a **named** list,
 each name is used as a per-section heading appended to the common header

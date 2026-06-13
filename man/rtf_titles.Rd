@@ -9,23 +9,23 @@ rtf_titles(doc, titles)
 \arguments{
 \item{doc}{An rtf_document object.}
 
-\item{titles}{A list of length equal to the number of pages.}
+\item{titles}{A list of length = number of pages, or length 1 (common).}
 }
 \value{
 Modified rtf_document.
 }
 \description{
-Replace the per-page title list with the supplied values.  The length of
-`titles` must equal the number of pages already added via [rtf_tables()]
-/ [rtf_figures()].
+Replace the per-page title list with the supplied values.  `titles` must
+have length equal to the number of pages already added via [rtf_tables()] /
+[rtf_figures()], **or length 1** -- a single block is then applied to every
+page (common title).
 }
 \details{
-Each element is a character vector -- one element per row of the title
-block.  Magic tokens \code{"\{HALF_BLANK_ROW\}"} (half-height blank
-row) and \code{"\{BLANK_ROW\}"} (full-height blank row, equivalent
-to `""`) are honoured.
-Pass `NULL` for a single element to fall back to the default of one
-\code{\{HALF_BLANK_ROW\}} row above the content.
+Each element is a title **block**: either a character vector (one entry per
+row, default styling) or a list of rows, where a row is a string or a styled
+`list(text=, align=, bold=, italic=, underline=, color=, border=)`. An empty
+string (`""`) is a blank row. The block renders as a single-column table the
+same width as the content; title rows default to centred + bold.
 }
 \examples{
 \dontrun{

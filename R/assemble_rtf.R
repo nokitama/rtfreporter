@@ -212,16 +212,19 @@ toc_entry <- function(label, file = NULL, level = 2L) {
 
 # ── TOC normalisation ──────────────────────────────────────────────────────
 
-# Extract the first centred-bold title paragraph from rtfreporter's
-# `.render_title_text()` output.  Returns NA if not found within the
-# initial scan window (before any table or picture content).
+# Extract the first centred-bold title from rtfreporter's title block (now a
+# content-width table; see `.render_text_block_table()`).  The title is the
+# first single centred-bold cell, emitted before the content; column headers
+# are not bold by default, so they do not match.  Returns NA if not found
+# within the initial scan window (stops at the first picture / figure).
 .extract_first_title <- function(lines) {
   n_scan <- min(length(lines), 200L)
   for (i in seq_len(n_scan)) {
     line <- lines[i]
-    if (grepl("\\\\trowd|\\\\pict", line, fixed = FALSE)) break
-    # Title row from .render_title_text(): "\pard\qc\b TEXT\b0\par"
-    m <- regexec("\\\\pard\\\\qc\\\\b\\s+(.+?)\\\\b0\\\\par", line)
+    if (grepl("\\\\pict", line, fixed = FALSE)) break
+    # Title cell from .render_text_block_table():
+    #   "...\qc\li0\ri0 \b TEXT\b0 \cell..."
+    m <- regexec("\\\\qc\\\\li[0-9]+\\\\ri[0-9]+\\s+\\\\b\\s+(.+?)\\\\b0", line)
     g <- regmatches(line, m)[[1L]]
     if (length(g) == 2L && nzchar(trimws(g[2L]))) {
       # Reverse the RTF escape: \\ -> \, \{ -> {, \} -> }, \uN? -> char
@@ -488,9 +491,9 @@ toc_entry <- function(label, file = NULL, level = 2L) {
 #' * `NULL` (default) — no TOC, no bookmarks.  Byte-for-byte the
 #'   pre-v0.0.29 behaviour.
 #' * `"auto"` — auto-extract each input file's title (the first
-#'   centred-bold paragraph emitted by `.render_title_text()`) and
-#'   use it as a level-1 TOC entry.  Falls back to the file's
-#'   basename if no title is detected.
+#'   centred-bold cell of the title block) and use it as a level-1
+#'   TOC entry.  Falls back to the file's basename if no title is
+#'   detected.
 #' * A character vector of TOC labels (one per input file) — same as
 #'   `"auto"` but with explicit labels.
 #' * A `list(...)` of `toc_heading()` and `toc_entry()` objects for

@@ -2,6 +2,19 @@
 
 ### New features
 
+- Titles and footnotes are reworked (#117):
+  - They now render as a **single-column table the same width as the content**
+    (table or figure), so the blocks line up with the content above/below
+    instead of spanning the full page width.
+  - `titles` / `footnotes` accept a **length-1** list as well as one-per-page:
+    a single block is applied to **every page** (common title/footnote). Applies
+    to `rtf_titles()`, `rtf_footnotes()`, `rtf_tables()`, and `rtf_figures()`.
+  - **Per-row styling**: a block element may be a styled
+    `list(text=, align=, bold=, italic=, underline=, color=, border=)` (in
+    addition to a plain character vector). Defaults are unchanged (title rows
+    centred + bold; footnote rows left, with a top-rule separator on the first
+    row), and the footnote separator is now overridable per row via `border=`.
+
 - Package defaults are now **configurable options** read through the
   function/`page`-key defaults. Every `rtfreporter.*` default (paper size,
   orientation, margins, font, font size) resolves as: explicit argument >

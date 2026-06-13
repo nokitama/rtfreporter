@@ -9,16 +9,18 @@ rtf_footnotes(doc, footnotes)
 \arguments{
 \item{doc}{An rtf_document object.}
 
-\item{footnotes}{A list of length equal to the number of pages.}
+\item{footnotes}{A list of length = number of pages, or length 1 (common).}
 }
 \value{
 Modified rtf_document.
 }
 \description{
-Same shape as [rtf_titles()]: a list with one element per page, each a
-character vector whose entries become rows of the footnote block.  Magic
-tokens are honoured.  `NULL` per element suppresses the footnote for
-that page.
+Same shape as [rtf_titles()]: a list with one block per page (or length 1,
+common to all). Each block is a character vector or a list of rows (a string
+or `list(text=, align=, bold=, italic=, underline=, color=, border=)`).
+Footnote rows default to left-aligned, and the first row carries a top rule
+(the separator) unless that row sets its own `border`. `NULL` per element
+suppresses the footnote for that page.
 }
 \examples{
 df <- data.frame(A = 1:2, B = c("x", "y"))

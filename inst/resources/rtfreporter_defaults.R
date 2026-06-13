@@ -19,7 +19,7 @@ rtfreporter_defaults <- list(
   #   • Table column-header rows       (rtftable: header_row_height_twips)
   #   • Table data rows                (rtftable: row_height_twips)
   #   • Blank separator rows           (rtftable: blank_row_height_twips)
-  #   • Footnote (1×1) table rows      (page$footnote)
+  #   • Title / footnote block rows    (single-column content-width tables)
   #
   # Looked up by the document's font size, expressed in HALF-POINTS
   # (the unit used by the RTF `\fs` command).

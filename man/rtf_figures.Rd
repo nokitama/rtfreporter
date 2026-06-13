@@ -29,9 +29,9 @@ derived from the image's aspect ratio.}
 \item{align}{Horizontal alignment for bare paths: `"center"` (default),
 `"left"`, or `"right"`.}
 
-\item{titles, footnotes}{Optional lists of length `length(figures)`. See
-[rtf_tables()] for the same semantics -- character vectors per page,
-magic tokens supported.}
+\item{titles, footnotes}{Optional lists of length `length(figures)` or
+length 1 (common to all figures). See [rtf_tables()] for the block
+structure (character vectors or per-row styled lists).}
 }
 \value{
 Modified rtf_document with appended figure contents.

@@ -167,6 +167,9 @@ test_that("group underline only where the column grouping changes below (#102)",
   )
   txt  <- .render_tbl(rtftable(df, col_header = hdr))
   rows <- regmatches(txt, gregexpr("\\\\trowd.*?\\\\row", txt))[[1L]]
+  # Drop the title/footnote block rows (single-column, top-valigned) so the
+  # first rows are the column-header rows.
+  rows <- rows[!grepl("\\\\clvertalt", rows)]
   cnt  <- function(r, pat) {
     m <- gregexpr(pat, r)[[1L]]; if (m[1L] == -1L) 0L else length(m)
   }

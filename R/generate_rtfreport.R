@@ -392,6 +392,33 @@
   cumsum(widths)
 }
 
+# Total rendered width (twips) of a page's content, so the title / footnote
+# block can be drawn as a table of the SAME width as the content above/below it.
+#   * rtftable -> the column total (last cumulative \cellx position).
+#   * rtfplot  -> the figure display width (mirrors .render_rtfplot()).
+#   * otherwise (no content) -> the writable page width.
+.content_width_twips <- function(ct, writable_width_twips) {
+  if (inherits(ct, "rtftable")) {
+    ref_df <- if (!is.null(ct$data_list)) ct$data_list[[1L]] else ct$data
+    ncols  <- ncol(ref_df)
+    if (is.null(ncols) || ncols == 0L) return(as.integer(writable_width_twips))
+    cellx <- .compute_cellx(ncols, writable_width_twips, ct)
+    return(as.integer(cellx[ncols]))
+  }
+  if (inherits(ct, "rtfplot")) {
+    return(as.integer(ct$width_twips %||% min(writable_width_twips, .in_to_twips(9))))
+  }
+  as.integer(writable_width_twips)
+}
+
+# Horizontal placement of the title / footnote table: follow the content so the
+# block sits directly above / below it (table_align for tables, align for plots).
+.content_align <- function(ct) {
+  if (inherits(ct, "rtftable")) return(ct$table_align %||% "left")
+  if (inherits(ct, "rtfplot"))  return(ct$align %||% "center")
+  "left"
+}
+
 # -- Cell content builder -------------------------------------------------------
 
 # Build the content string for one table cell (no \trowd / \cellx, just text+\cell).
@@ -1178,6 +1205,8 @@
   for (pg in report$pages) {
     ct <- pg$content
     if (inherits(ct, "rtftable")) cols <- c(cols, .tbl_colors(ct))
+    cols <- c(cols, .text_block_colors(pg$title,    is_footer = FALSE))
+    cols <- c(cols, .text_block_colors(pg$footnote, is_footer = TRUE))
   }
   cols <- cols[!is.na(cols) & nzchar(cols)]
   # Black / white already occupy the reserved colour-table slots (index 1 / 2),
@@ -1237,63 +1266,112 @@
   writable_width
 }
 
-# -- Title / footnote: plain text paragraphs ---------------------------------
+# -- Title / footnote: content-width tables ----------------------------------
 #
-# Both blocks are rendered as ordinary RTF paragraphs (not tables), inheriting
-# the document font size.  Each element of the input character vector becomes
-# one paragraph (`\par`); an empty string yields a blank paragraph.
+# Both blocks render as a SINGLE-COLUMN table whose width equals the content's
+# rendered width (see .content_width_twips()), so they line up with the content.
+# Each input row becomes one table row.  A block is either:
+#   * a character vector  -- each entry is a row with the block's default style, or
+#   * a list of rows      -- each row a string (default style) or a named list
+#     list(text=, align=, bold=, italic=, underline=, color=, border=).
+# An empty string ("") yields a blank row. (Legacy "{...}" tokens are NOT
+# special -- they render literally, matching the established behaviour.)
 #
-#   title:    centred, bold, no border.  NULL -> one blank paragraph
-#             (so there is always a small visual gap between the page header
-#             and the content).  character(0) -> suppress entirely.
-#
-#   footnote: left-aligned, normal weight; the first paragraph carries a top
-#             border (`\brdrt`) acting as the visual separator from the
-#             content above.  NULL or character(0) -> suppress entirely.
+#   title:    default centre + bold, no border.  NULL -> one blank row (a small
+#             gap between the page header and the content).  character(0) -> none.
+#   footnote: default left, normal weight; the FIRST row carries a top rule
+#             (separator) unless that row sets its own `border`.  NULL /
+#             character(0) -> suppress entirely.
 
-.render_title_text <- function(title, align = "center") {
-  # NULL -> one blank paragraph (the default visual gap).
-  if (is.null(title)) title <- ""
-  if (length(title) == 0L) return(character())
+# Normalize a title/footnote block to a list of resolved row records:
+#   list(text, align, bold, italic, underline, color, border, blank, half)
+.normalize_text_block <- function(block, is_footer) {
+  def_align <- if (is_footer) "left" else "center"
+  def_bold  <- !is_footer
+  if (is.null(block)) {
+    # Title: a single blank gap row. Footnote: nothing.
+    if (is_footer) return(list())
+    block <- ""
+  }
+  if (length(block) == 0L) return(list())
+  rows <- if (is.list(block)) block else as.list(block)
 
-  align_cmd <- switch(align,
-                       left   = "\\ql",
-                       right  = "\\qr",
-                       center = "\\qc",
-                       "\\qc")
-  out <- character()
-  for (line in title) {
-    if (!nzchar(line)) {
-      out <- c(out, paste0("\\pard", align_cmd, "\\par"))
+  out <- lapply(rows, function(r) {
+    if (is.null(r) || (is.character(r) && length(r) == 1L)) {
+      txt <- if (is.null(r)) "" else r
+      rec <- list(text = txt, align = def_align, bold = def_bold,
+                  italic = FALSE, underline = FALSE, color = NULL, border = NULL)
+    } else if (is.list(r)) {
+      rec <- list(
+        text      = r$text %||% "",
+        align     = r$align %||% def_align,
+        bold      = if (is.null(r$bold)) def_bold else isTRUE(r$bold),
+        italic    = isTRUE(r$italic),
+        underline = isTRUE(r$underline),
+        color     = r$color,
+        border    = r$border
+      )
+      if (!is.null(rec$border) && !inherits(rec$border, "rtf_border")) {
+        stop("A title/footnote row `border` must be NULL or an rtf_border() object.",
+             call. = FALSE)
+      }
     } else {
-      txt <- .rtf_escape(line)
-      out <- c(out, paste0("\\pard", align_cmd, "\\b ", txt, "\\b0\\par"))
+      stop("Each title/footnote row must be a string or a named list.",
+           call. = FALSE)
     }
+    # An empty string is a blank row; everything else is literal text.
+    rec$blank <- !nzchar(rec$text)
+    rec
+  })
+
+  # Footnote separator: a top rule on the first row unless it sets its own border.
+  if (is_footer && length(out) >= 1L && is.null(out[[1L]]$border)) {
+    out[[1L]]$border <- rtf_border(top = rtf_border_side(style = "single", width = 15L))
   }
   out
 }
 
-.render_footnote_text <- function(footnote, align = "left") {
-  if (is.null(footnote) || length(footnote) == 0L) return(character())
-
-  align_cmd <- switch(align,
-                       left   = "\\ql",
-                       right  = "\\qr",
-                       center = "\\qc",
-                       "\\ql")
-  out <- character()
-  for (i in seq_along(footnote)) {
-    line <- footnote[[i]]
-    # Paragraph border on the first line only (visual separator from content).
-    brd <- if (i == 1L) "\\brdrt\\brdrs\\brdrw15" else ""
-    if (is.null(line) || !nzchar(line)) {
-      out <- c(out, paste0("\\pard", brd, align_cmd, "\\par"))
-    } else {
-      txt <- .rtf_escape(line)
-      out <- c(out, paste0("\\pard", brd, align_cmd, " ", txt, "\\par"))
-    }
+# Hex colours referenced by a title/footnote block (row text + row borders),
+# for the document colour table.
+.text_block_colors <- function(block, is_footer) {
+  rows <- tryCatch(.normalize_text_block(block, is_footer), error = function(e) list())
+  cols <- character(0)
+  for (rec in rows) {
+    if (!is.null(rec$color)) cols <- c(cols, rec$color)
+    if (!is.null(rec$border)) cols <- c(cols, .collect_border_colors(rec$border))
   }
-  out
+  cols
+}
+
+# Render a title/footnote block as a single-column, content-width table.
+.render_text_block_table <- function(block, total_width_twips, is_footer,
+                                      font_half_points, pad_l, pad_r,
+                                      valign_cmd, table_align,
+                                      color_index_map = NULL) {
+  rows <- .normalize_text_block(block, is_footer)
+  if (length(rows) == 0L) return(character())
+
+  full_h <- .default_row_height_twips(font_half_points)
+  cellx  <- as.integer(total_width_twips)
+
+  vapply(rows, function(rec) {
+    cell_def <- paste0(.build_border_commands(rec$border, color_index_map),
+                       valign_cmd, "\\cellx", cellx)
+    if (isTRUE(rec$blank)) {
+      content <- .build_cell_content("", rec$align, FALSE, FALSE, FALSE,
+                                     0L, pad_l, pad_r)
+      rh <- full_h
+    } else {
+      color_idx <- if (!is.null(rec$color) && !is.null(color_index_map))
+                     color_index_map[[rec$color]] else NULL
+      txt <- .format_cell_text(rec$text)
+      content <- .build_cell_content(txt, rec$align, isTRUE(rec$bold),
+                                     isTRUE(rec$italic), isTRUE(rec$underline),
+                                     0L, pad_l, pad_r, color_idx)
+      rh <- full_h
+    }
+    .build_row(cell_def, content, rh, table_align)
+  }, character(1L))
 }
 
 # Build the RTF color table string from a character vector of hex colors.
@@ -1692,8 +1770,19 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
       # -- Content (single rtftable or rtfplot) -----------------------------
       ct <- page$content
 
-      # -- Title (plain centred paragraphs; NULL -> one blank line) ----------
-      lines <- c(lines, .render_title_text(page$title, align = "center"))
+      # Title / footnote render as content-width tables (one row per line),
+      # so they align with the content above/below (see .render_text_block_table).
+      content_w     <- .content_width_twips(ct, writable_w)
+      content_align <- .content_align(ct)
+      tf_defaults   <- .load_rtfreporter_defaults()
+      tf_pad_l      <- as.integer(tf_defaults$default_cell_padding_left_twips  %||% 0L)
+      tf_pad_r      <- as.integer(tf_defaults$default_cell_padding_right_twips %||% 0L)
+      tf_valign     <- "\\clvertalt"
+
+      # -- Title (default centre + bold; NULL -> one blank gap row) ----------
+      lines <- c(lines, .render_text_block_table(
+        page$title, content_w, is_footer = FALSE, font_half_points,
+        tf_pad_l, tf_pad_r, tf_valign, content_align, color_index_map))
       if (!is.null(ct)) {
         if (inherits(ct, "rtftable")) {
           lines <- c(lines, .render_rtftable(ct, writable_w, font_half_points,
@@ -1703,10 +1792,10 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
         }
       }
 
-      # -- Footnote (plain left-aligned paragraphs, top border on row 1) ---
-      if (!is.null(page$footnote) && length(page$footnote) > 0L) {
-        lines <- c(lines, .render_footnote_text(page$footnote, align = "left"))
-      }
+      # -- Footnote (default left; first row carries the separator top rule) -
+      lines <- c(lines, .render_text_block_table(
+        page$footnote, content_w, is_footer = TRUE, font_half_points,
+        tf_pad_l, tf_pad_r, tf_valign, content_align, color_index_map))
 
       # Page break between pages; section break between sections.
       # When per-page sections are in effect, ALL sub-page boundaries

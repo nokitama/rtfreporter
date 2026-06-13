@@ -234,15 +234,18 @@ rtf_config <- function(doc, font_table = NULL, color_table = NULL, page = NULL,
 #' @param col_header,col_header_align,spanning_header,col_spec,row_title,border,blank_rows,read_attributes,style Per-table content settings applied to bare `data.frame` elements. `row_title` names the row-heading columns (default: column 1) and sets the per-column default alignment (heading columns left, others centre). See [rtftable()] for details.
 #' @param row_height_twips,row_height_exact,header_row_height_twips,blank_row_height_twips Row-height settings applied to bare `data.frame` elements. See [rtftable()] for details.
 #' @param cell_padding_left_twips,cell_padding_right_twips,cell_valign Cell layout settings applied to bare `data.frame` elements. See [rtftable()] for details.
-#' @param titles `NULL` (default) or a list of length `length(tables)`. Each
-#'   element is a character vector -- one element per row of that page's
-#'   title.  Magic tokens \code{"\{HALF_BLANK_ROW\}"} and
-#'   \code{"\{BLANK_ROW\}"} are honoured.  Use `NULL` per element to
-#'   fall back to the default (\code{\{HALF_BLANK_ROW\}} -- one
-#'   half-height blank row).
-#' @param footnotes `NULL` (default) or a list of length `length(tables)`.
-#'   Same structure as `titles`; each element becomes one row in the
-#'   footnote block.  Magic tokens supported.
+#' @param titles `NULL` (default) or a list of length `length(tables)` **or
+#'   length 1** (a single block applied to every page). Each element is a
+#'   title **block**: either a character vector (one entry per row, default
+#'   styling) or a list of rows, where a row is a string or a styled
+#'   `list(text=, align=, bold=, italic=, underline=, color=, border=)`. An
+#'   empty string (`""`) is a blank row. The block renders as a single-column
+#'   table the same width as the content (so it lines up); title rows default
+#'   to centred + bold.
+#' @param footnotes `NULL` (default) or a list of length `length(tables)` or
+#'   length 1 (common to all). Same block structure as `titles`; footnote rows
+#'   default to left-aligned, and the first row carries a top rule (the
+#'   separator) unless that row sets its own `border`.
 #' @param auto_section Logical. When `TRUE` and `tables` is a **named** list,
 #'   each name is used as a per-section heading appended to the common header
 #'   defined by `rtf_section(secinfo = ...)` (called without a `page` argument).
@@ -485,8 +488,9 @@ rtf_tables <- function(doc, tables,
     if (!is.list(x)) {
       stop(sprintf("`%s` must be a list (or NULL).", name), call. = FALSE)
     }
+    if (length(x) == 1L && n > 1L) return(rep(x, n))  # one block = common to all
     if (length(x) != n) {
-      stop(sprintf("`%s` must have length %d (= length(tables)).",
+      stop(sprintf("`%s` must have length %d (= length(tables)) or 1 (common to all).",
                    name, n), call. = FALSE)
     }
     x
@@ -543,9 +547,9 @@ rtf_tables <- function(doc, tables,
 #'   derived from the image's aspect ratio.
 #' @param align Horizontal alignment for bare paths: `"center"` (default),
 #'   `"left"`, or `"right"`.
-#' @param titles,footnotes Optional lists of length `length(figures)`. See
-#'   [rtf_tables()] for the same semantics -- character vectors per page,
-#'   magic tokens supported.
+#' @param titles,footnotes Optional lists of length `length(figures)` or
+#'   length 1 (common to all figures). See [rtf_tables()] for the block
+#'   structure (character vectors or per-row styled lists).
 #'
 #' @return Modified rtf_document with appended figure contents.
 #'
@@ -588,8 +592,9 @@ rtf_figures <- function(doc, figures,
     if (is.null(x)) return(rep(list(NULL), n))
     if (!is.list(x))
       stop(sprintf("`%s` must be a list (or NULL).", name), call. = FALSE)
+    if (length(x) == 1L && n > 1L) return(rep(x, n))  # one block = common to all
     if (length(x) != n)
-      stop(sprintf("`%s` must have length %d (= length(figures)).",
+      stop(sprintf("`%s` must have length %d (= length(figures)) or 1 (common to all).",
                    name, n), call. = FALSE)
     x
   }
@@ -609,19 +614,19 @@ rtf_figures <- function(doc, figures,
 
 #' Assign content titles to pages
 #'
-#' Replace the per-page title list with the supplied values.  The length of
-#' `titles` must equal the number of pages already added via [rtf_tables()]
-#' / [rtf_figures()].
+#' Replace the per-page title list with the supplied values.  `titles` must
+#' have length equal to the number of pages already added via [rtf_tables()] /
+#' [rtf_figures()], **or length 1** -- a single block is then applied to every
+#' page (common title).
 #'
-#' Each element is a character vector -- one element per row of the title
-#' block.  Magic tokens \code{"\{HALF_BLANK_ROW\}"} (half-height blank
-#' row) and \code{"\{BLANK_ROW\}"} (full-height blank row, equivalent
-#' to `""`) are honoured.
-#' Pass `NULL` for a single element to fall back to the default of one
-#' \code{\{HALF_BLANK_ROW\}} row above the content.
+#' Each element is a title **block**: either a character vector (one entry per
+#' row, default styling) or a list of rows, where a row is a string or a styled
+#' `list(text=, align=, bold=, italic=, underline=, color=, border=)`. An empty
+#' string (`""`) is a blank row. The block renders as a single-column table the
+#' same width as the content; title rows default to centred + bold.
 #'
 #' @param doc An rtf_document object.
-#' @param titles A list of length equal to the number of pages.
+#' @param titles A list of length = number of pages, or length 1 (common).
 #'
 #' @return Modified rtf_document.
 #'
@@ -647,9 +652,10 @@ rtf_titles <- function(doc, titles) {
   if (!is.list(titles)) {
     stop("`titles` must be a list (one element per page).", call. = FALSE)
   }
+  if (length(titles) == 1L && n > 1L) titles <- rep(titles, n)  # common to all
   if (length(titles) != n) {
-    stop(sprintf("`titles` must have length %d (= number of pages).", n),
-         call. = FALSE)
+    stop(sprintf("`titles` must have length %d (= number of pages) or 1 (common to all).",
+                 n), call. = FALSE)
   }
   doc_copy <- doc
   doc_copy$titles <- titles
@@ -658,13 +664,15 @@ rtf_titles <- function(doc, titles) {
 
 #' Assign content footnotes to pages
 #'
-#' Same shape as [rtf_titles()]: a list with one element per page, each a
-#' character vector whose entries become rows of the footnote block.  Magic
-#' tokens are honoured.  `NULL` per element suppresses the footnote for
-#' that page.
+#' Same shape as [rtf_titles()]: a list with one block per page (or length 1,
+#' common to all). Each block is a character vector or a list of rows (a string
+#' or `list(text=, align=, bold=, italic=, underline=, color=, border=)`).
+#' Footnote rows default to left-aligned, and the first row carries a top rule
+#' (the separator) unless that row sets its own `border`. `NULL` per element
+#' suppresses the footnote for that page.
 #'
 #' @param doc An rtf_document object.
-#' @param footnotes A list of length equal to the number of pages.
+#' @param footnotes A list of length = number of pages, or length 1 (common).
 #'
 #' @return Modified rtf_document.
 #'
@@ -686,9 +694,10 @@ rtf_footnotes <- function(doc, footnotes) {
   if (!is.list(footnotes)) {
     stop("`footnotes` must be a list (one element per page).", call. = FALSE)
   }
+  if (length(footnotes) == 1L && n > 1L) footnotes <- rep(footnotes, n)  # common to all
   if (length(footnotes) != n) {
-    stop(sprintf("`footnotes` must have length %d (= number of pages).", n),
-         call. = FALSE)
+    stop(sprintf("`footnotes` must have length %d (= number of pages) or 1 (common to all).",
+                 n), call. = FALSE)
   }
   doc_copy <- doc
   doc_copy$footnotes <- footnotes

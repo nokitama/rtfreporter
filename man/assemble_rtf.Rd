@@ -89,9 +89,9 @@ Any field that is `NULL` or empty is skipped.
 * `NULL` (default) — no TOC, no bookmarks.  Byte-for-byte the
   pre-v0.0.29 behaviour.
 * `"auto"` — auto-extract each input file's title (the first
-  centred-bold paragraph emitted by `.render_title_text()`) and
-  use it as a level-1 TOC entry.  Falls back to the file's
-  basename if no title is detected.
+  centred-bold cell of the title block) and use it as a level-1
+  TOC entry.  Falls back to the file's basename if no title is
+  detected.
 * A character vector of TOC labels (one per input file) — same as
   `"auto"` but with explicit labels.
 * A `list(...)` of `toc_heading()` and `toc_entry()` objects for

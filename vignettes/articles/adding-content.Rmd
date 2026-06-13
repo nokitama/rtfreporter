@@ -126,9 +126,15 @@ figure objects are never modified.)
 
 ## Titles and footnotes
 
-Each page can carry a title block and a footnote block. Pass `titles` /
-`footnotes` as lists parallel to the content (one element per page; each a
-character vector, one line per element). Use `NULL` for a page with none:
+Each page can carry a title block and a footnote block. Each block renders as a
+single-column table **the same width as the content**, so titles and footnotes
+line up with the table or figure above/below them. One block element becomes one
+row. Title rows default to centred + bold; footnote rows default to left, and
+the footnote's first row carries a top rule as the separator. Use `NULL` for a
+page with none.
+
+Pass `titles` / `footnotes` as lists parallel to the content (one element per
+page):
 
 ```{r titles}
 doc <- rtf_document() |>
@@ -141,10 +147,43 @@ doc <- rtf_document() |>
   )
 ```
 
-You can also set them after the content with `rtf_titles()` / `rtf_footnotes()`.
-(When the content comes from a `gt` table via `as_rtftables()`, its title and
-source notes flow through automatically -- see
-[Importing tables](importing-tables.html).)
+### Common (one block for every page)
+
+If you pass a **length-1** list, that single block is applied to every page --
+handy for a footnote that repeats on all pages:
+
+```{r titles-common}
+doc <- rtf_document() |>
+  rtf_tables(list(df1, df2),
+             footnotes = list(c("Confidential", "Source: ADSL")))   # on both pages
+```
+
+### Per-row styling
+
+A block can be a plain character vector (default styling) **or** a list of rows,
+where each row is a string or a styled list with any of `align`, `bold`,
+`italic`, `underline`, `color` (a `"#RRGGBB"` hex), and `border` (an
+[rtf_border()] -- e.g. to recolour or remove the footnote separator):
+
+```{r titles-styled}
+doc <- rtf_document() |>
+  rtf_tables(
+    list(df1),
+    titles    = list(list(
+      "Table 14.1.1",
+      list(text = "Provisional", italic = TRUE, color = "#C00000")
+    )),
+    footnotes = list(list(
+      list(text = "Source: ADSL", border = rtf_border(top = rtf_border_side()))
+    ))
+  )
+```
+
+You can also set blocks after the content with `rtf_titles()` /
+`rtf_footnotes()` (both accept a per-page list or a single common block). When
+the content comes from a `gt` table via `as_rtftables()`, its title and source
+notes flow through automatically -- see
+[Importing tables](importing-tables.html).
 
 
 ## Figures
