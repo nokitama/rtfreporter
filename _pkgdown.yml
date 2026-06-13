@@ -162,6 +162,16 @@ reference:
       - generate_rtfreport
       - print.rtf_document
 
+  # ── 1b. Package defaults / configuration ───────────────────────────────
+  - title: Package defaults
+    desc: >
+      Inspect and reset the configurable `rtfreporter.*` option defaults
+      (paper size, orientation, margins, font, font size). A site can set
+      its own values in `Rprofile.site`; see the page-setup article.
+    contents:
+      - rtfreporter_options
+      - rtfreporter_reset_defaults
+
   # ── 2. Sections: headers & footers ─────────────────────────────────────
   - title: Sections — headers & footers
     desc: >

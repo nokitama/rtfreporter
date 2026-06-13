@@ -1,3 +1,7 @@
+# Package defaults / configuration
+export(rtfreporter_options)
+export(rtfreporter_reset_defaults)
+
 # Pipe Composition API (primary public API)
 export(rtf_document)
 export(rtf_config)

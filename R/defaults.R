@@ -1,0 +1,89 @@
+# ============================================================================
+#  Package-wide configurable defaults
+# ============================================================================
+#
+#  Defaults are exposed as ordinary R options under the `rtfreporter.*`
+#  namespace.  The single source of truth is `.rtfreporter_factory_defaults()`;
+#  `.onLoad()` (R/zzz.R) seeds any option not already set, so a site can set its
+#  own values in `Rprofile.site` (or a project `.Rprofile`) and they take
+#  precedence -- they are present before the package loads, so the seeding step
+#  leaves them untouched.
+#
+#  Resolution precedence used throughout the package (highest wins):
+#    1. an explicit function argument / `page` key,
+#    2. the option value (`getOption("rtfreporter.<key>")`), and
+#    3. the factory default.
+#
+#  Reproducibility note (clinical / CRAN): because option values can change the
+#  output of identical code, a validated run should pin the configuration
+#  explicitly in the script.  `rtfreporter_options()` returns a snapshot of the
+#  resolved values for the audit trail, and `rtfreporter_reset_defaults()`
+#  restores the factory baseline at any time.
+# ----------------------------------------------------------------------------
+
+# The factory baseline. The ONLY place package default values are defined.
+# Header/footer band distances are deliberately absent: when unset they are
+# derived as half the top / bottom margin (see the renderer). A site may still
+# set `rtfreporter.page.header_dist_in` / `.footer_dist_in` to pin them.
+.rtfreporter_factory_defaults <- function() {
+  list(
+    rtfreporter.page.paper_size       = "letter",
+    rtfreporter.page.orientation      = "landscape",
+    rtfreporter.page.margin_top_in    = 0.9,
+    rtfreporter.page.margin_bottom_in = 0.9,
+    rtfreporter.page.margin_left_in   = 0.6,
+    rtfreporter.page.margin_right_in  = 0.6,
+    rtfreporter.font                  = "Courier",
+    rtfreporter.font_size_half_points = 18L
+  )
+}
+
+# Internal accessor: the resolved value of one default (option, else factory).
+.opt <- function(name) {
+  getOption(name, .rtfreporter_factory_defaults()[[name]])
+}
+
+#' Inspect the active rtfreporter defaults
+#'
+#' Returns a named list of the currently **resolved** `rtfreporter.*` default
+#' values -- the option value where one is set (e.g. in `Rprofile.site`),
+#' otherwise the factory baseline. Use it to record the configuration a report
+#' was generated under (a useful audit trail for validated/reproducible runs).
+#'
+#' @return A named list of resolved default values.
+#'
+#' @seealso [rtfreporter_reset_defaults()] to restore the factory baseline.
+#'
+#' @examples
+#' rtfreporter_options()
+#'
+#' @export
+rtfreporter_options <- function() {
+  nms <- names(.rtfreporter_factory_defaults())
+  out <- lapply(nms, .opt)
+  names(out) <- nms
+  out
+}
+
+#' Restore the factory default options
+#'
+#' Re-applies the package's factory baseline to every `rtfreporter.*` option,
+#' discarding any site or session overrides. Use this to recover a known state
+#' if a configuration has been changed in error.
+#'
+#' @return Invisibly, the factory default list that was applied.
+#'
+#' @seealso [rtfreporter_options()] to inspect the active values.
+#'
+#' @examples
+#' old <- options(rtfreporter.font = "Arial")
+#' rtfreporter_reset_defaults()       # back to "Courier"
+#' getOption("rtfreporter.font")
+#' options(old)
+#'
+#' @export
+rtfreporter_reset_defaults <- function() {
+  fd <- .rtfreporter_factory_defaults()
+  options(fd)
+  invisible(fd)
+}

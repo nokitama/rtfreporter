@@ -2,6 +2,21 @@
 
 ### New features
 
+- Package defaults are now **configurable options** read through the
+  function/`page`-key defaults. Every `rtfreporter.*` default (paper size,
+  orientation, margins, font, font size) resolves as: explicit argument >
+  `getOption("rtfreporter.*")` > factory baseline. A site can set its own
+  defaults in `Rprofile.site` -- e.g. `options(rtfreporter.font = "Arial")` --
+  and every report inherits them, while the `rtfreporter.*` keys remain a single
+  source of truth seeded at load. New helpers `rtfreporter_options()` (snapshot
+  the resolved configuration, useful as an audit trail) and
+  `rtfreporter_reset_defaults()` (restore the factory baseline) (#111).
+
+- The header/footer band distance is now an **explicit** page setting,
+  `header_dist_in` / `footer_dist_in` (or the matching `rtfreporter.page.*`
+  options), instead of being computed silently. When left unset it still
+  defaults to half the top/bottom margin, preserving previous output (#111).
+
 - Page geometry gains a `paper_size` preset key: `page = list(paper_size =
   "A4")` selects a named size (`"letter"`, `"legal"`, `"A4"`, `"A3"`, `"A5"`,
   case-insensitive) and orients it (`paper_size = "A4"` is A4 landscape in one
