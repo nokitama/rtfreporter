@@ -1395,15 +1395,22 @@
     # .resolve_page_geometry(): explicit dimensions win and orientation is
     # inferred from them; otherwise a paper_size preset is oriented to match).
     op <- .resolve_page_geometry(ps)
-    report <- .rtfreport_set_default_page(report, list(
+    pg <- list(
       orientation         = op$orientation,
       width_twips         = op$width_twips,
       height_twips        = op$height_twips,
-      margin_left_twips   = .in_to_twips(ps$margin_left_in  %||% 0.6),
-      margin_right_twips  = .in_to_twips(ps$margin_right_in %||% 0.6),
-      margin_top_twips    = .in_to_twips(ps$margin_top_in   %||% 0.9),
-      margin_bottom_twips = .in_to_twips(ps$margin_bottom_in %||% 0.9)
-    ))
+      margin_left_twips   = .in_to_twips(ps$margin_left_in  %||% .opt("rtfreporter.page.margin_left_in")),
+      margin_right_twips  = .in_to_twips(ps$margin_right_in %||% .opt("rtfreporter.page.margin_right_in")),
+      margin_top_twips    = .in_to_twips(ps$margin_top_in   %||% .opt("rtfreporter.page.margin_top_in")),
+      margin_bottom_twips = .in_to_twips(ps$margin_bottom_in %||% .opt("rtfreporter.page.margin_bottom_in"))
+    )
+    # Explicit header/footer band distance (page key wins over option); left
+    # unset here means "derive as half the margin" at the emission step below.
+    hd <- ps$header_dist_in %||% getOption("rtfreporter.page.header_dist_in")
+    if (!is.null(hd)) pg$header_dist_twips <- .in_to_twips(hd)
+    fd <- ps$footer_dist_in %||% getOption("rtfreporter.page.footer_dist_in")
+    if (!is.null(fd)) pg$footer_dist_twips <- .in_to_twips(fd)
+    report <- .rtfreport_set_default_page(report, pg)
   }
   if (!is.null(pipe_doc$document$default_format)) {
     report <- .rtfreport_set_default_format(report, pipe_doc$document$default_format)
@@ -1537,12 +1544,15 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
   cmds     <- .load_rtf_commands()
   doc_cmd  <- cmds$document
 
-  # Header/footer band distance from the page edge. Coordinated with the
-  # margins -- half the top/bottom margin -- so the header/footer text sits
-  # inside the margin area instead of at the RTF/Word built-in default
-  # (720 twips), which can land outside the body and look misplaced.
-  header_dist_twips <- max(0L, as.integer(page_defaults$margin_top_twips    %||% 1440L) %/% 2L)
-  footer_dist_twips <- max(0L, as.integer(page_defaults$margin_bottom_twips %||% 1440L) %/% 2L)
+  # Header/footer band distance from the page edge. When set explicitly (page
+  # key `header_dist_in`/`footer_dist_in` or the matching option) that value is
+  # used; otherwise it is derived as half the top/bottom margin so the
+  # header/footer text sits inside the margin area instead of at the RTF/Word
+  # built-in default (720 twips), which can land outside the body.
+  header_dist_twips <- page_defaults$header_dist_twips %||%
+    max(0L, as.integer(page_defaults$margin_top_twips    %||% 1440L) %/% 2L)
+  footer_dist_twips <- page_defaults$footer_dist_twips %||%
+    max(0L, as.integer(page_defaults$margin_bottom_twips %||% 1440L) %/% 2L)
 
   total_pages     <- length(report$pages)
   doc_colors      <- .collect_report_colors(report)
@@ -1576,7 +1586,8 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
   # document-level \fs, so the viewer falls back to its built-in default
   # (typically \fs24 = 12 pt).  Prepending the same \fs here keeps the
   # font size consistent with the body text.
-  font_half_points <- as.integer(doc$default_format$font_size_half_points %||% 18L)
+  font_half_points <- as.integer(doc$default_format$font_size_half_points %||%
+                                    .opt("rtfreporter.font_size_half_points"))
   fs_cmd           <- paste0("\\fs", font_half_points)
 
   # Resolve sections (sorted, with from_page / to_page assigned).

@@ -309,24 +309,30 @@ rtf_footer <- function(rows,
                            color_table    = NULL,
                            default_page   = NULL,
                            default_format = NULL) {
-  if (is.null(font_table))  font_table  <- list(list(name = "Courier"))
+  if (is.null(font_table))  font_table  <- list(list(name = .opt("rtfreporter.font")))
   if (is.null(color_table)) color_table <- c("#000000")
   if (is.null(default_page)) {
+    # Resolve the default geometry from the configurable page options (single
+    # source of truth: .rtfreporter_factory_defaults()).
+    geo <- .resolve_page_geometry(list(
+      paper_size  = .opt("rtfreporter.page.paper_size"),
+      orientation = .opt("rtfreporter.page.orientation")
+    ))
     default_page <- list(
-      paper               = "letter",
-      orientation         = "landscape",
-      width_twips         = .in_to_twips(11),
-      height_twips        = .in_to_twips(8.5),
-      margin_top_twips    = .in_to_twips(0.9),
-      margin_bottom_twips = .in_to_twips(0.9),
-      margin_left_twips   = .in_to_twips(0.6),
-      margin_right_twips  = .in_to_twips(0.6)
+      paper               = .opt("rtfreporter.page.paper_size"),
+      orientation         = geo$orientation,
+      width_twips         = geo$width_twips,
+      height_twips        = geo$height_twips,
+      margin_top_twips    = .in_to_twips(.opt("rtfreporter.page.margin_top_in")),
+      margin_bottom_twips = .in_to_twips(.opt("rtfreporter.page.margin_bottom_in")),
+      margin_left_twips   = .in_to_twips(.opt("rtfreporter.page.margin_left_in")),
+      margin_right_twips  = .in_to_twips(.opt("rtfreporter.page.margin_right_in"))
     )
   }
   if (is.null(default_format)) {
     default_format <- list(
       font_index            = 0L,
-      font_size_half_points = 18L,
+      font_size_half_points = as.integer(.opt("rtfreporter.font_size_half_points")),
       line_spacing          = 1L
     )
   }

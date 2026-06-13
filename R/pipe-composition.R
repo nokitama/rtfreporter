@@ -38,10 +38,16 @@
 #'   you reference elsewhere. Black/white are reserved and added implicitly.
 #' @param page Optional page settings as a named list. Recognised keys (all in
 #'   inches unless noted): `paper_size` (a named preset, see below),
-#'   `orientation` (`"landscape"` / `"portrait"`), `width_in`, `height_in`, and
-#'   `margin_top_in` / `margin_bottom_in` / `margin_left_in` / `margin_right_in`.
-#'   Default: landscape letter, margins 0.9 inch (top/bottom) and 0.6 inch
-#'   (left/right).
+#'   `orientation` (`"landscape"` / `"portrait"`), `width_in`, `height_in`,
+#'   `margin_top_in` / `margin_bottom_in` / `margin_left_in` / `margin_right_in`,
+#'   and `header_dist_in` / `footer_dist_in` (distance of the header/footer band
+#'   from the page edge; when omitted, each defaults to half the corresponding
+#'   top/bottom margin). Default: landscape letter, margins 0.9 inch
+#'   (top/bottom) and 0.6 inch (left/right).
+#'
+#'   These defaults are read from the `rtfreporter.*` options, so a site can
+#'   change them in `Rprofile.site` (see [rtfreporter_options()]); an explicit
+#'   key here always wins.
 #'
 #'   `paper_size` selects a named preset (case-insensitive): `"letter"`
 #'   (8.5x11"), `"legal"` (8.5x14"), `"A4"` (210x297mm), `"A3"`, `"A5"`. So
@@ -76,17 +82,17 @@ rtf_document <- function(font_table = NULL, color_table = NULL, page = NULL,
   # orientation from the dimensions when it is omitted (see .orient_page()).
   if (is.null(page)) {
     page <- list(
-      paper_size = "letter",
-      orientation = "landscape",
-      margin_top_in = 0.9,
-      margin_bottom_in = 0.9,
-      margin_left_in = 0.6,
-      margin_right_in = 0.6
+      paper_size       = .opt("rtfreporter.page.paper_size"),
+      orientation      = .opt("rtfreporter.page.orientation"),
+      margin_top_in    = .opt("rtfreporter.page.margin_top_in"),
+      margin_bottom_in = .opt("rtfreporter.page.margin_bottom_in"),
+      margin_left_in   = .opt("rtfreporter.page.margin_left_in"),
+      margin_right_in  = .opt("rtfreporter.page.margin_right_in")
     )
   }
 
   if (is.null(font_table)) {
-    font_table <- list(list(name = "Courier"))
+    font_table <- list(list(name = .opt("rtfreporter.font")))
   }
 
   if (is.null(color_table)) {

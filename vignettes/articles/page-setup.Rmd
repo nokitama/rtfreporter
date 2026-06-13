@@ -89,10 +89,12 @@ you omit falls back to its default.
 | `margin_bottom_in` | Bottom margin | `0.9` |
 | `margin_left_in` | Left margin | `0.6` |
 | `margin_right_in` | Right margin | `0.6` |
+| `header_dist_in` | Header band distance from page edge | half `margin_top_in` |
+| `footer_dist_in` | Footer band distance from page edge | half `margin_bottom_in` |
 
-The header/footer band distances (`\headery` / `\footery` in the RTF) are
-**derived automatically** as half the top / bottom margin, so they are not keys
-you set here.
+The header/footer band distances (`\headery` / `\footery` in the RTF) default to
+**half the top / bottom margin**, so the band sits inside the margin. Set
+`header_dist_in` / `footer_dist_in` to pin them explicitly.
 
 **Pick a paper size by name.** For the common case, `paper_size` + `orientation`
 is easier than remembering inch dimensions. One line gives **A4 landscape**:
@@ -207,6 +209,37 @@ doc <- rtf_document() |>
 Cell padding (the gap between the cell border and its text) defaults to `0`
 (text sits flush against the border, the typical clinical look) and is likewise
 configurable per table via `cell_padding_left_twips` / `cell_padding_right_twips`.
+
+
+## Site-wide defaults
+
+The document-level defaults above (paper size, orientation, margins, font, font
+size) are read from `rtfreporter.*` **options**, resolved as: an explicit
+argument you pass wins, otherwise the option value, otherwise the built-in
+factory baseline. So a site or organisation can set its house style once -- for
+example in `Rprofile.site` -- and every report inherits it without changing any
+script:
+
+```{r site-defaults, eval = FALSE}
+options(
+  rtfreporter.font              = "Arial",
+  rtfreporter.page.paper_size   = "A4",
+  rtfreporter.page.margin_top_in = 1.0
+)
+```
+
+Inspect the values a report will use, and restore the factory baseline, with:
+
+```{r defaults-helpers, eval = FALSE}
+rtfreporter_options()        # snapshot of the resolved defaults (audit trail)
+rtfreporter_reset_defaults() # discard any overrides, back to the factory values
+```
+
+**Reproducibility note.** Because options can change the output of identical
+code, a validated or reproducible run should pin the configuration *in the
+script* (pass the settings explicitly, or call `rtfreporter_reset_defaults()`
+first) rather than relying on the environment, and can record
+`rtfreporter_options()` alongside the output as an audit trail.
 
 
 ## Colours
