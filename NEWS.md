@@ -2,6 +2,17 @@
 
 ### New features
 
+- Page geometry gains a `paper_size` preset key: `page = list(paper_size =
+  "A4")` selects a named size (`"letter"`, `"legal"`, `"A4"`, `"A3"`, `"A5"`,
+  case-insensitive) and orients it (`paper_size = "A4"` is A4 landscape in one
+  line). Geometry resolution is also rationalized: explicit `width_in` /
+  `height_in` now **win and are used as given**, with the orientation *inferred*
+  from them; an `orientation` that contradicts the dimensions warns and the
+  dimensions are kept (this **supersedes** the #106 behaviour where orientation
+  re-oriented the given dimensions). A `paper_size` supplied alongside explicit
+  dimensions is ignored with a warning. Applies to `rtf_document(page=)` and
+  `rtf_config(page=)` (#110).
+
 - `rtf_config()` now **merges `page` and `default_format` per key** instead of
   replacing the whole block, so changing only the paper size (for example
   `rtf_config(page = list(width_in = 11.69, height_in = 8.27))`) keeps the

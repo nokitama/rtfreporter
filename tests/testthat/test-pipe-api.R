@@ -7,8 +7,10 @@ test_that("rtf_document() returns the expected S3 structure with defaults", {
   expect_setequal(names(doc),
                   c("document", "contents", "titles", "footnotes", "sections"))
   expect_identical(doc$document$page$orientation, "landscape")
-  expect_identical(doc$document$page$width_in, 11)
-  expect_identical(doc$document$page$height_in, 8.5)
+  # The default page now carries a named size; dimensions come from the preset.
+  expect_identical(doc$document$page$paper_size, "letter")
+  expect_null(doc$document$page$width_in)
+  expect_null(doc$document$page$height_in)
 })
 
 test_that("rtf_config() returns an updated copy without mutating the original", {

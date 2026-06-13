@@ -37,17 +37,24 @@
 #'   `color` are added automatically, so you only need this to declare colours
 #'   you reference elsewhere. Black/white are reserved and added implicitly.
 #' @param page Optional page settings as a named list. Recognised keys (all in
-#'   inches unless noted): `orientation` (`"landscape"` / `"portrait"`),
-#'   `width_in`, `height_in`, and `margin_top_in` / `margin_bottom_in` /
-#'   `margin_left_in` / `margin_right_in`. Default: landscape letter 11x8.5",
-#'   margins 0.9 inch (top/bottom) and 0.6 inch (left/right).
+#'   inches unless noted): `paper_size` (a named preset, see below),
+#'   `orientation` (`"landscape"` / `"portrait"`), `width_in`, `height_in`, and
+#'   `margin_top_in` / `margin_bottom_in` / `margin_left_in` / `margin_right_in`.
+#'   Default: landscape letter, margins 0.9 inch (top/bottom) and 0.6 inch
+#'   (left/right).
 #'
-#'   `orientation` is **authoritative**: the long and short page sides are
-#'   assigned to match it, so `orientation = "landscape"` always yields a wide
-#'   page regardless of the order you give `width_in` / `height_in`. For example
-#'   `list(orientation = "landscape", width_in = 8.27, height_in = 11.69)` (A4
-#'   sizes) produces A4 landscape. When `orientation` is omitted it is inferred
-#'   from the dimensions (`width_in >= height_in` means landscape).
+#'   `paper_size` selects a named preset (case-insensitive): `"letter"`
+#'   (8.5x11"), `"legal"` (8.5x14"), `"A4"` (210x297mm), `"A3"`, `"A5"`. So
+#'   `list(paper_size = "A4")` gives **A4 landscape** in one line, and
+#'   `list(paper_size = "A4", orientation = "portrait")` gives A4 portrait.
+#'
+#'   Geometry is resolved as follows: (1) explicit `width_in` / `height_in`
+#'   **win** and are used as given -- the orientation is *inferred* from them
+#'   (`width_in >= height_in` means landscape); an explicit `orientation` that
+#'   contradicts the dimensions emits a warning and the dimensions are kept as
+#'   given (not swapped). If `paper_size` is also supplied it is ignored (with a
+#'   warning). (2) Otherwise `paper_size` + `orientation` selects and orients a
+#'   preset. (3) Otherwise the default (landscape letter) is used.
 #' @param default_format Optional document-wide default formatting.
 #'
 #' @return An rtf_document object (S3 class) with structure:
@@ -69,9 +76,8 @@ rtf_document <- function(font_table = NULL, color_table = NULL, page = NULL,
   # orientation from the dimensions when it is omitted (see .orient_page()).
   if (is.null(page)) {
     page <- list(
+      paper_size = "letter",
       orientation = "landscape",
-      width_in = 11,
-      height_in = 8.5,
       margin_top_in = 0.9,
       margin_bottom_in = 0.9,
       margin_left_in = 0.6,

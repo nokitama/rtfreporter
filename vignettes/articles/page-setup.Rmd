@@ -57,14 +57,14 @@ base <- rtf_document() |>
 
 # Then render the SAME report in two paper sizes by changing only `page`.
 letter <- base                                                  # landscape Letter
-a4      <- base |> rtf_config(page = list(width_in = 11.69, height_in = 8.27))
+a4      <- base |> rtf_config(page = list(paper_size = "A4"))   # landscape A4
 
 # generate_rtfreport(letter, "report-letter.rtf", overwrite = TRUE)
 # generate_rtfreport(a4,     "report-a4.rtf",     overwrite = TRUE)
 ```
 
 `page` and `default_format` are **merged per key**, so the A4 variant above
-keeps `base`'s orientation and margins and only swaps the dimensions. The same
+keeps `base`'s orientation and margins and only swaps the paper size. The same
 trick produces a large-print copy
 (`rtf_config(default_format = list(font_size_half_points = 24L))`) or a
 client-specific font (`rtf_config(font_table = list(list(name = "Arial")))`)
@@ -81,25 +81,40 @@ you omit falls back to its default.
 
 | Key | Meaning | Default |
 |-----|---------|---------|
+| `paper_size` | Named preset: `"letter"`, `"legal"`, `"A4"`, `"A3"`, `"A5"` (case-insensitive) | `"letter"` |
 | `orientation` | `"landscape"` or `"portrait"` | `"landscape"` |
-| `width_in` | Paper width (inches) | `11` |
-| `height_in` | Paper height (inches) | `8.5` |
+| `width_in` | Paper width (inches) -- explicit override | from `paper_size` |
+| `height_in` | Paper height (inches) -- explicit override | from `paper_size` |
 | `margin_top_in` | Top margin | `0.9` |
 | `margin_bottom_in` | Bottom margin | `0.9` |
 | `margin_left_in` | Left margin | `0.6` |
 | `margin_right_in` | Right margin | `0.6` |
 
-**`orientation` is authoritative.** The long and short page sides are assigned
-to match it, so you do not have to remember which of `width_in` / `height_in`
-is the larger. Both of these give **A4 landscape** (11.69 × 8.27 in):
+The header/footer band distances (`\headery` / `\footery` in the RTF) are
+**derived automatically** as half the top / bottom margin, so they are not keys
+you set here.
 
-```{r a4-landscape, eval = FALSE}
-rtf_document(page = list(orientation = "landscape", width_in = 11.69, height_in = 8.27))
-rtf_document(page = list(orientation = "landscape", width_in =  8.27, height_in = 11.69))
+**Pick a paper size by name.** For the common case, `paper_size` + `orientation`
+is easier than remembering inch dimensions. One line gives **A4 landscape**:
+
+```{r a4-preset, eval = FALSE}
+rtf_document(page = list(paper_size = "A4"))                          # A4 landscape
+rtf_document(page = list(paper_size = "A4", orientation = "portrait")) # A4 portrait
 ```
 
-If you omit `orientation`, it is inferred from the dimensions
-(`width_in >= height_in` means landscape).
+**Explicit dimensions win and are used as given.** If you pass `width_in` /
+`height_in`, those exact dimensions are used and the orientation is *inferred*
+from them (`width_in >= height_in` means landscape). An `orientation` that
+contradicts the dimensions emits a warning and the dimensions are kept (not
+swapped); a `paper_size` given alongside explicit dimensions is ignored (with a
+warning). So this is A4 **portrait** (taller than wide), and the
+`orientation = "landscape"` is a contradiction that warns:
+
+```{r a4-explicit, eval = FALSE}
+rtf_document(page = list(width_in = 8.27, height_in = 11.69))   # inferred portrait
+rtf_document(page = list(orientation = "landscape",
+                         width_in = 8.27, height_in = 11.69))   # warns; stays portrait
+```
 
 The default is **landscape US Letter** (11 × 8.5 in), the usual clinical TFL
 page. For a portrait A4 page with wider margins:

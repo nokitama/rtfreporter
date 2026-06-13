@@ -1391,14 +1391,10 @@
   }
   if (!is.null(pipe_doc$document$page)) {
     ps <- pipe_doc$document$page
-    # Resolve orientation + dimensions consistently: when an orientation is
-    # given it is authoritative and the long/short sides are assigned to match
-    # it; when omitted, orientation is inferred from the dimensions.
-    op <- .orient_page(
-      .in_to_twips(ps$width_in  %||% 11),
-      .in_to_twips(ps$height_in %||% 8.5),
-      ps$orientation
-    )
+    # Resolve paper size / orientation / dimensions consistently (see
+    # .resolve_page_geometry(): explicit dimensions win and orientation is
+    # inferred from them; otherwise a paper_size preset is oriented to match).
+    op <- .resolve_page_geometry(ps)
     report <- .rtfreport_set_default_page(report, list(
       orientation         = op$orientation,
       width_twips         = op$width_twips,

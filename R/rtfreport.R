@@ -32,6 +32,69 @@
   }
 }
 
+# Named paper-size presets. Portrait base dimensions in inches (width <= height);
+# `.resolve_page_geometry()` orients them. Extend this list to add more sizes.
+.paper_sizes <- list(
+  letter = c(8.5,     11),        # 8.5 x 11"
+  legal  = c(8.5,     14),        # 8.5 x 14"
+  a4     = c(8.2677,  11.6929),   # 210 x 297 mm
+  a3     = c(11.6929, 16.5354),   # 297 x 420 mm
+  a5     = c(5.8268,   8.2677)    # 148 x 210 mm
+)
+
+# Resolve the final page orientation + paper dimensions (twips) from a `page`
+# spec list, per the rules finalized in issue #110:
+#
+#   1. Explicit `width_in` / `height_in` WIN and are used **as given**; the
+#      orientation is inferred from them (width >= height => landscape). An
+#      explicit `orientation` that contradicts the dimensions emits a warning --
+#      the dimensions are NOT swapped. If `paper_size` is also supplied it is
+#      ignored (with a warning).
+#   2. Else `paper_size` (+ `orientation`) selects a preset, oriented to match
+#      `orientation` (default "landscape").
+#   3. Else the package default: landscape letter.
+#
+# Returns list(orientation, width_twips, height_twips).
+.resolve_page_geometry <- function(ps) {
+  ps <- ps %||% list()
+  orientation <- ps$orientation
+  if (!is.null(orientation) && !orientation %in% c("landscape", "portrait")) {
+    stop("`orientation` must be \"landscape\" or \"portrait\".", call. = FALSE)
+  }
+  has_dims <- !is.null(ps$width_in) || !is.null(ps$height_in)
+
+  if (has_dims) {
+    if (!is.null(ps$paper_size)) {
+      warning("Both `paper_size` and `width_in`/`height_in` were supplied; the ",
+              "explicit dimensions take precedence and `paper_size` is ignored.",
+              call. = FALSE)
+    }
+    w <- ps$width_in  %||% 11
+    h <- ps$height_in %||% 8.5
+    inferred <- if (w >= h) "landscape" else "portrait"
+    if (!is.null(orientation) && orientation != inferred) {
+      warning(sprintf(
+        paste0("`orientation = \"%s\"` contradicts the given dimensions ",
+               "(%g x %g in, => %s); using the dimensions as given."),
+        orientation, w, h, inferred), call. = FALSE)
+    }
+    return(list(orientation  = inferred,
+                width_twips  = .in_to_twips(w),
+                height_twips = .in_to_twips(h)))
+  }
+
+  paper <- ps$paper_size %||% "letter"
+  key   <- tolower(paper)
+  if (!key %in% names(.paper_sizes)) {
+    stop(sprintf("Unknown `paper_size` \"%s\". Known sizes: %s.",
+                 paper, paste(names(.paper_sizes), collapse = ", ")),
+         call. = FALSE)
+  }
+  base <- .paper_sizes[[key]]
+  .orient_page(.in_to_twips(base[1L]), .in_to_twips(base[2L]),
+               orientation %||% "landscape")
+}
+
 # Internal utility: merge two named lists (override wins).
 .merge_list <- function(base, override) {
   if (is.null(override)) return(base)

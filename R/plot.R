@@ -211,10 +211,9 @@ plot.rtf_document <- function(x, max_pages = 12L, ...) {
                            mar = c(1.2, 1.2, 2, 1.2), xpd = NA)
   on.exit(graphics::par(oldpar), add = TRUE)
 
-  pg <- x$document$page %||% list(width_in = 11, height_in = 8.5)
-  landscape <- isTRUE(pg$orientation == "landscape")
-  pw <- if (landscape) pg$width_in  %||% 11   else pg$height_in %||% 8.5
-  ph <- if (landscape) pg$height_in %||% 8.5  else pg$width_in  %||% 11
+  geo <- .resolve_page_geometry(x$document$page)
+  pw  <- geo$width_twips  / 1440
+  ph  <- geo$height_twips / 1440
 
   for (i in seq_len(n_show)) {
     graphics::plot.new()
