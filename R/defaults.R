@@ -25,6 +25,12 @@
 # Header/footer band distances are deliberately absent: when unset they are
 # derived as half the top / bottom margin (see the renderer). A site may still
 # set `rtfreporter.page.header_dist_in` / `.footer_dist_in` to pin them.
+#
+# Document-wide style defaults (row height, cell padding) are seeded as `NULL`,
+# meaning "inherit the font-aware / resource-file baseline". Set them (here, in
+# Rprofile.site, or per document via `rtf_config(default_format = list(...))`) to
+# change the package-wide default; a per-module value (rtftable / rtf_header /
+# rtf_footer / rtf_table_style) always overrides it.
 .rtfreporter_factory_defaults <- function() {
   list(
     rtfreporter.page.paper_size       = "letter",
@@ -34,7 +40,13 @@
     rtfreporter.page.margin_left_in   = 0.6,
     rtfreporter.page.margin_right_in  = 0.6,
     rtfreporter.font                  = "Courier",
-    rtfreporter.font_size_half_points = 18L
+    rtfreporter.font_size_half_points = 18L,
+    # Document-wide style defaults. NULL = inherit the baseline:
+    #   row height  -> font-aware default (resource table),
+    #   cell padding -> resource default (0 twips = flush).
+    rtfreporter.row_height_twips         = NULL,
+    rtfreporter.cell_padding_left_twips  = NULL,
+    rtfreporter.cell_padding_right_twips = NULL
   )
 }
 

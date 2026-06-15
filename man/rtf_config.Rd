@@ -23,7 +23,10 @@ rtf_config(
 key onto the current page settings.}
 
 \item{default_format}{Optional document-wide default formatting; merged per
-key onto the current defaults.}
+key onto the current defaults. Recognised keys: `font_size_half_points`,
+`row_height_twips`, `cell_padding_left_twips`, `cell_padding_right_twips`
+(see [rtf_document()]). These are document-wide **defaults** that any
+per-module setting overrides.}
 }
 \value{
 Modified rtf_document object (new copy, original unchanged).

@@ -25,8 +25,8 @@ rtftable(
   row_height_exact = FALSE,
   header_row_height_twips = NULL,
   blank_row_height_twips = NULL,
-  cell_padding_left_twips = 0L,
-  cell_padding_right_twips = 0L,
+  cell_padding_left_twips = NULL,
+  cell_padding_right_twips = NULL,
   cell_valign = "bottom",
   cell_styles = NULL
 )

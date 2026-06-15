@@ -46,7 +46,19 @@ you reference elsewhere. Black/white are reserved and added implicitly.}
   warning). (2) Otherwise `paper_size` + `orientation` selects and orients a
   preset. (3) Otherwise the default (landscape letter) is used.}
 
-\item{default_format}{Optional document-wide default formatting.}
+\item{default_format}{Optional document-wide default formatting (a list,
+merged per key). Recognised keys:
+* `font_size_half_points` -- body font size in half-points (18 = 9 pt).
+* `row_height_twips` -- document-wide default **row height** for every
+  table-shaped element (content table, page header/footer, title/footnote).
+  `NULL` keeps the font-aware default.
+* `cell_padding_left_twips`, `cell_padding_right_twips` -- document-wide
+  default **cell padding** (border-to-text distance), likewise applied to
+  every element.
+These are **defaults**: a per-module value -- `rtftable()` /
+`rtf_header()` / `rtf_footer()` / `rtf_table_style()` -- always overrides
+them. They can also be set globally as `rtfreporter.*` options (see
+[rtfreporter_options()]).}
 }
 \value{
 An rtf_document object (S3 class) with structure:

@@ -210,6 +210,29 @@ Cell padding (the gap between the cell border and its text) defaults to `0`
 (text sits flush against the border, the typical clinical look) and is likewise
 configurable per table via `cell_padding_left_twips` / `cell_padding_right_twips`.
 
+### Document-wide row height / padding
+
+To change the row height or cell padding for the **whole report** -- without
+editing the resource file -- set it on the document via `default_format` (or
+globally as an option). It applies to every table-shaped element (content table,
+page header/footer, title/footnote), and a per-module value still overrides it:
+
+```{r rowheight-doc}
+doc <- rtf_document(default_format = list(
+  row_height_twips         = 280L,
+  cell_padding_left_twips  = 72L,
+  cell_padding_right_twips = 72L
+))
+
+# ...or set the house style site-wide (e.g. in Rprofile.site):
+# options(rtfreporter.row_height_twips = 280L,
+#         rtfreporter.cell_padding_left_twips = 72L)
+```
+
+Resolution is highest-wins: **per-module** (`rtftable()` / `rtf_header()` /
+`rtf_footer()` / `rtf_table_style()`) > **document** `default_format` >
+`rtfreporter.*` **option** > the font-aware / resource baseline.
+
 
 ## Site-wide defaults
 

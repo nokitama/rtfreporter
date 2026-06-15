@@ -433,8 +433,8 @@ rtftable <- function(
   row_height_exact = FALSE,
   header_row_height_twips = NULL,
   blank_row_height_twips = NULL,
-  cell_padding_left_twips = 0L,
-  cell_padding_right_twips = 0L,
+  cell_padding_left_twips = NULL,
+  cell_padding_right_twips = NULL,
   cell_valign = "bottom",
   cell_styles = NULL
 ) {
@@ -450,14 +450,12 @@ rtftable <- function(
     if (identical(border, "tfl")) border <- style
     if (is.null(col_header_align)) col_header_align <- style$header_align
     if (is.null(row_height_twips)) row_height_twips <- style$row_height_twips
-    if (!is.null(style$cell_padding_left_twips) &&
-        identical(cell_padding_left_twips, 72L)) {
+    # A style seeds padding only when the caller left it unset (NULL), so an
+    # explicit per-table padding always wins over the style.
+    if (is.null(cell_padding_left_twips))
       cell_padding_left_twips <- style$cell_padding_left_twips
-    }
-    if (!is.null(style$cell_padding_right_twips) &&
-        identical(cell_padding_right_twips, 72L)) {
+    if (is.null(cell_padding_right_twips))
       cell_padding_right_twips <- style$cell_padding_right_twips
-    }
   }
 
   data_single  <- NULL
@@ -600,8 +598,8 @@ rtftable <- function(
       row_height_exact            = row_height_exact,
       header_row_height_twips     = if (!is.null(header_row_height_twips)) as.integer(header_row_height_twips) else NULL,
       blank_row_height_twips      = if (!is.null(blank_row_height_twips)) as.integer(blank_row_height_twips) else NULL,
-      cell_padding_left_twips     = as.integer(cell_padding_left_twips),
-      cell_padding_right_twips    = as.integer(cell_padding_right_twips),
+      cell_padding_left_twips     = if (is.null(cell_padding_left_twips)) NULL else as.integer(cell_padding_left_twips),
+      cell_padding_right_twips    = if (is.null(cell_padding_right_twips)) NULL else as.integer(cell_padding_right_twips),
       cell_valign                 = cell_valign,
       cell_styles                 = cell_styles_resolved
     ),
@@ -663,9 +661,11 @@ rtftable <- function(
 
   # -- cell padding / valign ----------------------------------------------
   if (has("cell_padding_left_twips"))
-    tbl$cell_padding_left_twips <- as.integer(ov$cell_padding_left_twips)
+    tbl$cell_padding_left_twips <- if (is.null(ov$cell_padding_left_twips)) NULL
+                                   else as.integer(ov$cell_padding_left_twips)
   if (has("cell_padding_right_twips"))
-    tbl$cell_padding_right_twips <- as.integer(ov$cell_padding_right_twips)
+    tbl$cell_padding_right_twips <- if (is.null(ov$cell_padding_right_twips)) NULL
+                                    else as.integer(ov$cell_padding_right_twips)
   if (has("cell_valign")) {
     if (!ov$cell_valign %in% c("top", "center", "bottom")) {
       stop("`cell_valign` must be 'top', 'center', or 'bottom'.", call. = FALSE)

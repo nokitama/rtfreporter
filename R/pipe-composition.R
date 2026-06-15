@@ -61,7 +61,19 @@
 #'   given (not swapped). If `paper_size` is also supplied it is ignored (with a
 #'   warning). (2) Otherwise `paper_size` + `orientation` selects and orients a
 #'   preset. (3) Otherwise the default (landscape letter) is used.
-#' @param default_format Optional document-wide default formatting.
+#' @param default_format Optional document-wide default formatting (a list,
+#'   merged per key). Recognised keys:
+#'   * `font_size_half_points` -- body font size in half-points (18 = 9 pt).
+#'   * `row_height_twips` -- document-wide default **row height** for every
+#'     table-shaped element (content table, page header/footer, title/footnote).
+#'     `NULL` keeps the font-aware default.
+#'   * `cell_padding_left_twips`, `cell_padding_right_twips` -- document-wide
+#'     default **cell padding** (border-to-text distance), likewise applied to
+#'     every element.
+#'   These are **defaults**: a per-module value -- `rtftable()` /
+#'   `rtf_header()` / `rtf_footer()` / `rtf_table_style()` -- always overrides
+#'   them. They can also be set globally as `rtfreporter.*` options (see
+#'   [rtfreporter_options()]).
 #'
 #' @return An rtf_document object (S3 class) with structure:
 #'   - document: list(font_table, color_table, page, default_format)
@@ -147,7 +159,10 @@ rtf_document <- function(font_table = NULL, color_table = NULL, page = NULL,
 #' @param page Optional page settings list (see [rtf_document()]); merged per
 #'   key onto the current page settings.
 #' @param default_format Optional document-wide default formatting; merged per
-#'   key onto the current defaults.
+#'   key onto the current defaults. Recognised keys: `font_size_half_points`,
+#'   `row_height_twips`, `cell_padding_left_twips`, `cell_padding_right_twips`
+#'   (see [rtf_document()]). These are document-wide **defaults** that any
+#'   per-module setting overrides.
 #'
 #' @return Modified rtf_document object (new copy, original unchanged).
 #'
@@ -310,8 +325,8 @@ rtf_tables <- function(doc, tables,
                         row_height_exact = FALSE,
                         header_row_height_twips = NULL,
                         blank_row_height_twips = NULL,
-                        cell_padding_left_twips = 0L,
-                        cell_padding_right_twips = 0L,
+                        cell_padding_left_twips = NULL,
+                        cell_padding_right_twips = NULL,
                         cell_valign = "bottom",
                         titles = NULL,
                         footnotes = NULL,

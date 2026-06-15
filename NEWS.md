@@ -2,6 +2,25 @@
 
 ### New features
 
+- **Document-wide style defaults** for row height and cell padding (#124). Set
+  `row_height_twips`, `cell_padding_left_twips` and `cell_padding_right_twips`
+  once for a whole report -- via `rtf_document(default_format = list(...))` /
+  `rtf_config(default_format = list(...))`, or globally as the
+  `rtfreporter.row_height_twips` / `rtfreporter.cell_padding_left_twips` /
+  `rtfreporter.cell_padding_right_twips` options -- and they apply uniformly to
+  the content table, the page header/footer band, and the title/footnote
+  blocks. They are **defaults**: a per-module value (`rtftable()`,
+  `rtf_header()`, `rtf_footer()`, `rtf_table_style()`) always overrides them.
+  Resolution is highest-wins: per-module > document `default_format` >
+  `rtfreporter.*` option > font-aware / resource baseline. Default output is
+  unchanged.
+
+  As part of this, `rtftable()` / `rtf_tables()` `cell_padding_left_twips` /
+  `cell_padding_right_twips` now default to `NULL` ("inherit") instead of `0L`,
+  so an unset padding can pick up the document default while an explicit `0`
+  still renders flush. (This also repairs a dormant `rtf_table_style()` path
+  whose cell padding never seeded the table.)
+
 - `as_rtftables()` / `as_rtftable()` can now read **flextable** objects (#119),
   joining gt, gtsummary and rtables/tern. The *displayed* cell text is read via
   flextable's exported introspection API (`information_data_chunk()` /

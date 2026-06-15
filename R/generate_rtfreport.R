@@ -868,11 +868,14 @@
 # font_half_points drives the default row-height lookup when the table does
 # not specify an explicit row_height_twips.
 .render_rtftable <- function(tbl, writable_width_twips, font_half_points = 18L,
-                             color_index_map = NULL) {
+                             color_index_map = NULL,
+                             doc_row_height = NULL, doc_pad_l = 0L, doc_pad_r = 0L) {
   border   <- tbl$border
   col_spec <- tbl$col_spec
-  pad_l    <- tbl$cell_padding_left_twips
-  pad_r    <- tbl$cell_padding_right_twips
+  # Cell padding: the table's own value wins; otherwise inherit the document
+  # default (which already folds in the option / resource baseline).
+  pad_l    <- tbl$cell_padding_left_twips  %||% doc_pad_l
+  pad_r    <- tbl$cell_padding_right_twips %||% doc_pad_r
 
   cmds       <- .load_rtf_commands()
   valign_cmd <- cmds$cell_valign[[tbl$cell_valign]] %||% "\\clvertalb"
@@ -889,7 +892,9 @@
   #   * explicit positive integer  -> use as given
   #   * 0L                          -> legacy "automatic" (no \trrh emitted)
   #   * NULL                        -> apply the document-wide default
-  base_rh   <- tbl$row_height_twips
+  # Row height: the table's own value wins; otherwise the document default;
+  # otherwise the font-aware baseline.
+  base_rh   <- tbl$row_height_twips %||% doc_row_height
   effective <- if (is.null(base_rh)) {
     .default_row_height_twips(font_half_points)
   } else {
@@ -1056,7 +1061,9 @@
 .render_header_footer <- function(hf, writable_width_twips, is_footer = FALSE,
                                    current_page = NULL, total_pages = NULL,
                                    color_index_map = NULL,
-                                   font_half_points = 18L) {
+                                   font_half_points = 18L,
+                                   doc_row_height = NULL,
+                                   doc_pad_l = NULL, doc_pad_r = NULL) {
   if (is.null(hf) || length(hf$rows) == 0L) {
     return(character())
   }
@@ -1068,17 +1075,20 @@
   table_cmd <- cmds$table
   align_cmd <- cmds$alignment
 
-  rh_full <- hf$row_height_twips %||% .default_row_height_twips(font_half_points)
+  # Row height: the band's own value wins; otherwise the document default;
+  # otherwise the font-aware baseline.
+  rh_full <- hf$row_height_twips %||% doc_row_height %||%
+               .default_row_height_twips(font_half_points)
   rh_str  <- .cmd_fmt(table_cmd$row_height_template,
                        list(row_height_twips = rh_full))
 
-  # Cell padding (left/right) -- same default as content tables, configurable
-  # per-block via rtf_header() / rtf_footer().
+  # Cell padding (left/right): the band's own value wins; otherwise inherit the
+  # document default (which folds in the option / resource baseline).
   defaults <- .load_rtfreporter_defaults()
-  pad_l <- as.integer(hf$cell_padding_left_twips  %||%
-                       defaults$default_cell_padding_left_twips  %||% 72L)
-  pad_r <- as.integer(hf$cell_padding_right_twips %||%
-                       defaults$default_cell_padding_right_twips %||% 72L)
+  pad_l <- as.integer(hf$cell_padding_left_twips  %||% doc_pad_l %||%
+                       defaults$default_cell_padding_left_twips  %||% 0L)
+  pad_r <- as.integer(hf$cell_padding_right_twips %||% doc_pad_r %||%
+                       defaults$default_cell_padding_right_twips %||% 0L)
 
   out_rows <- character()
   for (row_idx in seq_along(rows)) {
@@ -1347,11 +1357,14 @@
 .render_text_block_table <- function(block, total_width_twips, is_footer,
                                       font_half_points, pad_l, pad_r,
                                       valign_cmd, table_align,
-                                      color_index_map = NULL) {
+                                      color_index_map = NULL,
+                                      doc_row_height = NULL) {
   rows <- .normalize_text_block(block, is_footer)
   if (length(rows) == 0L) return(character())
 
-  full_h <- .default_row_height_twips(font_half_points)
+  # Title / footnote rows inherit the document default row height, else the
+  # font-aware baseline.
+  full_h <- doc_row_height %||% .default_row_height_twips(font_half_points)
   cellx  <- as.integer(total_width_twips)
 
   vapply(rows, function(rec) {
@@ -1668,6 +1681,24 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
                                     .opt("rtfreporter.font_size_half_points"))
   fs_cmd           <- paste0("\\fs", font_half_points)
 
+  # Document-wide style defaults (row height, cell padding): the layer between
+  # an element's own setting and the font-aware / resource baseline.  Resolved
+  # highest-wins as: per-module value (applied inside each renderer) >
+  # document `default_format` > `rtfreporter.*` option > resource baseline.
+  # `doc_row_height = NULL` means "keep the font-aware default".
+  .res_defaults  <- .load_rtfreporter_defaults()
+  doc_row_height <- doc$default_format$row_height_twips %||%
+                      .opt("rtfreporter.row_height_twips")
+  doc_pad_l <- doc$default_format$cell_padding_left_twips %||%
+                 .opt("rtfreporter.cell_padding_left_twips") %||%
+                 .res_defaults$default_cell_padding_left_twips %||% 0L
+  doc_pad_r <- doc$default_format$cell_padding_right_twips %||%
+                 .opt("rtfreporter.cell_padding_right_twips") %||%
+                 .res_defaults$default_cell_padding_right_twips %||% 0L
+  doc_row_height <- if (is.null(doc_row_height)) NULL else as.integer(doc_row_height)
+  doc_pad_l      <- as.integer(doc_pad_l)
+  doc_pad_r      <- as.integer(doc_pad_r)
+
   # Resolve sections (sorted, with from_page / to_page assigned).
   resolved_sections <- .resolve_sections(report)
 
@@ -1727,11 +1758,15 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
       header_rtf <- .render_header_footer(cur_header_hf, writable_w, is_footer = FALSE,
                                           current_page = pg_for_hf, total_pages = total_pages,
                                           color_index_map = color_index_map,
-                                          font_half_points = font_half_points)
+                                          font_half_points = font_half_points,
+                                          doc_row_height = doc_row_height,
+                                          doc_pad_l = doc_pad_l, doc_pad_r = doc_pad_r)
       footer_rtf <- .render_header_footer(cur_footer_hf, writable_w, is_footer = TRUE,
                                           current_page = pg_for_hf, total_pages = total_pages,
                                           color_index_map = color_index_map,
-                                          font_half_points = font_half_points)
+                                          font_half_points = font_half_points,
+                                          doc_row_height = doc_row_height,
+                                          doc_pad_l = doc_pad_l, doc_pad_r = doc_pad_r)
 
       if (length(header_rtf) > 0L) {
         lines <<- c(lines, .cmd_fmt(doc_cmd$header_wrapper,
@@ -1774,19 +1809,23 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
       # so they align with the content above/below (see .render_text_block_table).
       content_w     <- .content_width_twips(ct, writable_w)
       content_align <- .content_align(ct)
-      tf_defaults   <- .load_rtfreporter_defaults()
-      tf_pad_l      <- as.integer(tf_defaults$default_cell_padding_left_twips  %||% 0L)
-      tf_pad_r      <- as.integer(tf_defaults$default_cell_padding_right_twips %||% 0L)
+      # Title / footnote inherit the document-wide cell padding and row height.
+      tf_pad_l      <- doc_pad_l
+      tf_pad_r      <- doc_pad_r
       tf_valign     <- "\\clvertalt"
 
       # -- Title (default centre + bold; NULL -> one blank gap row) ----------
       lines <- c(lines, .render_text_block_table(
         page$title, content_w, is_footer = FALSE, font_half_points,
-        tf_pad_l, tf_pad_r, tf_valign, content_align, color_index_map))
+        tf_pad_l, tf_pad_r, tf_valign, content_align, color_index_map,
+        doc_row_height = doc_row_height))
       if (!is.null(ct)) {
         if (inherits(ct, "rtftable")) {
           lines <- c(lines, .render_rtftable(ct, writable_w, font_half_points,
-                                              color_index_map))
+                                              color_index_map,
+                                              doc_row_height = doc_row_height,
+                                              doc_pad_l = doc_pad_l,
+                                              doc_pad_r = doc_pad_r))
         } else if (inherits(ct, "rtfplot")) {
           lines <- c(lines, .render_rtfplot(ct, writable_w))
         }
@@ -1795,7 +1834,8 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
       # -- Footnote (default left; first row carries the separator top rule) -
       lines <- c(lines, .render_text_block_table(
         page$footnote, content_w, is_footer = TRUE, font_half_points,
-        tf_pad_l, tf_pad_r, tf_valign, content_align, color_index_map))
+        tf_pad_l, tf_pad_r, tf_valign, content_align, color_index_map,
+        doc_row_height = doc_row_height))
 
       # Page break between pages; section break between sections.
       # When per-page sections are in effect, ALL sub-page boundaries
