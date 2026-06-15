@@ -2,6 +2,16 @@
 
 ### New features
 
+- `as_rtftables()` / `as_rtftable()` can now read **huxtable** objects (#120),
+  joining gt, gtsummary, rtables/tern and flextable. The *displayed* text is
+  read with the huxtable's `number_format` applied; header rows
+  (`header_rows()`) become the column header, `colspan()` becomes the spanning
+  header, per-column `align()` is carried, and the `caption()` becomes the page
+  title. (A huxtable is a `data.frame` subclass, so it is detected before the
+  plain-data.frame path.) huxtable has no footnote concept, so none is
+  extracted; per-cell styling is not carried. New `read_meta` tokens for
+  huxtable: `"col_header"`, `"alignment"`, `"spanning"`, `"titles"`.
+
 - **Document-wide style defaults** for row height and cell padding (#124). Set
   `row_height_twips`, `cell_padding_left_twips` and `cell_padding_right_twips`
   once for a whole report -- via `rtf_document(default_format = list(...))` /

@@ -62,9 +62,10 @@
 #' [rtf_tables()] consumes automatically.
 #'
 #' Supported inputs: `gt_tbl`, gtsummary tables, rtables/tern `VTableTree`
-#' tables, `flextable` tables, plain `data.frame` / tibble, or a `list` of any
-#' of these (the list is flattened, names propagated as `name`, `name.1`,
-#' `name.2`, ...).  Figures are out of scope -- use [rtf_figures()] for those.
+#' tables, `flextable` tables, `huxtable` tables, plain `data.frame` / tibble,
+#' or a `list` of any of these (the list is flattened, names propagated as
+#' `name`, `name.1`, `name.2`, ...).  Figures are out of scope -- use
+#' [rtf_figures()] for those.
 #'
 #' @section What is carried, by source:
 #'
@@ -75,22 +76,24 @@
 #' interleaved, and indentation is rendered into the label text.  On top of
 #' that body the following *metadata* is read:
 #'
-#' \tabular{llll}{
-#'   **Metadata** \tab **gt / gtsummary** \tab **rtables / tern** \tab **flextable** \cr
-#'   Column (leaf) labels        \tab yes \tab yes \tab yes \cr
-#'   Per-column alignment        \tab yes \tab yes \tab yes \cr
-#'   Spanning headers            \tab yes \tab yes \tab yes \cr
-#'   Column widths               \tab yes (px/pct) \tab -- \tab -- \cr
-#'   Title + subtitle            \tab yes \tab yes \tab yes (caption) \cr
-#'   Footnotes / source notes    \tab yes \tab yes \tab yes (footer) \cr
-#'   In-cell footnote marks      \tab yes (superscript) \tab yes (superscript) \tab -- \cr
-#'   Row-group rows + indent     \tab yes (rendered) \tab yes (rendered) \tab yes (rendered) \cr
+#' \tabular{lllll}{
+#'   **Metadata** \tab **gt / gtsummary** \tab **rtables / tern** \tab **flextable** \tab **huxtable** \cr
+#'   Column (leaf) labels        \tab yes \tab yes \tab yes \tab yes \cr
+#'   Per-column alignment        \tab yes \tab yes \tab yes \tab yes \cr
+#'   Spanning headers            \tab yes \tab yes \tab yes \tab yes \cr
+#'   Column widths               \tab yes (px/pct) \tab -- \tab -- \tab -- \cr
+#'   Title + subtitle            \tab yes \tab yes \tab yes (caption) \tab yes (caption) \cr
+#'   Footnotes / source notes    \tab yes \tab yes \tab yes (footer) \tab -- \cr
+#'   In-cell footnote marks      \tab yes (superscript) \tab yes (superscript) \tab -- \tab -- \cr
+#'   Row-group rows + indent     \tab yes (rendered) \tab yes (rendered) \tab yes (rendered) \tab yes (rendered) \cr
 #' }
 #'
 #' For flextable the *displayed* text is read (header labels set via
 #' `set_header_labels()` and `colformat_*()` formatting included), not the raw
 #' `$body$dataset`.  Cells composed of images / equations and `footnote()`
-#' reference marks are not carried.
+#' reference marks are not carried.  For huxtable the displayed text is likewise
+#' read (its `number_format` applied); huxtable has no footnote concept, so only
+#' the caption (a page title) is carried.
 #'
 #' **Not carried** (RTF cannot reproduce these, so they are intentionally
 #' ignored): per-cell bold / italic / underline from `gt::tab_style()`, cell
@@ -99,7 +102,7 @@
 #' metadata at all -- set `col_header`, `col_spec`, etc. yourself.
 #'
 #' @param x A `gt_tbl`, a gtsummary table, an rtables/tern `VTableTree`, a
-#'   `flextable`, a `data.frame` / tibble, or a `list` of these.
+#'   `flextable`, a `huxtable`, a `data.frame` / tibble, or a `list` of these.
 #' @param read_meta Controls metadata extraction from the source table:
 #'   `TRUE` (default, read everything in the table above), `FALSE` (use only
 #'   the rendered body -- equivalent to the old `paginate()`), or a character
@@ -108,7 +111,8 @@
 #'   `"titles"`, `"footnotes"`.  For rtables/tern: `"col_header"`,
 #'   `"alignment"`, `"spanning"`, `"titles"`, `"footnotes"`, `"indent"`,
 #'   `"footnote_marks"`.  For flextable: `"col_header"`, `"alignment"`,
-#'   `"spanning"`, `"titles"`, `"footnotes"`.
+#'   `"spanning"`, `"titles"`, `"footnotes"`.  For huxtable: `"col_header"`,
+#'   `"alignment"`, `"spanning"`, `"titles"`.
 #' @param split How to break the body into pages.  One of:
 #'   * `"none"` (default) -- one page, no row limit checked;
 #'   * `"rows"` -- fixed chunk size; requires `split_rows`;
@@ -334,6 +338,15 @@ as_rtftables <- function(x,
     cell_styles     <- kw$cell_styles
     titles_block    <- kw$titles_block
     footnotes_block <- kw$footnotes_block
+  } else if (.is_huxtable_tbl(x)) {
+    # NB: a huxtable IS a data.frame subclass, so this branch MUST come before
+    # the plain-data.frame branch below.
+    tokens          <- .resolve_huxtable_tokens(read_meta)
+    kw              <- .huxtable_to_rtftable_kwargs(x, tokens = tokens)
+    body            <- kw$data
+    cell_styles     <- kw$cell_styles
+    titles_block    <- kw$titles_block
+    footnotes_block <- kw$footnotes_block
   } else if (is.data.frame(x)) {
     body            <- x
     kw              <- list()
@@ -342,7 +355,7 @@ as_rtftables <- function(x,
     footnotes_block <- NULL
   } else {
     stop("`as_rtftables()` supports gt_tbl, gtsummary, rtables/tern, ",
-         "flextable, data.frame/tibble, or a list of these; got '",
+         "flextable, huxtable, data.frame/tibble, or a list of these; got '",
          paste(class(x), collapse = "/"), "'.", call. = FALSE)
   }
 

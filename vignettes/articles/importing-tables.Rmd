@@ -7,6 +7,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
                       message = FALSE, warning = FALSE)
 .has_gt <- requireNamespace("gt", quietly = TRUE)
 .has_flextable <- requireNamespace("flextable", quietly = TRUE)
+.has_huxtable <- requireNamespace("huxtable", quietly = TRUE)
 ```
 
 ```{r setup}
@@ -47,6 +48,7 @@ class(pages[[1]])
   `gtsummary::as_gt()`),
 - an **rtables / tern** `VTableTree`,
 - a **`flextable`** table (`flextable::flextable(...)`),
+- a **`huxtable`** table (`huxtable::huxtable(...)`),
 - a plain **`data.frame` / tibble**, or
 - a **`list`** of any of these (flattened to one page each, names propagated).
 
@@ -62,24 +64,30 @@ class(tbl)
 
 ## Reading metadata -- `read_meta`
 
-For a rich source (gt / gtsummary / rtables / flextable), `as_rtftables()` reads
-the render-relevant metadata so you do not have to restate it. What is carried:
+For a rich source (gt / gtsummary / rtables / flextable / huxtable),
+`as_rtftables()` reads the render-relevant metadata so you do not have to
+restate it. What is carried:
 
-| Metadata | gt / gtsummary | rtables / tern | flextable |
-|----------|----------------|----------------|-----------|
-| Column (leaf) labels | yes | yes | yes |
-| Per-column alignment | yes | yes | yes |
-| Spanning headers | yes | yes | yes |
-| Column widths | yes (px/pct) | -- | -- |
-| Title + subtitle | yes | yes | yes (caption) |
-| Footnotes / source notes | yes | yes | yes (footer) |
-| In-cell footnote marks | yes (superscript) | yes (superscript) | -- |
-| Row-group rows + indent | yes (rendered) | yes (rendered) | yes (rendered) |
+| Metadata | gt / gtsummary | rtables / tern | flextable | huxtable |
+|----------|----------------|----------------|-----------|----------|
+| Column (leaf) labels | yes | yes | yes | yes |
+| Per-column alignment | yes | yes | yes | yes |
+| Spanning headers | yes | yes | yes | yes |
+| Column widths | yes (px/pct) | -- | -- | -- |
+| Title + subtitle | yes | yes | yes (caption) | yes (caption) |
+| Footnotes / source notes | yes | yes | yes (footer) | -- |
+| In-cell footnote marks | yes (superscript) | yes (superscript) | -- | -- |
+| Row-group rows + indent | yes (rendered) | yes (rendered) | yes (rendered) | yes (rendered) |
 
 For **flextable** the *displayed* text is read (header labels from
 `set_header_labels()` and `colformat_*()` formatting included), not the raw
 `$body$dataset`. Image/equation cells and `footnote()` reference marks are not
 carried.
+
+For **huxtable** the *displayed* text is read with its `number_format` applied;
+header rows (`header_rows()`) become the column header, `colspan()` becomes the
+spanning header, and the `caption()` becomes the page title. huxtable has no
+footnote concept, so none is extracted.
 
 **Not carried** (RTF cannot reproduce them, so they are intentionally ignored):
 per-cell bold / italic / underline, cell background fills, font/size styling, and
@@ -96,7 +104,8 @@ below).
   `"alignment"`, `"spanning"`, `"widths"`, `"titles"`, `"footnotes"`. For
   rtables/tern: `"col_header"`, `"alignment"`, `"spanning"`, `"titles"`,
   `"footnotes"`, `"indent"`, `"footnote_marks"`. For flextable:
-  `"col_header"`, `"alignment"`, `"spanning"`, `"titles"`, `"footnotes"`.
+  `"col_header"`, `"alignment"`, `"spanning"`, `"titles"`, `"footnotes"`. For
+  huxtable: `"col_header"`, `"alignment"`, `"spanning"`, `"titles"`.
 
 ```{r gt-meta, eval = .has_gt}
 library(gt)
@@ -133,6 +142,26 @@ ft <- flextable(data.frame(Param = c("Mean", "SD"), Value = c(75.13, 8.234))) |>
 
 tbl <- as_rtftable(ft)
 tbl$data[[2]]            # -> "75.1", "8.2"  (colformat applied)
+attr(tbl, "rtf_titles") # -> "Table 1: Demographics"  (from the caption)
+```
+
+A **huxtable** works the same way -- its `number_format` is applied, header
+rows become the column header, and the caption becomes the title:
+
+```{r huxtable-meta, eval = .has_huxtable}
+library(huxtable)
+
+hx <- huxtable(
+  Characteristic = c("Characteristic", "Age (years)"),
+  Value          = c("Value", 75.134),
+  add_colnames = FALSE
+)
+header_rows(hx)[1]    <- TRUE          # row 1 is the column header
+number_format(hx)[2, 2] <- "%.1f"      # 75.134 -> 75.1
+caption(hx) <- "Table 1: Demographics"
+
+tbl <- as_rtftable(hx)
+tbl$data[[2]]            # -> "75.1"  (number_format applied)
 attr(tbl, "rtf_titles") # -> "Table 1: Demographics"  (from the caption)
 ```
 
