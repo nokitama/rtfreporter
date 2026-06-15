@@ -2,8 +2,8 @@
 #'
 #' Single-page convenience wrapper around [as_rtftables()]: takes a `gt_tbl`,
 #' a [gtsummary](https://www.danieldsjoberg.com/gtsummary/) table, an
-#' rtables/tern `VTableTree`, or a plain `data.frame` / tibble, and returns one
-#' `rtftable` (rather than a list of pages).  It is exactly
+#' rtables/tern `VTableTree`, a `flextable`, or a plain `data.frame` / tibble,
+#' and returns one `rtftable` (rather than a list of pages).  It is exactly
 #' `as_rtftables(x, read_meta = read_meta, split = "none", ...)[[1]]`.
 #'
 #' The body is the table's *rendered* body (gt via `gt::extract_body()`,
@@ -14,7 +14,7 @@
 #' bold/italic styling, cell fills and Markdown are not.
 #'
 #' @param gt_obj A `gt_tbl`, a gtsummary table, an rtables/tern `VTableTree`,
-#'   or a plain `data.frame` / tibble.
+#'   a `flextable`, or a plain `data.frame` / tibble.
 #' @param read_meta `TRUE` (default, read all render-relevant metadata),
 #'   `FALSE` (rendered body only), or a character vector of tokens.  See
 #'   [as_rtftables()].
@@ -43,14 +43,20 @@ as_rtftable <- function(gt_obj, read_meta = TRUE, ...) {
   }
   is_gt  <- .is_gt_tbl(gt_obj)
   is_rtb <- .is_rtables_tbl(gt_obj)
+  is_ft  <- .is_flextable_tbl(gt_obj)
   is_df  <- is.data.frame(gt_obj)
-  if (!is_gt && !is_rtb && !is_df) {
+  if (!is_gt && !is_rtb && !is_ft && !is_df) {
     stop("`gt_obj` must be a gt_tbl, a gtsummary table, an rtables/tern ",
-         "table (VTableTree), or a data.frame/tibble.", call. = FALSE)
+         "table (VTableTree), a flextable, or a data.frame/tibble.",
+         call. = FALSE)
   }
   if (is_gt && !requireNamespace("gt", quietly = TRUE)) {
     stop("`as_rtftable()` requires the `gt` package.  Install it with ",
          "install.packages(\"gt\").", call. = FALSE)
+  }
+  if (is_ft && !requireNamespace("flextable", quietly = TRUE)) {
+    stop("`as_rtftable()` requires the `flextable` package.  Install it with ",
+         "install.packages(\"flextable\").", call. = FALSE)
   }
 
   # Single-page convenience: delegate to as_rtftables() (split = "none")

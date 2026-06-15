@@ -6,6 +6,7 @@ title: "Importing tables with as_rtftables()"
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
                       message = FALSE, warning = FALSE)
 .has_gt <- requireNamespace("gt", quietly = TRUE)
+.has_flextable <- requireNamespace("flextable", quietly = TRUE)
 ```
 
 ```{r setup}
@@ -45,6 +46,7 @@ class(pages[[1]])
 - a **gtsummary** table (`tbl_summary()`, `tbl_regression()`, …; converted via
   `gtsummary::as_gt()`),
 - an **rtables / tern** `VTableTree`,
+- a **`flextable`** table (`flextable::flextable(...)`),
 - a plain **`data.frame` / tibble**, or
 - a **`list`** of any of these (flattened to one page each, names propagated).
 
@@ -60,19 +62,24 @@ class(tbl)
 
 ## Reading metadata -- `read_meta`
 
-For a rich source (gt / gtsummary / rtables), `as_rtftables()` reads the
-render-relevant metadata so you do not have to restate it. What is carried:
+For a rich source (gt / gtsummary / rtables / flextable), `as_rtftables()` reads
+the render-relevant metadata so you do not have to restate it. What is carried:
 
-| Metadata | gt / gtsummary | rtables / tern |
-|----------|----------------|----------------|
-| Column (leaf) labels | yes | yes |
-| Per-column alignment | yes | yes |
-| Spanning headers | yes | yes |
-| Column widths | yes (px/pct) | -- |
-| Title + subtitle | yes | yes |
-| Footnotes / source notes | yes | yes |
-| In-cell footnote marks | yes (superscript) | yes (superscript) |
-| Row-group rows + indent | yes (rendered) | yes (rendered) |
+| Metadata | gt / gtsummary | rtables / tern | flextable |
+|----------|----------------|----------------|-----------|
+| Column (leaf) labels | yes | yes | yes |
+| Per-column alignment | yes | yes | yes |
+| Spanning headers | yes | yes | yes |
+| Column widths | yes (px/pct) | -- | -- |
+| Title + subtitle | yes | yes | yes (caption) |
+| Footnotes / source notes | yes | yes | yes (footer) |
+| In-cell footnote marks | yes (superscript) | yes (superscript) | -- |
+| Row-group rows + indent | yes (rendered) | yes (rendered) | yes (rendered) |
+
+For **flextable** the *displayed* text is read (header labels from
+`set_header_labels()` and `colformat_*()` formatting included), not the raw
+`$body$dataset`. Image/equation cells and `footnote()` reference marks are not
+carried.
 
 **Not carried** (RTF cannot reproduce them, so they are intentionally ignored):
 per-cell bold / italic / underline, cell background fills, font/size styling, and
@@ -88,7 +95,8 @@ below).
   `c("col_header", "alignment")`. Tokens for gt/gtsummary: `"col_header"`,
   `"alignment"`, `"spanning"`, `"widths"`, `"titles"`, `"footnotes"`. For
   rtables/tern: `"col_header"`, `"alignment"`, `"spanning"`, `"titles"`,
-  `"footnotes"`, `"indent"`, `"footnote_marks"`.
+  `"footnotes"`, `"indent"`, `"footnote_marks"`. For flextable:
+  `"col_header"`, `"alignment"`, `"spanning"`, `"titles"`, `"footnotes"`.
 
 ```{r gt-meta, eval = .has_gt}
 library(gt)
@@ -107,6 +115,25 @@ tbl$col_header                       # -> "Miles/gallon", "Cylinders"
 plain <- as_rtftable(g, read_meta = FALSE)
 plain$col_header        # NULL -- nothing extracted
 names(plain$data)       # the body column names that headers fall back to
+```
+
+A **flextable** is read the same way. The *displayed* text is taken (so
+`set_header_labels()` relabelling and `colformat_*()` formatting are honoured),
+along with the caption (title), footer lines (footnotes), spanning headers and
+per-column alignment:
+
+```{r flextable-meta, eval = .has_flextable}
+library(flextable)
+
+ft <- flextable(data.frame(Param = c("Mean", "SD"), Value = c(75.13, 8.234))) |>
+  set_header_labels(Param = "Characteristic") |>
+  colformat_double(j = "Value", digits = 1) |>
+  align(j = "Value", align = "right", part = "body") |>
+  set_caption("Table 1: Demographics")
+
+tbl <- as_rtftable(ft)
+tbl$data[[2]]            # -> "75.1", "8.2"  (colformat applied)
+attr(tbl, "rtf_titles") # -> "Table 1: Demographics"  (from the caption)
 ```
 
 

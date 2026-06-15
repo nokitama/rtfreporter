@@ -2,6 +2,16 @@
 
 ### New features
 
+- `as_rtftables()` / `as_rtftable()` can now read **flextable** objects (#119),
+  joining gt, gtsummary and rtables/tern. The *displayed* cell text is read via
+  flextable's exported introspection API (`information_data_chunk()` /
+  `information_data_paragraph()`), so `set_header_labels()` relabelling and
+  `colformat_*()` formatting are honoured. Column (leaf) labels, spanning
+  headers, per-column alignment, the caption (title) and footer lines
+  (footnotes) are carried; per-cell styling, explicit widths and `footnote()`
+  reference marks are not. New `read_meta` tokens for flextable: `"col_header"`,
+  `"alignment"`, `"spanning"`, `"titles"`, `"footnotes"`.
+
 - Titles and footnotes are reworked (#117):
   - They now render as a **single-column table the same width as the content**
     (table or figure), so the blocks line up with the content above/below

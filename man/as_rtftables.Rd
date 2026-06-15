@@ -28,7 +28,7 @@ as_rtftables(
 }
 \arguments{
 \item{x}{A `gt_tbl`, a gtsummary table, an rtables/tern `VTableTree`, a
-`data.frame` / tibble, or a `list` of these.}
+`flextable`, a `data.frame` / tibble, or a `list` of these.}
 
 \item{read_meta}{Controls metadata extraction from the source table:
 `TRUE` (default, read everything in the table above), `FALSE` (use only
@@ -37,7 +37,8 @@ vector of tokens.  Ignored for plain data.frame inputs.  Tokens for
 gt/gtsummary: `"col_header"`, `"alignment"`, `"spanning"`, `"widths"`,
 `"titles"`, `"footnotes"`.  For rtables/tern: `"col_header"`,
 `"alignment"`, `"spanning"`, `"titles"`, `"footnotes"`, `"indent"`,
-`"footnote_marks"`.}
+`"footnote_marks"`.  For flextable: `"col_header"`, `"alignment"`,
+`"spanning"`, `"titles"`, `"footnotes"`.}
 
 \item{max_rows}{Integer or `NULL`.  Maximum body rows per page for the
 `"group_safe"` / `"group_force"` splits (required by them).  Ignored by
@@ -182,9 +183,9 @@ rtftable as the attributes `rtf_titles` / `rtf_footnotes`, which
 [rtf_tables()] consumes automatically.
 
 Supported inputs: `gt_tbl`, gtsummary tables, rtables/tern `VTableTree`
-tables, plain `data.frame` / tibble, or a `list` of any of these (the list
-is flattened, names propagated as `name`, `name.1`, `name.2`, ...).
-Figures are out of scope -- use [rtf_figures()] for those.
+tables, `flextable` tables, plain `data.frame` / tibble, or a `list` of any
+of these (the list is flattened, names propagated as `name`, `name.1`,
+`name.2`, ...).  Figures are out of scope -- use [rtf_figures()] for those.
 }
 \section{What is carried, by source}{
 
@@ -196,17 +197,22 @@ Only visible columns appear (hidden / helper columns such as tfrmt's
 interleaved, and indentation is rendered into the label text.  On top of
 that body the following *metadata* is read:
 
-\tabular{lll}{
-  **Metadata** \tab **gt / gtsummary** \tab **rtables / tern** \cr
-  Column (leaf) labels        \tab yes \tab yes \cr
-  Per-column alignment        \tab yes \tab yes \cr
-  Spanning headers            \tab yes \tab yes \cr
-  Column widths               \tab yes (px/pct) \tab -- \cr
-  Title + subtitle            \tab yes \tab yes \cr
-  Footnotes / source notes    \tab yes \tab yes \cr
-  In-cell footnote marks      \tab yes (superscript) \tab yes (superscript) \cr
-  Row-group rows + indent     \tab yes (rendered) \tab yes (rendered) \cr
+\tabular{llll}{
+  **Metadata** \tab **gt / gtsummary** \tab **rtables / tern** \tab **flextable** \cr
+  Column (leaf) labels        \tab yes \tab yes \tab yes \cr
+  Per-column alignment        \tab yes \tab yes \tab yes \cr
+  Spanning headers            \tab yes \tab yes \tab yes \cr
+  Column widths               \tab yes (px/pct) \tab -- \tab -- \cr
+  Title + subtitle            \tab yes \tab yes \tab yes (caption) \cr
+  Footnotes / source notes    \tab yes \tab yes \tab yes (footer) \cr
+  In-cell footnote marks      \tab yes (superscript) \tab yes (superscript) \tab -- \cr
+  Row-group rows + indent     \tab yes (rendered) \tab yes (rendered) \tab yes (rendered) \cr
 }
+
+For flextable the *displayed* text is read (header labels set via
+`set_header_labels()` and `colformat_*()` formatting included), not the raw
+`$body$dataset`.  Cells composed of images / equations and `footnote()`
+reference marks are not carried.
 
 **Not carried** (RTF cannot reproduce these, so they are intentionally
 ignored): per-cell bold / italic / underline from `gt::tab_style()`, cell

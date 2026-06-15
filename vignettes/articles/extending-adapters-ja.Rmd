@@ -10,11 +10,11 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
   <a class="btn btn-outline-secondary btn-sm" href="extending-adapters.html">In English</a>
 </p>
 
-rtfreporter は、他パッケージ（gt, gtsummary, rtables/tern）が生成した
-テーブルを読み込み、メタデータ（カラムラベル、整列、スパニングヘッダー、
-タイトル、脚注、セル単位スタイル）を保ったまま RTF に変換できます。
-この記事では、既存の `gt_adapter.R` と `rtables_adapter.R` を雛形に、
-**新しいテーブルオブジェクト型**を認識させる方法を示します。
+rtfreporter は、他パッケージ（gt, gtsummary, rtables/tern, flextable）が
+生成したテーブルを読み込み、メタデータ（カラムラベル、整列、スパニング
+ヘッダー、タイトル、脚注、セル単位スタイル）を保ったまま RTF に変換できます。
+この記事では、既存の `gt_adapter.R`・`rtables_adapter.R`・`flextable_adapter.R`
+を雛形に、**新しいテーブルオブジェクト型**を認識させる方法を示します。
 
 まずは全体像のために
 [アーキテクチャと内部構造](architecture-ja.html) を読んでください。

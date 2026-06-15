@@ -11,11 +11,11 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 </p>
 
 rtfreporter can read tables produced by other packages — gt, gtsummary,
-and rtables/tern — and turn them into RTF while preserving their metadata
-(column labels, alignment, spanning headers, titles, footnotes, per-cell
-styles).  This article shows how to teach it about **a new table-object
-type**, using the existing `gt_adapter.R` and `rtables_adapter.R` as
-templates.
+rtables/tern, and flextable — and turn them into RTF while preserving their
+metadata (column labels, alignment, spanning headers, titles, footnotes,
+per-cell styles).  This article shows how to teach it about **a new
+table-object type**, using the existing `gt_adapter.R`, `rtables_adapter.R`
+and `flextable_adapter.R` as templates.
 
 Read [Architecture & internals](architecture.html) first for the big
 picture.
