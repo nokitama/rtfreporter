@@ -319,6 +319,7 @@ paginate.data.frame <- function(x, ...) {
                                  count_blank_rows = FALSE,
                                  align_count_pct  = FALSE,
                                  cell_format      = NULL,
+                                 collapse_repeats = NULL,
                                  ...) {
   # `split` is either one of the built-in strategy names (character) or a
   # user-supplied custom function that cuts the body into per-page chunks.
@@ -410,6 +411,14 @@ paginate.data.frame <- function(x, ...) {
 
   # Step 2: attach blank-row positions (via the standalone helper
   # set_blank_rows()) + paginate meta on each chunk.
+  #
+  # `collapse_repeats` (repeat suppression) is applied PER PAGE here, after the
+  # split and after blank handling -- so the split still saw the original
+  # repeated values (group boundaries / (Cont.) labels stay correct) and the
+  # materialised blank-marker rows are already gone (they must not break a run).
+  # Each page restarts the suppression, so a group continued onto the next page
+  # shows its label again at the top.
+  collapse_idx <- .resolve_collapse_cols(collapse_repeats, x)
   n_pages     <- length(chunks)
   chunk_names <- names(chunks)        # may be NULL for non-named splits
   out <- lapply(seq_along(chunks), function(i) {
@@ -430,6 +439,9 @@ paginate.data.frame <- function(x, ...) {
                                blank_row_first = blank_row_first,
                                blank_row_end   = blank_row_end,
                                group_col       = group_col)
+    }
+    if (length(collapse_idx)) {
+      chunk <- .collapse_repeats_chunk(chunk, collapse_idx)
     }
     attr(chunk, "rtf_paginate_meta") <- list(
       strategy    = strategy,
@@ -466,6 +478,55 @@ paginate.data.frame <- function(x, ...) {
                  group_col, ncol(df)), call. = FALSE)
   }
   idx
+}
+
+# Resolve a `collapse_repeats` column spec (character names and/or integer
+# indices, or NULL) to a vector of integer column indices, preserving the
+# supplied order.  Hidden helper columns (".__rtf_*") are appended last, so the
+# real columns keep their natural 1-based positions for integer indexing.
+.resolve_collapse_cols <- function(cols, df) {
+  if (is.null(cols) || length(cols) == 0L) return(integer(0))
+  vapply(cols, function(c1) {
+    if (is.character(c1)) {
+      idx <- match(c1, names(df))
+      if (is.na(idx)) {
+        stop(sprintf("`collapse_repeats` column '%s' not found in the table.",
+                     c1), call. = FALSE)
+      }
+      as.integer(idx)
+    } else {
+      idx <- as.integer(c1)
+      if (is.na(idx) || idx < 1L || idx > ncol(df)) {
+        stop(sprintf("`collapse_repeats` index %s out of range (1..%d).",
+                     c1, ncol(df)), call. = FALSE)
+      }
+      idx
+    }
+  }, integer(1L), USE.NAMES = FALSE)
+}
+
+# Blank out consecutive repeated values in the given columns of ONE page,
+# keeping only the first of each run; replaced cells become NA (which the
+# renderer draws as an empty cell, so no row is removed -- only the display
+# text is suppressed).  Columns are processed in the supplied order: the first
+# is collapsed on its own value; each later column is collapsed on the
+# COMBINATION of itself with all earlier listed columns, so a change in any
+# higher column resets the lower column's run (hierarchical repeat
+# suppression).  Keys are built from the original (pre-blanking) values.
+.collapse_repeats_chunk <- function(chunk, cols) {
+  n <- nrow(chunk)
+  if (n <= 1L || length(cols) == 0L) return(chunk)
+  orig <- lapply(cols, function(j) as.character(chunk[[j]]))
+  for (k in seq_along(cols)) {
+    key <- do.call(paste, c(orig[seq_len(k)], list(sep = "\r")))
+    dup <- c(FALSE, key[-1L] == key[-n])
+    if (any(dup)) {
+      colv      <- chunk[[cols[k]]]
+      colv[dup] <- NA
+      chunk[[cols[k]]] <- colv
+    }
+  }
+  chunk
 }
 
 # Indent characters that mark a cell as a sub-row of the current group: a

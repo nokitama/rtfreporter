@@ -192,6 +192,46 @@ pages <- as_rtftables(df2, split = "group_safe", max_rows = 2,
 length(pages)
 ```
 
+### Blanking repeated values -- `collapse_repeats`
+
+A `"value"`-style column carries the group key on *every* row, but tables
+usually print the key only once per run and leave the repeats blank -- the
+`"filled"` layout. `collapse_repeats` performs exactly that conversion: name one
+or more columns and each run of equal values is suppressed to a single visible
+cell, the rest replaced with `NA` (which renders as an empty cell -- no row is
+removed, only the text is hidden).
+
+```{r collapse-single}
+df_rep <- data.frame(
+  Group = c("All", "All", "BORC", "BORC", "BORC", "BORC",
+            "HOGE", "HAGE", "HOGE", "HAGE", "HAGE")
+)
+as_rtftables(df_rep, collapse_repeats = "Group")[[1]]$data$Group
+#> "All" NA "BORC" NA NA NA "HOGE" "HAGE" "HOGE" "HAGE" NA
+```
+
+Where does this sit relative to `group_by`? It runs **after** value-based
+grouping and **before** the table is shown as `"filled"`: the suppression is
+applied **per page, after the split**, so the pagination still sees the original
+repeated values. Group boundaries and the `" (Cont.)"` continuation labels stay
+correct, and a group continued onto the next page shows its label again at the
+top of that page (each page restarts the suppression).
+
+Several columns are suppressed **hierarchically**: the first listed column is
+collapsed on its own value, and each later column on the *combination* of itself
+with all earlier listed columns -- so a change in any higher column restarts the
+lower column's run.
+
+```{r collapse-hier}
+df_hier <- data.frame(
+  Soc = c("Cardiac", "Cardiac", "Cardiac", "Vascular", "Vascular"),
+  Pt  = c("Angina",  "Angina",  "Failure", "Angina",   "Angina")
+)
+res <- as_rtftables(df_hier, collapse_repeats = c("Soc", "Pt"))[[1]]$data
+res$Pt   # row 3 keeps "Failure"; row 5 blanks the repeated "Angina" under Vascular
+#> "Angina" NA "Failure" "Angina" NA
+```
+
 
 ## 2. A custom split function
 

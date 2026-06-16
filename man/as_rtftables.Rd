@@ -20,6 +20,7 @@ as_rtftables(
   count_blank_rows = FALSE,
   align_count_pct = FALSE,
   cell_format = NULL,
+  collapse_repeats = NULL,
   auto_width = FALSE,
   table_width_twips = NULL,
   border = "tfl",
@@ -155,6 +156,21 @@ Each function takes one column (a character vector) and returns a
 character vector of the same length; see [fmt_count_paren()] /
 [fmt_right_align()] for built-ins and the contract for writing your own.
 When supplied it takes precedence over `align_count_pct`.}
+
+\item{collapse_repeats}{Columns in which to blank **consecutive repeated
+values** (repeat suppression), or `NULL` (default, off).  A character /
+integer vector naming the columns in priority order.  Within each column,
+only the first value of a run is kept; the rest of the run is replaced with
+`NA` (which renders as an empty cell -- no row is removed, only the display
+text is suppressed).  When several columns are given the suppression is
+**hierarchical**: the first column is collapsed on its own value, and each
+later column on the *combination* of itself with all earlier listed columns
+(a change in any higher column restarts the lower column's run).  This runs
+**per page, after the split**, so the pagination still sees the original
+repeated values -- group boundaries and `(Cont.)` labels stay correct, and a
+group continued onto the next page shows its label again at the top.  (In
+`group_by` terms: value-based grouping happens first, then the column is
+collapsed to a `"filled"`-style display.)}
 
 \item{auto_width}{Logical (default `FALSE`).  When `TRUE`, each column is
 sized to its widest content (column header label or data cell) via

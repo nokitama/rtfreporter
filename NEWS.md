@@ -2,6 +2,20 @@
 
 ### New features
 
+- `as_rtftables()` / `as_rtftable()` gain a **`collapse_repeats`** argument that
+  blanks **consecutive repeated values** in the named column(s) -- repeat
+  suppression for row-label / key columns (#131). Only the first value of each
+  run is kept; the rest become `NA` (rendered as an empty cell, so no row is
+  removed). Pass a character / integer vector of columns. With several columns
+  the suppression is **hierarchical**: the first column collapses on its own
+  value, each later column on its *combination* with all earlier listed columns
+  (a change in any higher column restarts the lower column's run). It runs **per
+  page, after the split**, so pagination still sees the original repeated values
+  -- group boundaries and `" (Cont.)"` labels stay correct, and a group
+  continued onto the next page repeats its label at the top. (In `group_by`
+  terms: value-based grouping happens first, then the column is collapsed to a
+  `"filled"`-style display.)
+
 - `as_rtftables()` group-aware pagination (`split = "group_safe"` /
   `"group_force"` / `"by_value"`) gains a **`group_by`** argument that selects
   *how* a group boundary is detected, decoupled from `group_col` (which now

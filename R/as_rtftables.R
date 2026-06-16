@@ -215,6 +215,20 @@
 #'   character vector of the same length; see [fmt_count_paren()] /
 #'   [fmt_right_align()] for built-ins and the contract for writing your own.
 #'   When supplied it takes precedence over `align_count_pct`.
+#' @param collapse_repeats Columns in which to blank **consecutive repeated
+#'   values** (repeat suppression), or `NULL` (default, off).  A character /
+#'   integer vector naming the columns in priority order.  Within each column,
+#'   only the first value of a run is kept; the rest of the run is replaced with
+#'   `NA` (which renders as an empty cell -- no row is removed, only the display
+#'   text is suppressed).  When several columns are given the suppression is
+#'   **hierarchical**: the first column is collapsed on its own value, and each
+#'   later column on the *combination* of itself with all earlier listed columns
+#'   (a change in any higher column restarts the lower column's run).  This runs
+#'   **per page, after the split**, so the pagination still sees the original
+#'   repeated values -- group boundaries and `(Cont.)` labels stay correct, and a
+#'   group continued onto the next page shows its label again at the top.  (In
+#'   `group_by` terms: value-based grouping happens first, then the column is
+#'   collapsed to a `"filled"`-style display.)
 #' @param auto_width Logical (default `FALSE`).  When `TRUE`, each column is
 #'   sized to its widest content (column header label or data cell) via
 #'   [auto_col_widths()], so long row labels and column headers do not wrap.
@@ -290,6 +304,7 @@ as_rtftables <- function(x,
                          count_blank_rows = FALSE,
                          align_count_pct = FALSE,
                          cell_format     = NULL,
+                         collapse_repeats = NULL,
                          auto_width        = FALSE,
                          table_width_twips = NULL,
                          border          = "tfl",
@@ -315,7 +330,7 @@ as_rtftables <- function(x,
         blank_rows = blank_rows, blank_row_first = blank_row_first,
         blank_row_end = blank_row_end, count_blank_rows = count_blank_rows,
         align_count_pct = align_count_pct,
-        cell_format = cell_format,
+        cell_format = cell_format, collapse_repeats = collapse_repeats,
         auto_width = auto_width, table_width_twips = table_width_twips,
         border = border, style = style, ...)
       if (!is.null(in_names) && nzchar(in_names[i])) {
@@ -420,7 +435,8 @@ as_rtftables <- function(x,
     min_group_rows = min_group_rows, blank_rows = blank_rows,
     blank_row_first = blank_row_first, blank_row_end = blank_row_end,
     count_blank_rows = count_blank_rows,
-    align_count_pct = align_count_pct, cell_format = cell_format)
+    align_count_pct = align_count_pct, cell_format = cell_format,
+    collapse_repeats = collapse_repeats)
   page_names <- names(pages)
 
   out <- lapply(seq_along(pages), function(i) {
