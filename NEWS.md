@@ -128,6 +128,13 @@
   orientation is now rejected. Applies to `rtf_document(page=)` and
   `rtf_config(page=)` (#106).
 
+### Internal
+
+- Added multi-group / multi-page pagination tests for **every** table-object
+  adapter (gt, gtsummary, rtables/tern, flextable, huxtable), exercising the
+  shared `as_rtftables()` pipeline (grouping, pagination, blank rows,
+  `collapse_repeats`) end to end. Test-only; no behaviour change (#134).
+
 ### Bug fixes
 
 - Multi-page documents now insert a proper page break between pages. Each
