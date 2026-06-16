@@ -63,3 +63,29 @@ test_that("the document font size is emitted as a document-level \\fs<n>", {
   # Default is 9pt = \fs18.
   expect_match(.render_to_string(.simple_doc()), "\\\\fs18\\b")
 })
+
+test_that("a multi-page table terminates each table with \\pard before the break (#130)", {
+  # group_safe with no page-number token used to emit `\page` straight after a
+  # `\row`, leaving the table un-terminated so strict RTF readers rendered the
+  # next page flush against the previous one.  Every `\page` (and the document
+  # close) must now be preceded by a `\pard` table terminator.
+  df <- data.frame(grp = c("A", "A", "B", "B", "C", "C"),
+                   val = as.character(1:6), stringsAsFactors = FALSE)
+  pages <- as_rtftables(df, split = "group_safe", max_rows = 2,
+                        group_col = "grp", group_by = "value")
+  doc <- rtf_document() |>
+    rtf_section(page = 1, secinfo = list(header = NULL, footer = NULL)) |>
+    rtf_tables(pages)
+  txt <- .render_to_string(doc)
+
+  expect_length(pages, 3L)
+  # Two page breaks for three pages, each preceded by a \pard table terminator
+  # (\pard and \page are emitted on separate lines, which RTF treats as
+  # whitespace).
+  n_page <- length(gregexpr("\\\\page(?![a-z])", txt, perl = TRUE)[[1]])
+  n_pard_page <- length(gregexpr("\\\\pard\\s*\\\\page", txt)[[1]])
+  expect_equal(n_page, 2L)
+  expect_equal(n_pard_page, 2L)
+  # The final page is terminated too (\pard before the document close).
+  expect_match(txt, "\\\\pard\\s*\\}\\s*$")
+})

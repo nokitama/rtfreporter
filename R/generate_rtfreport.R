@@ -1837,6 +1837,12 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
         tf_pad_l, tf_pad_r, tf_valign, content_align, color_index_map,
         doc_row_height = doc_row_height))
 
+      # Terminate the page's table stream with \pard before any break (or the
+      # document close).  Without it a \page emitted straight after \row is
+      # absorbed into the table flow and the next page renders flush against
+      # this one in strict RTF readers (#130).
+      lines <- c(lines, doc_cmd$table_end)
+
       # Page break between pages; section break between sections.
       # When per-page sections are in effect, ALL sub-page boundaries
       # become section breaks so the next sub-page can re-emit its

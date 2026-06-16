@@ -116,6 +116,14 @@
 
 ### Bug fixes
 
+- Multi-page documents now insert a proper page break between pages. Each
+  page's table is terminated with `\pard` before the `\page` / `\sect` break
+  (and before the document close); previously a `\page` emitted straight after
+  a table `\row` was absorbed into the table flow, so strict RTF readers
+  rendered the next page flush against the previous one. Most visible with
+  `as_rtftables(split = "group_safe")` and other plain (no page-number token)
+  multi-page splits (#130).
+
 - The automatic spanning-header **group underline** is now drawn only where the
   column grouping actually changes below the cell (the next header row
   subdivides the span). Previously every multi-column spanning cell that was not

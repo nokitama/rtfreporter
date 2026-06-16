@@ -19,6 +19,12 @@ rtf_commands <- list(
     #   \widowctrl           widow/orphan control (standard for body text).
     page_settings_template = "\\paperw{width_twips}\\paperh{height_twips}{orientation_cmd}\\margl{margin_left_twips}\\margr{margin_right_twips}\\margt{margin_top_twips}\\margb{margin_bottom_twips}\\headery{header_dist_twips}\\footery{footer_dist_twips}\\widowctrl\\fs{font_size_half_points}",
     section_defaults = "\\sectd",
+    # Table terminator emitted after a page's content (and its title / footnote
+    # tables) before a page / section break or the document close.  A table must
+    # be closed with \pard before paragraph-level content such as \page, or
+    # strict RTF readers absorb the break into the table flow and render the
+    # next table flush against the previous one (#130).
+    table_end = "\\pard",
     page_break = "\\page",
     section_break = "\\sect",
     header_wrapper = "{\\header {content}}",
