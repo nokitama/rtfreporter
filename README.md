@@ -36,8 +36,8 @@ The package is not on CRAN yet. Install from GitHub:
 ``` r
 # install.packages("remotes")
 
-# Latest release (v0.3.4)
-remotes::install_github("ichirio/rtfreporter@v0.3.4")
+# Latest release (v0.4.0)
+remotes::install_github("ichirio/rtfreporter@v0.4.0")
 
 # Development version (latest main)
 remotes::install_github("ichirio/rtfreporter")
@@ -177,11 +177,12 @@ The full pkgdown site is at <https://ichirio.github.io/rtfreporter/>:
 `lifecycle: experimental` badge; the API may still change in
 backward-incompatible ways before v1.0.0.
 
-- **Latest release: `v0.3.4`** — the current stable version, installable from
-  GitHub (`remotes::install_github("ichirio/rtfreporter@v0.3.4")`); not yet on
-  CRAN. It includes fine-grained column-header borders, hardened/portable RTF
-  output, custom `cell_format` functions, and expanded documentation — see
-  [`NEWS.md`](NEWS.md).
+- **Latest release: `v0.4.0`** — the current stable version, installable from
+  GitHub (`remotes::install_github("ichirio/rtfreporter@v0.4.0")`); not yet on
+  CRAN. It adds the flextable & huxtable adapters, `group_by` group-detection
+  modes, document-wide style defaults, configurable `rtfreporter.*` options,
+  `collapse_repeats`, `blank_row_normalize`, and a corrected multi-page page
+  break — see [`NEWS.md`](NEWS.md).
 - **Development version on `main`** tracks ongoing work; each pull request
   advances only the development *patch* number. A MINOR/MAJOR bump is a
   deliberate, labelled release action (enforced by the `version-guard` CI), not
@@ -191,8 +192,8 @@ Planned release milestones:
 
 | Version | Goal |
 |---------|------|
-| **v0.4.0** | CRAN-submission **preparation** — full `R CMD check --as-cran` clean, increased test coverage, documentation/metadata polish. |
-| **v0.5.0** | **CRAN registration** — initial CRAN release. |
+| **v0.5.0** | CRAN-submission **preparation** — full `R CMD check --as-cran` clean, increased test coverage, documentation/metadata polish. |
+| **v0.6.0** | **CRAN registration** — initial CRAN release. |
 | **v1.0.0** | **Stable API** — the `lifecycle: experimental` badge is removed; "the API may change" wording is dropped. |
 
 See [`NEWS.md`](NEWS.md) for the user-facing changelog and

@@ -4,6 +4,36 @@ All notable changes to rtfreporter are documented in this file. Changes are reco
 
 ---
 
+## v0.4.0
+
+> **Status**: Published as the current stable version — a MINOR feature release
+> rolling up all development since v0.3.4. Because this is a general feature
+> release (not the CRAN-prep milestone), the roadmap shifts up by one MINOR:
+> **v0.5.0** CRAN-submission preparation, **v0.6.0** CRAN registration,
+> **v1.0.0** stable API (`lifecycle: experimental` removed).
+
+Highlights since v0.3.4:
+
+* New table-object adapters — `as_rtftables()` / `as_rtftable()` now read
+  **flextable** and **huxtable** tables (joining gt, gtsummary, rtables/tern).
+* `group_by` group-detection modes (`"auto"` / `"indent"` / `"value"` /
+  `"filled"`), decoupled from `group_col`.
+* `collapse_repeats` — per-page repeat suppression (blank consecutive repeated
+  values, hierarchically across columns).
+* `blank_row_normalize` — render all-empty data rows as a single full-width
+  blank row and collapse consecutive blanks (default on).
+* Document-wide style defaults (row height / cell padding) and configurable
+  `rtfreporter.*` options.
+* Titles / footnotes render as content-width tables with per-row styling.
+* Page-setup presets (`paper_size`) and rationalized page geometry.
+* Bug fix — the multi-page `\page` break is now wrapped in empty paragraphs
+  (`{\pard\fs2\par}\page{\pard\fs2\par}`), so Word honours it.
+* Testing — multi-group / multi-page pagination coverage for every adapter.
+
+See [`NEWS.md`](NEWS.md) for the full per-item list.
+
+---
+
 ## v0.3.4
 
 > **Status**: Published as the current stable version. This is an **exceptional

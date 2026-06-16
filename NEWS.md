@@ -1,4 +1,4 @@
-# rtfreporter (development version)
+# rtfreporter 0.4.0
 
 ### New features
 
