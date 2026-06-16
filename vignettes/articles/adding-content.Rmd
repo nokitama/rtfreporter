@@ -186,6 +186,33 @@ notes flow through automatically -- see
 [Importing tables](importing-tables.html).
 
 
+## Cell-text markup
+
+Cell text (data cells, column / spanning headers, titles and footnotes) is run
+through a small markup step controlled by the `markup` argument of `rtftable()`
+(and `rtf_tables()` for bare data.frames; the document-wide default is
+`rtf_document(default_format = list(markup = ))`). It takes a character vector of:
+
+- `"script"` -- `^{...}` renders as superscript, `_{...}` as subscript (this is
+  how adapter-generated footnote reference marks such as `^{1}` become real
+  superscripts);
+- `"relational"` -- the literal `">="` is converted to the `>=` symbol
+  (U+2265) and `"<="` to `<=` (U+2264).
+
+The default is **`"script"`** -- super/subscript on, but the `>=` / `<=` symbol
+conversion **off**, so a literal `>=` stays as typed. Opt into the symbol
+conversion with `"all"` (or `"relational"`), or turn everything off with
+`"none"`:
+
+```{r markup}
+df_rel <- data.frame(Criterion = c("Age >= 65", "CrCl < 30"), n = c("120", "8"))
+
+rtftable(df_rel)                       # default: ">=" stays literal
+rtftable(df_rel, markup = "all")       # ">=" -> the >= symbol, ^{}/_{} too
+rtftable(df_rel, markup = "none")      # no markup at all (everything literal)
+```
+
+
 ## Figures
 
 Images are content too: one figure per page, added with `rtf_figures()`. Pass a

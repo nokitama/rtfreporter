@@ -1,3 +1,20 @@
+# rtfreporter (development version)
+
+### New features
+
+- `rtftable()` gains a **`markup`** argument (forwarded by `as_rtftables()` /
+  `rtf_tables()`, with a document-wide default via
+  `rtf_document(default_format = list(markup = ))` / the `rtfreporter.markup`
+  option) controlling cell-text markup with two tokens (#142): `"script"` turns
+  `^{...}` / `_{...}` into super/subscript, and `"relational"` converts the
+  literal `">="` / `"<="` into the `>=` / `<=` symbols (U+2265 / U+2264).
+  `"all"` enables both, `"none"` neither. **The default is `"script"`**, which
+  changes prior behaviour: `>=` / `<=` are now left **literal** unless you
+  request `"relational"` / `"all"`, while super/subscript (e.g. adapter footnote
+  marks `^{N}`) keep working. Applies to data cells, column / spanning headers,
+  and title / footnote blocks.
+
+
 # rtfreporter 0.4.0
 
 ### New features

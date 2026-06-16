@@ -55,6 +55,11 @@ merged per key). Recognised keys:
 * `cell_padding_left_twips`, `cell_padding_right_twips` -- document-wide
   default **cell padding** (border-to-text distance), likewise applied to
   every element.
+* `markup` -- document-wide default cell-text **markup** (`"script"`,
+  `"relational"`, `"all"`, or `"none"`; default `"script"`). Controls
+  whether `^{}`/`_{}` render as super/subscript and whether `>=`/`<=` are
+  converted to the `>=`/`<=` symbols. A per-table `rtftable(markup = )`
+  overrides it. See [rtftable()].
 These are **defaults**: a per-module value -- `rtftable()` /
 `rtf_header()` / `rtf_footer()` / `rtf_table_style()` -- always overrides
 them. They can also be set globally as `rtfreporter.*` options (see

@@ -29,7 +29,8 @@ rtftable(
   cell_padding_right_twips = NULL,
   cell_valign = "bottom",
   cell_styles = NULL,
-  blank_row_normalize = c("detect", "collapse")
+  blank_row_normalize = c("detect", "collapse"),
+  markup = NULL
 )
 }
 \arguments{
@@ -165,6 +166,21 @@ character vector of zero or more of:
 Default `c("detect", "collapse")` (both on). Pass `"none"`, `NULL`, or
 `character(0)` to disable. Both behaviours act per rendered table, so for a
 paginated table they apply per page (i.e. after the split).}
+
+\item{markup}{Which cell-text markup is applied at render time, as a
+character vector of zero or more of:
+\describe{
+  \item{`"script"`}{`^{...}` renders as superscript (`\\super`) and
+    `_{...}` as subscript (`\\sub`).}
+  \item{`"relational"`}{`">="` is converted to `U+2265` and `"<="` to
+    `U+2264`.}
+}
+`"all"` enables both; `"none"` / `character(0)` enables neither. `NULL`
+(default) **inherits** the document default (`rtf_document(default_format =
+list(markup = ))` / the `rtfreporter.markup` option), which is `"script"` --
+so super/subscript (e.g. adapter footnote marks `^{N}`) work while the
+`>=` / `<=` symbol conversion is **opt-in**. Applies to all cell text: data
+cells, column / spanning headers, and title / footnote blocks.}
 }
 \value{
 An `rtftable` (S3) object suitable for use in `rtf_tables()`.

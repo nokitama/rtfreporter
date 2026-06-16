@@ -30,6 +30,7 @@ rtf_tables(
   cell_padding_right_twips = NULL,
   cell_valign = "bottom",
   blank_row_normalize = c("detect", "collapse"),
+  markup = NULL,
   titles = NULL,
   footnotes = NULL,
   auto_section = FALSE,
@@ -72,6 +73,11 @@ element must be one of:
 renders an all-empty data row as a single full-width blank row, `"collapse"`
 reduces a run of consecutive blank rows to one. Pre-built `rtftable()`
 pages keep their own setting. See [rtftable()] for details.}
+
+\item{markup}{Cell-text markup applied to bare `data.frame` elements
+(`"script"` super/subscript, `"relational"` `>=`/`<=` symbols, `"all"`,
+`"none"`). `NULL` (default) inherits the document default (`"script"`).
+Pre-built `rtftable()` pages keep their own setting. See [rtftable()].}
 
 \item{titles}{`NULL` (default) or a list of length `length(tables)` **or
 length 1** (a single block applied to every page). Each element is a

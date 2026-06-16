@@ -61,12 +61,17 @@ test_that(".format_cell_text returns '' for NULL and NA", {
   expect_identical(fct(NA),   "")
 })
 
-test_that(".format_cell_text handles >=, <=, markup, and plain text", {
+test_that(".format_cell_text gates >=/<= on the 'relational' token (default off)", {
   fct <- rtfreporter:::.format_cell_text
-  # >= -> Unicode escape; the actual codepoint 8805 is U+2265
-  expect_match(fct("Age >= 65"), "\\\\u8805\\?")
-  expect_match(fct("Dose <= 5"), "\\\\u8804\\?")
-  expect_match(fct("a^{1}"),      "\\\\super 1")
+  # Default markup is "script": super/subscript on, relational conversion OFF.
+  expect_match(fct("a^{1}"), "\\\\super 1")          # script default
+  expect_false(grepl("u8805", fct("Age >= 65")))     # >= stays literal
+  expect_match(fct("Age >= 65"), ">=", fixed = TRUE)
+  # Opt in to the relational conversion (this helper takes resolved tokens).
+  expect_match(fct("Age >= 65", markup = c("script", "relational")), "\\\\u8805\\?")
+  expect_match(fct("Dose <= 5", markup = "relational"),              "\\\\u8804\\?")
+  # No script token: ^{} is NOT turned into \super (stays literal, escaped).
+  expect_false(grepl("\\super", fct("a^{1}", markup = character(0)), fixed = TRUE))
 })
 
 # ──────── .render_tokens -- AUTO_PAGE / SECTION_PAGES / TOTAL_PAGES ───────

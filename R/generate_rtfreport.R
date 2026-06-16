@@ -189,23 +189,32 @@
   )
 }
 
-# Full cell-text processing pipeline:
-#   ^{} / _{} markup, \n, >=, <=, RTF escape, Unicode.
-.format_cell_text <- function(x) {
+# Full cell-text processing pipeline, gated by the enabled `markup` tokens:
+#   "script"     -> ^{} / _{} super/subscript (via .process_markup)
+#   "relational" -> >= / <= converted to U+2265 / U+2264
+# RTF escaping + Unicode + newline handling always happen.  Default "script"
+# matches the package default (relational conversion is opt-in).
+.format_cell_text <- function(x, markup = "script") {
   if (is.null(x) || is.na(x)) return("")
   x <- as.character(x)
+  relational <- "relational" %in% markup
+  script     <- "script"     %in% markup
 
-  # Simple substitutions on raw string (before markup parsing):
-  x <- gsub("\n",  "\n",  x, fixed = TRUE)  # keep actual newline for .process_markup
-  x <- gsub(">=", "\x01GE\x01", x, fixed = TRUE)
-  x <- gsub("<=", "\x01LE\x01", x, fixed = TRUE)
+  # Relational symbols: stash as placeholders before escaping so the literal
+  # ">=" / "<=" are not themselves escaped, then swap in the RTF Unicode escape.
+  if (relational) {
+    x <- gsub(">=", "\x01GE\x01", x, fixed = TRUE)
+    x <- gsub("<=", "\x01LE\x01", x, fixed = TRUE)
+  }
 
-  # Process markup + escape.
-  result <- .process_markup(x)
+  # Script markup parses ^{}/_{} (and escapes plain parts); otherwise escape the
+  # text verbatim so ^{ / _{ stay literal.
+  result <- if (script) .process_markup(x) else .rtf_escape_unicode_raw(x)
 
-  # Replace placeholders with RTF Unicode sequences.
-  result <- gsub("\x01GE\x01", "\\u8805?", result, fixed = TRUE)
-  result <- gsub("\x01LE\x01", "\\u8804?", result, fixed = TRUE)
+  if (relational) {
+    result <- gsub("\x01GE\x01", "\\u8805?", result, fixed = TRUE)
+    result <- gsub("\x01LE\x01", "\\u8804?", result, fixed = TRUE)
+  }
 
   result
 }
@@ -543,7 +552,8 @@
                                    col_spec = NULL,
                                    table_align = "left",
                                    group_bottom_side = NULL,
-                                   next_boundaries = NULL) {
+                                   next_boundaries = NULL,
+                                   markup = "script") {
   if (is.null(spanning_header) || length(spanning_header) == 0L) return(character())
   ncols <- length(cellx)
 
@@ -638,7 +648,7 @@
     k <- coverage[j]
     if (k > 0L) {
       sp        <- spanning_header[[k]]
-      label     <- .format_cell_text(sp$label %||% "")
+      label     <- .format_cell_text(sp$label %||% "", markup)
       if (isTRUE(sp$underline)) label <- paste0("\\ul ", label, "\\ulnone ")
       if (isTRUE(sp$italic))    label <- paste0("\\i ",  label, "\\i0 ")
       if (isTRUE(sp$bold))      label <- paste0("\\b ",  label, "\\b0 ")
@@ -667,7 +677,7 @@
 # without affecting the rest of the header.
 .render_header_row <- function(hdr_labels, cellx, border_spec, row_height_twips,
                                 pad_l, pad_r, valign_cmd, col_spec,
-                                table_align = "left") {
+                                table_align = "left", markup = "script") {
   ncols <- length(cellx)
 
   # Build per-cell definitions: each cell may have its own border.
@@ -684,7 +694,7 @@
 
   cell_contents <- vapply(seq_len(ncols), function(j) {
     spec  <- col_spec[[j]]
-    text  <- .format_cell_text(if (j <= length(hdr_labels)) hdr_labels[[j]] else "")
+    text  <- .format_cell_text(if (j <= length(hdr_labels)) hdr_labels[[j]] else "", markup)
     bold  <- isTRUE(spec$header_bold)
     itl   <- isTRUE(spec$header_italic)
     align <- spec$header_align %||% "center"
@@ -702,13 +712,14 @@
                               pad_l, pad_r, valign_cmd, col_spec,
                               table_align = "left",
                               row_cell_styles = NULL,
-                              color_index_map = NULL) {
+                              color_index_map = NULL,
+                              markup = "script") {
   ncols <- length(cellx)
   cell_defs     <- .build_cell_defs(cellx, border_spec, valign_cmd)
   cell_contents <- vapply(seq_len(ncols), function(j) {
     spec        <- col_spec[[j]]
     raw_val     <- if (j <= length(vals)) vals[[j]] else NA
-    text        <- .format_cell_text(if (is.na(raw_val)) "" else as.character(raw_val))
+    text        <- .format_cell_text(if (is.na(raw_val)) "" else as.character(raw_val), markup)
     align       <- spec$align       %||% "left"
     bold        <- isTRUE(spec$bold)
     itl         <- isTRUE(spec$italic)
@@ -754,7 +765,7 @@
     pad_l, pad_r, valign_cmd,
     spanning_header, table_align = "left",
     cell_styles = NULL, color_index_map = NULL,
-    blank_row_normalize = character(0)) {
+    blank_row_normalize = character(0), markup = "script") {
 
   ncols <- length(cellx)
   nrows <- nrow(df)
@@ -818,12 +829,13 @@
         } else {
           NULL   # last header row's outer frame already supplies the bottom
         },
-        next_boundaries = nb
+        next_boundaries = nb,
+        markup = markup
       ))
     } else {
       lines <- c(lines, .render_header_row(
         hdr_row, cellx, row_b, hdr_h, pad_l, pad_r, valign_cmd,
-        col_spec, table_align
+        col_spec, table_align, markup = markup
       ))
     }
   }
@@ -888,7 +900,8 @@
         as.list(df[i, , drop = FALSE]),
         cellx, row_border, data_h, pad_l, pad_r, valign_cmd, col_spec, table_align,
         row_cell_styles = rcs,
-        color_index_map = color_index_map
+        color_index_map = color_index_map,
+        markup = markup
       ))
     }
     if (i %in% blank_set) add_blank()
@@ -903,9 +916,12 @@
 # not specify an explicit row_height_twips.
 .render_rtftable <- function(tbl, writable_width_twips, font_half_points = 18L,
                              color_index_map = NULL,
-                             doc_row_height = NULL, doc_pad_l = 0L, doc_pad_r = 0L) {
+                             doc_row_height = NULL, doc_pad_l = 0L, doc_pad_r = 0L,
+                             doc_markup = "script") {
   border   <- tbl$border
   col_spec <- tbl$col_spec
+  # Markup: the table's own setting wins; otherwise inherit the document default.
+  eff_markup <- if (!is.null(tbl$markup)) tbl$markup else doc_markup
   # Cell padding: the table's own value wins; otherwise inherit the document
   # default (which already folds in the option / resource baseline).
   pad_l    <- tbl$cell_padding_left_twips  %||% doc_pad_l
@@ -984,7 +1000,8 @@
         table_align     = table_align,
         cell_styles     = cs_section,
         color_index_map = color_index_map,
-        blank_row_normalize = tbl$blank_row_normalize %||% character(0)
+        blank_row_normalize = tbl$blank_row_normalize %||% character(0),
+        markup = eff_markup
       ))
       row_offset <- row_offset + n_this
     }
@@ -1012,7 +1029,8 @@
     table_align     = table_align,
     cell_styles     = tbl$cell_styles,
     color_index_map = color_index_map,
-    blank_row_normalize = tbl$blank_row_normalize %||% character(0)
+    blank_row_normalize = tbl$blank_row_normalize %||% character(0),
+    markup = eff_markup
   )
 }
 
@@ -1394,7 +1412,8 @@
                                       font_half_points, pad_l, pad_r,
                                       valign_cmd, table_align,
                                       color_index_map = NULL,
-                                      doc_row_height = NULL) {
+                                      doc_row_height = NULL,
+                                      markup = "script") {
   rows <- .normalize_text_block(block, is_footer)
   if (length(rows) == 0L) return(character())
 
@@ -1413,7 +1432,7 @@
     } else {
       color_idx <- if (!is.null(rec$color) && !is.null(color_index_map))
                      color_index_map[[rec$color]] else NULL
-      txt <- .format_cell_text(rec$text)
+      txt <- .format_cell_text(rec$text, markup)
       content <- .build_cell_content(txt, rec$align, isTRUE(rec$bold),
                                      isTRUE(rec$italic), isTRUE(rec$underline),
                                      0L, pad_l, pad_r, color_idx)
@@ -1735,6 +1754,10 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
   doc_pad_l      <- as.integer(doc_pad_l)
   doc_pad_r      <- as.integer(doc_pad_r)
 
+  # Document-wide cell-text markup default (per-table `markup` overrides it).
+  doc_markup <- .resolve_markup(doc$default_format$markup %||%
+                                  .opt("rtfreporter.markup") %||% "script")
+
   # Resolve sections (sorted, with from_page / to_page assigned).
   resolved_sections <- .resolve_sections(report)
 
@@ -1854,14 +1877,15 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
       lines <- c(lines, .render_text_block_table(
         page$title, content_w, is_footer = FALSE, font_half_points,
         tf_pad_l, tf_pad_r, tf_valign, content_align, color_index_map,
-        doc_row_height = doc_row_height))
+        doc_row_height = doc_row_height, markup = doc_markup))
       if (!is.null(ct)) {
         if (inherits(ct, "rtftable")) {
           lines <- c(lines, .render_rtftable(ct, writable_w, font_half_points,
                                               color_index_map,
                                               doc_row_height = doc_row_height,
                                               doc_pad_l = doc_pad_l,
-                                              doc_pad_r = doc_pad_r))
+                                              doc_pad_r = doc_pad_r,
+                                              doc_markup = doc_markup))
         } else if (inherits(ct, "rtfplot")) {
           lines <- c(lines, .render_rtfplot(ct, writable_w))
         }
@@ -1871,7 +1895,7 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
       lines <- c(lines, .render_text_block_table(
         page$footnote, content_w, is_footer = TRUE, font_half_points,
         tf_pad_l, tf_pad_r, tf_valign, content_align, color_index_map,
-        doc_row_height = doc_row_height))
+        doc_row_height = doc_row_height, markup = doc_markup))
 
       # End-of-page break.  A table must be terminated before any paragraph-level
       # break or the document close, or strict readers absorb the break into the

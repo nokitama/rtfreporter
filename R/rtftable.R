@@ -30,6 +30,28 @@
   unique(x)
 }
 
+# Resolve a `markup` argument to the enabled tokens (a subset of
+# c("script", "relational")).  Accepts the token vector, `"all"` (both),
+# `"none"` / `character(0)` (neither), or `NULL` (returned as-is, meaning
+# "inherit" for a per-table override).  Errors on any other token.
+#   "script"     -- ^{...} -> \super, _{...} -> \sub
+#   "relational" -- ">=" -> U+2265, "<=" -> U+2264
+.resolve_markup <- function(x) {
+  if (is.null(x)) return(NULL)
+  x <- as.character(x)
+  x <- x[!is.na(x) & nzchar(x)]
+  if (length(x) == 0L || identical(x, "none")) return(character(0))
+  if (identical(x, "all")) return(c("script", "relational"))
+  allowed <- c("script", "relational")
+  bad <- setdiff(x, allowed)
+  if (length(bad)) {
+    stop("`markup` must be a subset of c(\"script\", \"relational\") ",
+         "(or \"all\" / \"none\" / NULL); got: ", paste(bad, collapse = ", "),
+         call. = FALSE)
+  }
+  unique(x)
+}
+
 .normalize_table_border <- function(border) {
   if (is.null(border)) return(NULL)
   if (inherits(border, "rtf_table_border")) return(border)
@@ -424,6 +446,20 @@
 #'   Default `c("detect", "collapse")` (both on). Pass `"none"`, `NULL`, or
 #'   `character(0)` to disable. Both behaviours act per rendered table, so for a
 #'   paginated table they apply per page (i.e. after the split).
+#' @param markup Which cell-text markup is applied at render time, as a
+#'   character vector of zero or more of:
+#'   \describe{
+#'     \item{`"script"`}{`^{...}` renders as superscript (`\\super`) and
+#'       `_{...}` as subscript (`\\sub`).}
+#'     \item{`"relational"`}{`">="` is converted to `U+2265` and `"<="` to
+#'       `U+2264`.}
+#'   }
+#'   `"all"` enables both; `"none"` / `character(0)` enables neither. `NULL`
+#'   (default) **inherits** the document default (`rtf_document(default_format =
+#'   list(markup = ))` / the `rtfreporter.markup` option), which is `"script"` --
+#'   so super/subscript (e.g. adapter footnote marks `^{N}`) work while the
+#'   `>=` / `<=` symbol conversion is **opt-in**. Applies to all cell text: data
+#'   cells, column / spanning headers, and title / footnote blocks.
 #'
 #' @return An `rtftable` (S3) object suitable for use in `rtf_tables()`.
 #'
@@ -470,7 +506,8 @@ rtftable <- function(
   cell_padding_right_twips = NULL,
   cell_valign = "bottom",
   cell_styles = NULL,
-  blank_row_normalize = c("detect", "collapse")
+  blank_row_normalize = c("detect", "collapse"),
+  markup = NULL
 ) {
   # -- Resolve defaults from a shared style template, when supplied ---
   # The style provides defaults; explicit arguments always override.
@@ -636,7 +673,8 @@ rtftable <- function(
       cell_padding_right_twips    = if (is.null(cell_padding_right_twips)) NULL else as.integer(cell_padding_right_twips),
       cell_valign                 = cell_valign,
       cell_styles                 = cell_styles_resolved,
-      blank_row_normalize         = .resolve_blank_row_normalize(blank_row_normalize)
+      blank_row_normalize         = .resolve_blank_row_normalize(blank_row_normalize),
+      markup                      = .resolve_markup(markup)
     ),
     class = "rtftable"
   )

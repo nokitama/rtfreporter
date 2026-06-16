@@ -70,6 +70,11 @@
 #'   * `cell_padding_left_twips`, `cell_padding_right_twips` -- document-wide
 #'     default **cell padding** (border-to-text distance), likewise applied to
 #'     every element.
+#'   * `markup` -- document-wide default cell-text **markup** (`"script"`,
+#'     `"relational"`, `"all"`, or `"none"`; default `"script"`). Controls
+#'     whether `^{}`/`_{}` render as super/subscript and whether `>=`/`<=` are
+#'     converted to the `>=`/`<=` symbols. A per-table `rtftable(markup = )`
+#'     overrides it. See [rtftable()].
 #'   These are **defaults**: a per-module value -- `rtftable()` /
 #'   `rtf_header()` / `rtf_footer()` / `rtf_table_style()` -- always overrides
 #'   them. They can also be set globally as `rtfreporter.*` options (see
@@ -254,6 +259,10 @@ rtf_config <- function(doc, font_table = NULL, color_table = NULL, page = NULL,
 #'   renders an all-empty data row as a single full-width blank row, `"collapse"`
 #'   reduces a run of consecutive blank rows to one. Pre-built `rtftable()`
 #'   pages keep their own setting. See [rtftable()] for details.
+#' @param markup Cell-text markup applied to bare `data.frame` elements
+#'   (`"script"` super/subscript, `"relational"` `>=`/`<=` symbols, `"all"`,
+#'   `"none"`). `NULL` (default) inherits the document default (`"script"`).
+#'   Pre-built `rtftable()` pages keep their own setting. See [rtftable()].
 #' @param titles `NULL` (default) or a list of length `length(tables)` **or
 #'   length 1** (a single block applied to every page). Each element is a
 #'   title **block**: either a character vector (one entry per row, default
@@ -334,6 +343,7 @@ rtf_tables <- function(doc, tables,
                         cell_padding_right_twips = NULL,
                         cell_valign = "bottom",
                         blank_row_normalize = c("detect", "collapse"),
+                        markup = NULL,
                         titles = NULL,
                         footnotes = NULL,
                         auto_section = FALSE,
@@ -471,7 +481,8 @@ rtf_tables <- function(doc, tables,
         cell_padding_right_twips    = cell_padding_right_twips,
         cell_valign                 = cell_valign,
         cell_styles                 = eff_cell_styles,
-        blank_row_normalize         = blank_row_normalize
+        blank_row_normalize         = blank_row_normalize,
+        markup                      = markup
       )
     } else if (inherits(item, "rtftable")) {
       # Pre-built rtftable (e.g. from as_rtftables()): apply only the
