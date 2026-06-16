@@ -149,13 +149,14 @@
 
 ### Bug fixes
 
-- Multi-page documents now insert a proper page break between pages. Each
-  page's table is terminated with `\pard` before the `\page` / `\sect` break
-  (and before the document close); previously a `\page` emitted straight after
-  a table `\row` was absorbed into the table flow, so strict RTF readers
-  rendered the next page flush against the previous one. Most visible with
+- Multi-page documents now insert a page break that Word actually honours. The
+  break between pages is emitted as `{\pard\fs2\par}\page{\pard\fs2\par}` -- the
+  form r2rtf and reporter use -- with the `\page` flanked by empty paragraphs;
+  previously a bare `\page` after a table `\row` was dropped by Word, so the next
+  page rendered flush against the previous one. Section-separated pages
+  (`\sect` + `\sectd\sbkpage`) were unaffected. Most visible with
   `as_rtftables(split = "group_safe")` and other plain (no page-number token)
-  multi-page splits (#130).
+  multi-page splits (#130, #138).
 
 - The automatic spanning-header **group underline** is now drawn only where the
   column grouping actually changes below the cell (the next header row

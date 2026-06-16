@@ -1873,26 +1873,31 @@ generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
         tf_pad_l, tf_pad_r, tf_valign, content_align, color_index_map,
         doc_row_height = doc_row_height))
 
-      # Terminate the page's table stream with \pard before any break (or the
-      # document close).  Without it a \page emitted straight after \row is
-      # absorbed into the table flow and the next page renders flush against
-      # this one in strict RTF readers (#130).
-      lines <- c(lines, doc_cmd$table_end)
-
-      # Page break between pages; section break between sections.
-      # When per-page sections are in effect, ALL sub-page boundaries
-      # become section breaks so the next sub-page can re-emit its
-      # own header with a fresh `{PAGE}` value.
+      # End-of-page break.  A table must be terminated before any paragraph-level
+      # break or the document close, or strict readers absorb the break into the
+      # table flow (#130).
+      #   * Plain page break: `page_break` is the self-terminating wrapped form
+      #     {\pard\fs2\par}\page{\pard\fs2\par} -- a bare \page is dropped by Word
+      #     when not flanked by real paragraphs (#138), and its leading empty
+      #     paragraph already closes the table, so no separate \pard is needed.
+      #   * Section break (\sect + \sectd\sbkpage starts a new page on its own)
+      #     and the document close still terminate the table with \pard.
+      # When per-page sections are in effect, ALL sub-page boundaries become
+      # section breaks so the next sub-page can re-emit its header with a fresh
+      # `{PAGE}` value.
       is_last_in_section <- (sp_idx == length(sec_pages))
       is_last_section    <- (rs_idx == length(resolved_sections))
       if (!is_last_in_section) {
         if (needs_per_page_section) {
-          lines <- c(lines, doc_cmd$section_break)
+          lines <- c(lines, doc_cmd$table_end, doc_cmd$section_break)
         } else {
           lines <- c(lines, doc_cmd$page_break)
         }
       } else if (!is_last_section) {
-        lines <- c(lines, doc_cmd$section_break)
+        lines <- c(lines, doc_cmd$table_end, doc_cmd$section_break)
+      } else {
+        # Last page of the document: terminate the final table before close.
+        lines <- c(lines, doc_cmd$table_end)
       }
     }
   }

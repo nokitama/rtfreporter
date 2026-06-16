@@ -20,12 +20,18 @@ rtf_commands <- list(
     page_settings_template = "\\paperw{width_twips}\\paperh{height_twips}{orientation_cmd}\\margl{margin_left_twips}\\margr{margin_right_twips}\\margt{margin_top_twips}\\margb{margin_bottom_twips}\\headery{header_dist_twips}\\footery{footer_dist_twips}\\widowctrl\\fs{font_size_half_points}",
     section_defaults = "\\sectd",
     # Table terminator emitted after a page's content (and its title / footnote
-    # tables) before a page / section break or the document close.  A table must
-    # be closed with \pard before paragraph-level content such as \page, or
-    # strict RTF readers absorb the break into the table flow and render the
-    # next table flush against the previous one (#130).
+    # tables) before a section break or the document close.  A table must be
+    # closed with \pard before paragraph-level content, or strict RTF readers
+    # absorb the break into the table flow (#130).
     table_end = "\\pard",
-    page_break = "\\page",
+    # Manual page break.  A bare \page is NOT honoured by Word when it is not
+    # flanked by real paragraphs -- it gets dropped (#138).  Wrap it in empty
+    # 1pt paragraphs (the form r2rtf's as_rtf_new_page() and reporter use): the
+    # leading {\pard\fs2\par} terminates the preceding table, \page forces the
+    # break, and the trailing {\pard\fs2\par} anchors it so the next table
+    # starts on the new page.  The \fs2 is scoped by the {...} group so the tiny
+    # font size never leaks into following content.
+    page_break = "{\\pard\\fs2\\par}\\page{\\pard\\fs2\\par}",
     section_break = "\\sect",
     header_wrapper = "{\\header {content}}",
     footer_wrapper = "{\\footer {content}}",

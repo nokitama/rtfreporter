@@ -64,11 +64,11 @@ test_that("the document font size is emitted as a document-level \\fs<n>", {
   expect_match(.render_to_string(.simple_doc()), "\\\\fs18\\b")
 })
 
-test_that("a multi-page table terminates each table with \\pard before the break (#130)", {
-  # group_safe with no page-number token used to emit `\page` straight after a
-  # `\row`, leaving the table un-terminated so strict RTF readers rendered the
-  # next page flush against the previous one.  Every `\page` (and the document
-  # close) must now be preceded by a `\pard` table terminator.
+test_that("a multi-page table wraps each \\page in empty paragraphs (#130, #138)", {
+  # group_safe with no page-number token used to emit a bare `\page` straight
+  # after a `\row`; Word then ignored the break and rendered the next page flush
+  # against the previous one.  Every `\page` must now be the wrapped form
+  # {\pard\fs2\par}\page{\pard\fs2\par} so Word honours it.
   df <- data.frame(grp = c("A", "A", "B", "B", "C", "C"),
                    val = as.character(1:6), stringsAsFactors = FALSE)
   pages <- as_rtftables(df, split = "group_safe", max_rows = 2,
@@ -79,13 +79,16 @@ test_that("a multi-page table terminates each table with \\pard before the break
   txt <- .render_to_string(doc)
 
   expect_length(pages, 3L)
-  # Two page breaks for three pages, each preceded by a \pard table terminator
-  # (\pard and \page are emitted on separate lines, which RTF treats as
-  # whitespace).
-  n_page <- length(gregexpr("\\\\page(?![a-z])", txt, perl = TRUE)[[1]])
-  n_pard_page <- length(gregexpr("\\\\pard\\s*\\\\page", txt)[[1]])
+  # Two page breaks for three pages, each the full wrapped form (an empty 1pt
+  # paragraph, the \page, and another empty paragraph).
+  n_page    <- length(gregexpr("\\\\page(?![a-z])", txt, perl = TRUE)[[1]])
+  n_wrapped <- length(gregexpr(
+    "\\{\\\\pard\\\\fs2\\\\par\\}\\\\page\\{\\\\pard\\\\fs2\\\\par\\}",
+    txt)[[1]])
   expect_equal(n_page, 2L)
-  expect_equal(n_pard_page, 2L)
-  # The final page is terminated too (\pard before the document close).
+  expect_equal(n_wrapped, 2L)
+  # No bare `\page` survives directly after a `\row` (the old broken form).
+  expect_false(grepl("\\\\row\\\\page", txt))
+  # The final page is terminated with a \pard before the document close.
   expect_match(txt, "\\\\pard\\s*\\}\\s*$")
 })
