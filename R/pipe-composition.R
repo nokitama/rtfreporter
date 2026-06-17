@@ -300,18 +300,25 @@ rtf_config <- function(doc, font_table = NULL, color_table = NULL, page = NULL,
 #' @return Modified rtf_document with appended contents.
 #'
 #' @examples
-#' \dontrun{
-#' df1 <- data.frame(A = 1:3, B = c("x", "y", "z"))
-#' df2 <- data.frame(A = 4:6, B = c("p", "q", "r"))
+#' # Two clinical tables in one document, each on its own page with its own
+#' # title; shared TFL borders and a wide row-label column are applied to both
+#' # bare data.frames, and a footnote is attached to the first page only.
+#' t1 <- data.frame(Parameter = c("Age (years)", "Sex, n (%)"),
+#'                  Value = c("75.1 (8.2)", "120 (53%)"))
+#' t2 <- data.frame(Parameter = c("Weight (kg)", "Height (cm)"),
+#'                  Value = c("78.0 (12.1)", "170 (9.5)"))
 #'
-#' # Three pages, shared formatting applied to both bare data.frames
-#' doc <- rtf_document() %>%
+#' doc <- rtf_document() |>
+#'   rtf_section(page = 1, secinfo = list(header = NULL, footer = NULL)) |>
 #'   rtf_tables(
-#'     list(df1, df2, rtfplot("fig.png")),
-#'     col_rel_width    = c(1, 2),
-#'     border           = "tfl",
-#'     row_height_twips = 280L
+#'     list(t1, t2),
+#'     border        = "tfl",
+#'     col_rel_width = c(2, 1),
+#'     titles    = list("Table 14.1.1", "Table 14.1.2"),
+#'     footnotes = list("Source: ADSL", NULL)
 #'   )
+#' \dontrun{
+#' generate_rtfreport(doc, "tables.rtf", overwrite = TRUE)
 #' }
 #'
 #' @export
