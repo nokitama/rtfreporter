@@ -19,7 +19,8 @@ rtf_border_bottom(style = "single", width = 15L, color = NULL)
 rtf_border_box(style = "single", width = 15L, color = NULL)
 }
 \arguments{
-\item{top, bottom, left, right}{`NULL` or an [rtf_border_side()] object.}
+\item{top, bottom, left, right}{`NULL` (no border on that side) or an
+[rtf_border_side()] object.}
 
 \item{style, width, color}{Passed to [rtf_border_side()].}
 }
@@ -44,3 +45,7 @@ To derive a new border from an existing one, use [rtf_border_with()].
 \item \code{rtf_border_box()}: All four edges.
 
 }}
+\examples{
+rtf_border(top = rtf_border_side(), bottom = rtf_border_side())  # top + bottom
+rtf_border(bottom = rtf_border_side(color = "#003366"))          # blue underline
+}

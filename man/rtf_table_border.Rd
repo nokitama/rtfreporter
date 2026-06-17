@@ -31,3 +31,15 @@ Specifies borders for each logical zone of an [rtftable()].
 Each zone is either `NULL` (no border) or an [rtf_border()] object.
 `first_row` and `last_row` are *overrides* merged on top of the `body` spec.
 }
+\examples{
+# The clinical TFL look spelled out by zone: header top + bottom rules and a
+# bottom rule on the last data row (equivalent to `rtftable(border = "tfl")`).
+rtf_table_border(
+  header   = rtf_border(top = rtf_border_side(), bottom = rtf_border_side()),
+  last_row = rtf_border(bottom = rtf_border_side())
+)
+}
+\seealso{
+[rtf_border()] / [rtf_border_side()] for the pieces; pass the result
+  as `rtftable(border = )`.
+}

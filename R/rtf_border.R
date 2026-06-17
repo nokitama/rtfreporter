@@ -52,6 +52,14 @@
 #'   string such as `"#003366"`.
 #'
 #' @return A list of class `"rtf_border_side"`.
+#'
+#' @seealso [rtf_border()] to assemble sides into a cell border, and
+#'   [rtf_table_border()] for whole-table border zones.
+#'
+#' @examples
+#' rtf_border_side()                                   # thin black rule (~0.5 pt)
+#' rtf_border_side(style = "double", width = 30L, color = "#003366")
+#' rtf_border_side("none")   # explicit "no line" that removes an inherited rule
 #' @export
 rtf_border_side <- function(style = "single", width = 15L, color = NULL) {
   style <- match.arg(style, c(.valid_border_styles, "none"))
@@ -83,9 +91,14 @@ print.rtf_border_side <- function(x, ...) {
 #'
 #' To derive a new border from an existing one, use [rtf_border_with()].
 #'
-#' @param top,bottom,left,right `NULL` or an [rtf_border_side()] object.
+#' @param top,bottom,left,right `NULL` (no border on that side) or an
+#'   [rtf_border_side()] object.
 #'
 #' @return A list of class `"rtf_border"`.
+#'
+#' @examples
+#' rtf_border(top = rtf_border_side(), bottom = rtf_border_side())  # top + bottom
+#' rtf_border(bottom = rtf_border_side(color = "#003366"))          # blue underline
 #' @export
 rtf_border <- function(top = NULL, bottom = NULL, left = NULL, right = NULL) {
   .check_border_side(top,    "top")
@@ -185,6 +198,17 @@ rtf_border_box <- function(style = "single", width = 15L, color = NULL) {
 #' @param last_row  [rtf_border()] override for the last data row.
 #'
 #' @return A list of class `"rtf_table_border"`.
+#'
+#' @seealso [rtf_border()] / [rtf_border_side()] for the pieces; pass the result
+#'   as `rtftable(border = )`.
+#'
+#' @examples
+#' # The clinical TFL look spelled out by zone: header top + bottom rules and a
+#' # bottom rule on the last data row (equivalent to `rtftable(border = "tfl")`).
+#' rtf_table_border(
+#'   header   = rtf_border(top = rtf_border_side(), bottom = rtf_border_side()),
+#'   last_row = rtf_border(bottom = rtf_border_side())
+#' )
 #' @export
 rtf_table_border <- function(header    = NULL,
                               spanning  = NULL,
