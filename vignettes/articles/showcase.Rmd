@@ -166,15 +166,25 @@ as_rtftables(tbl, read_meta = TRUE)
 knitr::include_graphics("figures/showcase/dm_rtables.png")
 ```
 
-### tfrmt
+### cards + tfrmt
 
-`tfrmt` is metadata-driven by design: a long summary plus a formatting spec,
-rendered to `gt` with `print_to_gt()` -- which `rtfreporter` then reads.
+The *same* cards ARD as above, rendered with **tfrmt** instead of gtsummary --
+so the one ARD drives two different formatters. The ARD is reshaped to tfrmt's
+`group / label / column / param / value` long form, a `tfrmt` spec formats it,
+and `print_to_gt()` produces the `gt` that `rtfreporter` reads.
 
-```{r tfrmt}
-library(tfrmt)
-# `long` is a tidy summary: group / label / column / param / value
-# (Age rows n / Mean / SD / Median / Min / Max, plus categorical n / pct).
+```{r cards-tfrmt}
+library(cards); library(tfrmt)
+ard <- ard_stack(
+  data = adsl, .by = TRT01A,
+  ard_continuous(variables = AGE,
+                 statistic = ~ list(n = length, Mean = mean, SD = sd,
+                                    Median = median, Min = min, Max = max)),
+  ard_categorical(variables = c(AGEGR, SEX, RACE)))
+
+# reshape the ARD to tfrmt's long form: group / label / column / param / value
+long <- as.data.frame(ard) |> ...
+
 spec <- tfrmt(
   group = group, label = label, column = column, param = param, value = value,
   body_plan = body_plan(
@@ -183,8 +193,6 @@ spec <- tfrmt(
     frmt_structure(".default", "Mean (SD)",
                    frmt_combine("{Mean} ({SD})",
                                 Mean = frmt("xx.x"), SD = frmt("xx.xx"))),
-    frmt_structure(".default", "Min, Max",
-                   frmt_combine("{Min}, {Max}", Min = frmt("xx"), Max = frmt("xx"))),
     frmt_structure(c("Age category", "Sex", "Race"), ".default",
                    frmt_combine("{n} ({pct}%)",
                                 n = frmt("xx"), pct = frmt("xx.x")))))
@@ -193,8 +201,8 @@ g <- print_to_gt(spec, long)
 as_rtftables(g, read_meta = TRUE)
 ```
 
-```{r img-tfrmt, eval = TRUE, echo = FALSE, out.width = "100%"}
-knitr::include_graphics("figures/showcase/dm_tfrmt.png")
+```{r img-cards-tfrmt, eval = TRUE, echo = FALSE, out.width = "100%"}
+knitr::include_graphics("figures/showcase/dm_cards_tfrmt.png")
 ```
 
 ## Shape the body, set the look in rtfreporter

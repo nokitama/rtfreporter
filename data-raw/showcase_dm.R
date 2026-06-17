@@ -225,36 +225,41 @@ try_block("Tplyr", local({
 }))
 
 # ===========================================================================
-# E. tfrmt  -- build-and-read (metadata-driven; long summary -> gt)
+# E. cards + tfrmt  -- build-and-read (one ARD, formatted with tfrmt)
 # ===========================================================================
-try_block("tfrmt", local({
-  library(tfrmt); library(tidyr)
+# The same cards ARD idea as the gtsummary-ARD example, rendered with tfrmt:
+# compute the ARD with cards, reshape it to tfrmt's group / label / column /
+# param / value long form, format with a tfrmt spec, then read the gt.
+try_block("cards-tfrmt", local({
+  library(cards); library(tfrmt)
 
-  cont <- adsl |>
-    group_by(column = TRT01A) |>
-    summarise(n = sum(!is.na(AGE)), Mean = mean(AGE), SD = sd(AGE),
-              Median = median(AGE), Min = min(AGE), Max = max(AGE),
-              .groups = "drop") |>
-    pivot_longer(c(n, Mean, SD, Median, Min, Max),
-                 names_to = "param", values_to = "value") |>
-    mutate(group = "Age (years)",
-           label = recode(param, n = "n", Mean = "Mean (SD)", SD = "Mean (SD)",
-                          Median = "Median", Min = "Min, Max", Max = "Min, Max"))
+  ard <- ard_stack(
+    data = adsl, .by = TRT01A,
+    ard_continuous(variables = AGE,
+                   statistic = ~ list(n = length, Mean = mean, SD = sd,
+                                      Median = median, Min = min, Max = max)),
+    ard_categorical(variables = c(AGEGR, SEX, RACE)))
 
-  cat_long <- function(var, grp) {
-    adsl |>
-      group_by(column = TRT01A, label = .data[[var]]) |>
-      summarise(n = n(), .groups = "drop_last") |>
-      mutate(pct = 100 * n / sum(n)) |>
-      ungroup() |>
-      pivot_longer(c(n, pct), names_to = "param", values_to = "value") |>
-      mutate(group = grp, label = as.character(label))
-  }
-  long <- bind_rows(cont,
-                    cat_long("AGEGR", "Age category"),
-                    cat_long("SEX",   "Sex"),
-                    cat_long("RACE",  "Race"))
-  long$column <- factor(long$column, levels = arm_levels)
+  d <- as.data.frame(ard)
+  sc1 <- function(x) vapply(x, function(v) if (length(v)) as.character(v[[1]]) else NA_character_, character(1))
+  nm1 <- function(x) vapply(x, function(v) if (length(v)) suppressWarnings(as.numeric(v[[1]])) else NA_real_, numeric(1))
+
+  long <- d |>
+    mutate(column = sc1(group1_level), vlev = sc1(variable_level), value = nm1(stat)) |>
+    filter((variable == "AGE" & stat_name %in% c("n", "Mean", "SD", "Median", "Min", "Max")) |
+           (variable %in% c("AGEGR", "SEX", "RACE") & stat_name %in% c("n", "p"))) |>
+    transmute(
+      column = factor(column, levels = arm_levels),
+      group  = recode(variable, AGE = "Age (years)", AGEGR = "Age category",
+                      SEX = "Sex", RACE = "Race"),
+      label  = case_when(
+        variable == "AGE" & stat_name == "n" ~ "n",
+        variable == "AGE" & stat_name %in% c("Mean", "SD") ~ "Mean (SD)",
+        variable == "AGE" & stat_name == "Median" ~ "Median",
+        variable == "AGE" & stat_name %in% c("Min", "Max") ~ "Min, Max",
+        TRUE ~ vlev),
+      param  = ifelse(stat_name == "p", "pct", stat_name),
+      value  = ifelse(stat_name == "p", value * 100, value))
 
   spec <- tfrmt(
     group = group, label = label, column = column, param = param, value = value,
@@ -272,7 +277,7 @@ try_block("tfrmt", local({
                                   n = frmt("xx"), pct = frmt("xx.x")))))
   g <- print_to_gt(spec, long)
   render_show(as_rtftables(g, read_meta = TRUE, align_count_pct = TRUE),
-              "dm_tfrmt")
+              "dm_cards_tfrmt")
 }))
 
 # -- Placeholder snapshots --------------------------------------------------
