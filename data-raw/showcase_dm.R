@@ -61,9 +61,31 @@ dm_footer <- function(program) rtf_footer(rows = list(
   c(l = "Source: ADSL",                r = "CONFIDENTIAL")
 ))
 
-# Render an already-built page object (rtftable / framework table) to RTF.
+# Insert blank separator rows around the group structure of a built rtftable:
+# a blank before each group header (a non-empty, non-indented column-1 cell)
+# except the first, plus one at the very top (0) and very bottom (nrow).
+.add_group_blanks <- function(rt) {
+  d <- rt$data
+  if (is.null(d) || nrow(d) == 0L) return(rt)
+  col1 <- as.character(d[[1L]])
+  indent_chars <- c(" ", "\t", intToUtf8(160L))
+  is_header <- nzchar(col1) & !(substr(col1, 1L, 1L) %in% indent_chars)
+  hdr <- which(is_header)
+  between <- hdr[hdr > 1L] - 1L
+  rt$blank_rows <- sort(unique(as.integer(c(0L, between, nrow(d)))))
+  rt
+}
+
+# Render already-built page object(s) to RTF.  Strips any framework-supplied
+# title / footnote (the title lives in the running header, the notes in the
+# footer) and adds group / top / bottom blank rows.
 render_show <- function(pages, name, program = NULL, ...) {
   if (!is.list(pages) || inherits(pages, "rtftable")) pages <- list(pages)
+  pages <- lapply(pages, function(p) {
+    attr(p, "rtf_titles")    <- NULL
+    attr(p, "rtf_footnotes") <- NULL
+    .add_group_blanks(p)
+  })
   if (is.null(program)) program <- paste0("/prod/abc/tfl/t_14_1_1_", name, ".R")
   doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape")) |>
     rtf_section(page = 1, secinfo = list(header = dm_header(), footer = dm_footer(program))) |>
@@ -96,10 +118,11 @@ try_block("gtsummary", local({
       statistic = list(
         AGE ~ c("{N_nonmiss}", "{mean} ({sd})", "{median}", "{min}, {max}"),
         all_categorical() ~ "{n} ({p}%)"),
-      digits = list(AGE ~ list(N_nonmiss = 0, mean = 1, sd = 2,
-                               median = 1, min = 0, max = 0))) |>
+      digits = list(AGE ~ c(0, 1, 2, 1, 0, 0),
+                    all_categorical() ~ c(0, 1))) |>
     modify_header(all_stat_cols() ~ "**{level}**  \nN = {n}")
-  render_show(as_rtftables(tbl, read_meta = TRUE), "dm_gtsummary")
+  render_show(as_rtftables(tbl, read_meta = TRUE, align_count_pct = TRUE),
+              "dm_gtsummary")
 }))
 
 # ===========================================================================
@@ -113,9 +136,13 @@ try_block("rtables", local({
       vars = c("AGE", "AGEGR", "SEX", "RACE"),
       var_labels = c(AGE = "Age (years)", AGEGR = "Age category",
                      SEX = "Sex", RACE = "Race"),
-      .stats = c("n", "mean_sd", "median", "range", "count_fraction"))
+      .stats = c("n", "mean_sd", "median", "range", "count_fraction"),
+      .formats = c(count_fraction = function(x) {
+        sprintf("%d (%.1f%%)", round(x[1]), 100 * x[2])
+      }))
   tbl <- build_table(lyt, adsl)
-  render_show(as_rtftables(tbl, read_meta = TRUE), "dm_rtables")
+  render_show(as_rtftables(tbl, read_meta = TRUE, align_count_pct = TRUE),
+              "dm_rtables")
 }))
 
 # ===========================================================================
@@ -137,7 +164,8 @@ try_block("gtsummary-ARD", local({
     statistic = list(
       AGE = c("{N}", "{mean} ({sd})", "{median}", "{min}, {max}"),
       all_categorical() ~ "{n} ({p}%)"))
-  render_show(as_rtftables(tbl, read_meta = TRUE), "dm_gtsummary_ard")
+  render_show(as_rtftables(tbl, read_meta = TRUE, align_count_pct = TRUE),
+              "dm_gtsummary_ard")
 }))
 
 # ===========================================================================
@@ -186,7 +214,8 @@ try_block("Tplyr", local({
 
   col_header <- c("Characteristic",
                   paste0(arm_levels, "\nN = ", as.integer(arm_n)))
-  render_show(rtftable(disp, col_header = col_header), "dm_tplyr")
+  render_show(as_rtftables(disp, col_header = col_header, align_count_pct = TRUE)[[1L]],
+              "dm_tplyr")
 }))
 
 # ===========================================================================
@@ -236,7 +265,8 @@ try_block("tfrmt", local({
                      frmt_combine("{n} ({pct}%)",
                                   n = frmt("xx"), pct = frmt("xx.x")))))
   g <- print_to_gt(spec, long)
-  render_show(as_rtftables(g, read_meta = TRUE), "dm_tfrmt")
+  render_show(as_rtftables(g, read_meta = TRUE, align_count_pct = TRUE),
+              "dm_tfrmt")
 }))
 
 # -- Placeholder snapshots --------------------------------------------------

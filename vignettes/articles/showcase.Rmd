@@ -71,10 +71,12 @@ dm_footer <- rtf_footer(rows = list(
   c(l = "Program: /prod/abc/tfl/t_14_1_1.R", r = "Generated: 2026-06-17 09:14"),
   c(l = "Source: ADSL", r = "CONFIDENTIAL")))
 
-# Every framework feeds its result to the same call:
+# Every framework feeds its result to the same call.  `align_count_pct` lines
+# up the "n (xx.x%)" cells; the generator also drops a blank row between groups
+# and at the top / bottom (see data-raw/showcase_dm.R).
 doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape")) |>
   rtf_section(page = 1, secinfo = list(header = dm_header, footer = dm_footer)) |>
-  rtf_tables(as_rtftables(tbl))          # `tbl` = the framework's table
+  rtf_tables(as_rtftables(tbl, align_count_pct = TRUE))   # `tbl` = framework table
 generate_rtfreport(doc, "dm.rtf", overwrite = TRUE)
 ```
 
