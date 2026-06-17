@@ -1,0 +1,221 @@
+---
+title: "Same report, every table framework"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
+                      message = FALSE, warning = FALSE, eval = FALSE)
+```
+
+```{r setup}
+library(rtfreporter)
+```
+
+The R ecosystem for clinical tables is wonderfully diverse -- **rtables/tern**,
+**tfrmt**, **gtsummary** (on its own or on a **cards/cardx** ARD), **Tplyr**,
+**gt**, **flextable**, **huxtable** -- and teams pick whichever fits their style
+and validation story. What they all have in common is the *last* step: a
+**regulatory RTF** that opens cleanly in Word.
+
+That last step is exactly what `rtfreporter` does, for **all of them**. This
+article builds the **same demographics report from the same data** with several
+frameworks and renders each to RTF through `rtfreporter`. The point is not that
+one framework is best -- it is that **whatever you already use, rtfreporter is
+the RTF back end**.
+
+> The code below is shown for reference (`eval = FALSE`); each table's RTF is
+> rendered offline and the Word output is shown as a screenshot. The full,
+> runnable generator lives in
+> [`data-raw/showcase_dm.R`](https://github.com/ichirio/rtfreporter/blob/main/data-raw/showcase_dm.R).
+
+## The data
+
+We use [`pharmaverseadam`](https://pharmaverse.github.io/pharmaverseadam/)'s
+`adsl`, restricted to the three randomised arms, and summarise **age**, **sex**
+and **race** by treatment -- a standard Table 14.1 demographics layout.
+
+```{r data}
+library(dplyr)
+arm_levels <- c("Placebo", "Xanomeline Low Dose", "Xanomeline High Dose")
+adsl <- pharmaverseadam::adsl |>
+  filter(TRT01A %in% arm_levels) |>
+  mutate(TRT01A = factor(TRT01A, levels = arm_levels))
+
+dm_titles <- list(c("Table 14.1.1",
+                    "Summary of Demographic and Baseline Characteristics",
+                    "Safety Population"))
+dm_footnotes <- list(c(
+  "Percentages are based on the number of subjects in each treatment group.",
+  "Source: ADSL"))
+```
+
+Every framework below feeds its result to the same three lines:
+
+```{r render-pattern}
+doc <- rtf_document(page = list(orientation = "portrait")) |>
+  rtf_section(page = 1, secinfo = list(header = NULL, footer = NULL)) |>
+  rtf_tables(as_rtftables(tbl), titles = dm_titles, footnotes = dm_footnotes)
+generate_rtfreport(doc, "dm.rtf", overwrite = TRUE)
+```
+
+# Demographics (DM)
+
+## Build it once, let rtfreporter read it
+
+These frameworks already carry the column labels, spanning headers, alignment
+and cell formatting. `as_rtftables(read_meta = TRUE)` (the default) **reads that
+metadata** straight off the object -- you do not re-specify the header.
+
+### gtsummary
+
+```{r gtsummary}
+library(gtsummary)
+tbl <- adsl |>
+  select(TRT01A, AGE, SEX, RACE) |>
+  tbl_summary(
+    by = TRT01A,
+    label = list(AGE = "Age (years)", SEX = "Sex", RACE = "Race"),
+    statistic = list(all_continuous()  ~ "{mean} ({sd})",
+                     all_categorical() ~ "{n} ({p}%)"),
+    digits = list(AGE ~ c(1, 2))) |>
+  modify_header(all_stat_cols() ~ "**{level}**  \nN = {n}")
+
+as_rtftables(tbl, read_meta = TRUE)   # column labels + Ns read from gtsummary
+```
+
+```{r img-gtsummary, eval = TRUE, echo = FALSE, out.width = "100%"}
+knitr::include_graphics("figures/showcase/dm_gtsummary.png")
+```
+
+### gtsummary on a cards / cardx ARD
+
+The modern, ARD-first workflow: compute an **Analysis Results Dataset** with
+`cards`, summarise it with `gtsummary::tbl_ard_summary()`, then hand the table
+to `rtfreporter` exactly as above.
+
+```{r gtsummary-ard}
+library(cards); library(gtsummary)
+ard <- ard_stack(
+  data = adsl, .by = TRT01A,
+  ard_continuous(variables = AGE, statistic = ~ list(mean = mean, sd = sd)),
+  ard_categorical(variables = c(SEX, RACE)), .total_n = TRUE)
+
+tbl <- tbl_ard_summary(
+  ard, by = TRT01A,
+  label = list(AGE = "Age (years)", SEX = "Sex", RACE = "Race"),
+  statistic = list(AGE = "{mean} ({sd})", all_categorical() ~ "{n} ({p}%)"))
+
+as_rtftables(tbl, read_meta = TRUE)
+```
+
+```{r img-gtsummary-ard, eval = TRUE, echo = FALSE, out.width = "100%"}
+knitr::include_graphics("figures/showcase/dm_gtsummary_ard.png")
+```
+
+### rtables / tern
+
+`tern::analyze_vars()` produces a `VTableTree`; `rtfreporter` reads its row
+labels, column counts and spanning structure via `formatters::matrix_form()`.
+
+```{r rtables}
+library(rtables); library(tern)
+lyt <- basic_table(show_colcounts = TRUE) |>
+  split_cols_by("TRT01A") |>
+  analyze_vars(
+    vars = c("AGE", "SEX", "RACE"),
+    var_labels = c(AGE = "Age (years)", SEX = "Sex", RACE = "Race"),
+    .stats = c("mean_sd", "median", "range", "count_fraction"))
+tbl <- build_table(lyt, adsl)
+
+as_rtftables(tbl, read_meta = TRUE)
+```
+
+```{r img-rtables, eval = TRUE, echo = FALSE, out.width = "100%"}
+knitr::include_graphics("figures/showcase/dm_rtables.png")
+```
+
+### tfrmt
+
+`tfrmt` is metadata-driven by design: a long summary plus a formatting spec,
+rendered to `gt` with `print_to_gt()` -- which `rtfreporter` then reads.
+
+```{r tfrmt}
+library(tfrmt)
+# `long` is a tidy summary: group / label / column / param / value.
+spec <- tfrmt(
+  group = group, label = label, column = column, param = param, value = value,
+  body_plan = body_plan(
+    frmt_structure(".default", ".default", frmt("xx.x")),
+    frmt_structure(".default", "Mean (SD)",
+                   frmt_combine("{Mean} ({SD})",
+                                Mean = frmt("xx.x"), SD = frmt("xx.xx"))),
+    frmt_structure(c("Sex", "Race"), ".default",
+                   frmt_combine("{n} ({pct}%)",
+                                n = frmt("xx"), pct = frmt("xx.x")))))
+g <- print_to_gt(spec, long)
+
+as_rtftables(g, read_meta = TRUE)
+```
+
+```{r img-tfrmt, eval = TRUE, echo = FALSE, out.width = "100%"}
+knitr::include_graphics("figures/showcase/dm_tfrmt.png")
+```
+
+## Shape the body, set the look in rtfreporter
+
+Some frameworks return just the **formatted body** -- the numbers, as strings --
+and leave presentation to you. Here you do the opposite of the section above:
+the framework transposes/summarises, and **`rtfreporter` supplies the column
+header, alignment and grouping**.
+
+### Tplyr
+
+`Tplyr::build()` returns a data frame of formatted strings (plus ordering
+helpers). We reshape it into a labelled body and pass the column header to
+`rtftable()` ourselves.
+
+```{r tplyr}
+library(Tplyr)
+built <- tplyr_table(adsl, TRT01A) |>
+  add_layer(group_desc(AGE, by = "Age (years)") |>
+              set_format_strings("Mean (SD)" = f_str("xx.x (xx.xx)", mean, sd),
+                                 "Median"    = f_str("xx.x", median),
+                                 "Min, Max"  = f_str("xx, xx", min, max))) |>
+  add_layer(group_count(SEX, by = "Sex") |>
+              set_format_strings(f_str("xx (xx.x%)", n, pct))) |>
+  add_layer(group_count(RACE, by = "Race") |>
+              set_format_strings(f_str("xx (xx.x%)", n, pct))) |>
+  build()
+
+# ... reshape `built` into `disp` (label column + one column per arm) ...
+
+# Metadata lives HERE, in rtfreporter -- not in Tplyr:
+col_header <- c("Characteristic", paste0(arm_levels, "\nN = ", arm_n))
+rtftable(disp, col_header = col_header)
+```
+
+```{r img-tplyr, eval = TRUE, echo = FALSE, out.width = "100%"}
+knitr::include_graphics("figures/showcase/dm_tplyr.png")
+```
+
+## Two ways to divide the work
+
+The two sections above are the key choice when wiring any framework to
+`rtfreporter`:
+
+| | **Build-and-read** | **Transpose-and-set** |
+|---|---|---|
+| Who owns the column header / spanning / formatting? | the table framework | `rtfreporter` |
+| How rtfreporter gets it | `as_rtftables(read_meta = TRUE)` | you pass `col_header`, `col_spec`, ... |
+| Best for | metadata-rich frameworks (rtables/tern, tfrmt, gtsummary) | body-only frameworks (Tplyr, tidytlg) |
+| Trade-off | least code; depends on the framework's metadata | full control; you re-state the look once |
+
+Both produce the **same RTF**. Pick whichever keeps the work where it already
+lives: if your framework already knows the headers, let `rtfreporter` read them;
+if it only knows the numbers, let `rtfreporter` dress them.
+
+---
+
+*Coming next: the same treatment for an **Adverse Events (AE)** summary (SOC / PT
+with spanning headers), and additional frameworks (tidytlg, flextable,
+huxtable).*

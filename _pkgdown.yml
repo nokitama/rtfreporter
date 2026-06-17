@@ -116,6 +116,8 @@ navbar:
         # ── Worked clinical examples ────────────────────────────────────
         - text: -------
         - text: "Worked clinical examples"
+        - text: "Same report, every table framework"
+          href: articles/showcase.html
         - text: "Pharmaverse Example tables to RTF"
           href: articles/tlg-catalog.html
         - text: "Demographics table"
