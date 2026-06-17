@@ -285,8 +285,10 @@ try_block("cards-tfrmt", local({
                      frmt_combine("{n} ({pct}%)",
                                   n = frmt("xx"), pct = frmt("xx.x")))))
   g <- print_to_gt(spec, long)
-  render_show(as_rtftables(g, read_meta = TRUE, align_count_pct = TRUE),
-              "dm_cards_tfrmt")
+  # tfrmt already pads each cell to a uniform width (count to "xx", percent to
+  # "xx.x"), so the cells are aligned as-is; align_count_pct would only reformat
+  # the subset whose cells happen to have no internal padding, so skip it here.
+  render_show(as_rtftables(g, read_meta = TRUE), "dm_cards_tfrmt")
 }))
 
 # -- Placeholder snapshots --------------------------------------------------
