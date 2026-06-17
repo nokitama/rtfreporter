@@ -341,13 +341,16 @@
 #' @param data A `data.frame`, or a `list` of `data.frame`s (multi-DF mode).
 #'   Multi-DF mode renders each data.frame with its own column headers but
 #'   shares column widths and border settings.
-#' @param col_header Column header specification.
-#'   - `NULL`: use column names of `data`.
-#'   - Character vector: one label per column (single header row).
-#'   - List whose elements are either character vectors (label rows) or
-#'     spanning rows (`list(list(from, to, label, underline), ...)`); rows
-#'     are rendered top-to-bottom.
-#'   - In multi-DF mode: a `list` of per-DF specs (same length as `data`).
+#' @param col_header The column header. One of:
+#'   \describe{
+#'     \item{`NULL`}{(default) use the column names of `data`.}
+#'     \item{a character vector}{one label per column -- a single header row.}
+#'     \item{a list of rows}{each row is either a character vector (a label row)
+#'       or a spanning row (`list(list(from, to, label, underline), ...)`),
+#'       rendered top to bottom.}
+#'     \item{a list of per-DF specs}{in multi-DF mode, one of the above per
+#'       `data.frame` (same length as `data`).}
+#'   }
 #' @param col_header_align Column-header text alignment, applied across
 #'   header rows. `NULL` (default) inherits each column's `align` value
 #'   from `col_spec` (i.e. column headers follow the data alignment).
@@ -357,13 +360,20 @@
 #'   `col_header` rows.  Each element: `list(from, to, label, underline)`.
 #'   Kept for backward compatibility -- new code should put spanning rows
 #'   directly inside `col_header`.
-#' @param col_spec List of per-column formatting specs. Each element may
-#'   contain: `col` (integer), `align` (`"left"`/`"center"`/`"right"`),
-#'   `bold`, `italic`, `underline` (logical), `indent_twips` (integer),
-#'   `header_align`, `header_bold`, `header_italic`, and `color` (a
-#'   `"#RRGGBB"` hex string giving the column's **text colour**; the colour is
-#'   added to the document's colour table automatically).  An explicit `align`
-#'   here overrides the `row_title`-derived default below.
+#' @param col_spec Per-column formatting, as a `list` of per-column specs. Each
+#'   spec is a named list identifying its column with `col`, plus any of:
+#'   \describe{
+#'     \item{`col`}{the integer column index (or column name) the spec targets.}
+#'     \item{`align`}{data alignment `"left"` / `"center"` / `"right"` (overrides
+#'       the `row_title`-derived default below).}
+#'     \item{`bold`, `italic`, `underline`}{logical text decorations.}
+#'     \item{`indent_twips`}{integer left indent of the cell text.}
+#'     \item{`color`}{a `"#RRGGBB"` hex string -- the column's **text colour**
+#'       (added to the document colour table automatically).}
+#'     \item{`header_align`, `header_bold`, `header_italic`}{the same, applied to
+#'       this column's **header** cell.}
+#'   }
+#'   e.g. `list(list(col = 1, align = "left"), list(col = 2, bold = TRUE))`.
 #' @param row_title Which columns are **row-heading** columns.  `NULL`
 #'   (default) means the first column only; otherwise an integer vector of
 #'   column indices or a character vector of column names (e.g.
@@ -373,24 +383,27 @@
 #'   `rtf_table_style`, or alignment read from a gt/rtables source all still
 #'   override this default; column headers follow the data alignment via the
 #'   usual cascade.
-#' @param border Border specification.
-#'   - `"tfl"`: clinical TFL preset (header top+bottom, last-row bottom).
-#'   - `"none"`: no borders.
-#'   - An `rtf_table_border` object from `rtf_table_border()`.
-#'   - An `rtf_table_style` object (its border zones are used).
+#' @param border The table borders. One of:
+#'   \describe{
+#'     \item{`"tfl"`}{(default) the clinical TFL preset: header top + bottom
+#'       rules and a bottom rule on the last row.}
+#'     \item{`"none"`}{no borders.}
+#'     \item{an [rtf_table_border()] object}{full per-zone control.}
+#'     \item{an [rtf_table_style()] object}{its border zones are used.}
+#'   }
 #' @param style Optional shared `rtf_table_style` (S3).  Provides default
 #'   values for borders, alignment, cell padding, etc.; explicit arguments
 #'   to `rtftable()` always override.  Snapshot semantics: each
 #'   `rtftable()` call captures the style's current state at construction.
-#' @param blank_rows Specification of blank separator rows. Accepts:
-#'   - Integer vector of positions (`0` = before first row, `k` = after
-#'     data row `k`, `-1` = after the last data row).
-#'   - A [blank_rows_by_change()] spec -- insert when a column value
-#'     changes.
-#'   - A [blank_rows_by_rule()] spec -- insert before/after rows matching
-#'     a regex.
-#'   - A `list` containing any combination of the above (positions are
-#'     unioned).
+#' @param blank_rows Where to insert blank separator rows. One of -- or a `list`
+#'   combining any of (positions are unioned):
+#'   \describe{
+#'     \item{an integer vector}{positions: `0` = before the first row, `k` =
+#'       after data row `k`, `-1` = after the last row.}
+#'     \item{a [blank_rows_by_change()] spec}{insert when a column value changes.}
+#'     \item{a [blank_rows_by_rule()] spec}{insert before / after rows matching a
+#'       regular expression.}
+#'   }
 #' @param read_attributes Logical. When `TRUE` (default), read recognised
 #'   attributes off `data` for use as fallback defaults -- currently
 #'   `attr(data, "rtf_blank_rows")` is folded into `blank_rows` when the
@@ -464,20 +477,35 @@
 #' @return An `rtftable` (S3) object suitable for use in `rtf_tables()`.
 #'
 #' @examples
-#' \dontrun{
+#' # 1. Simplest: a data.frame straight to a table (column names become the
+#' #    header).
 #' df <- data.frame(Subject = c("001", "002"), Age = c(34L, 45L))
+#' tbl <- rtftable(df)
 #'
-#' # Simple table
-#' tbl <- rtftable(df, col_rel_width = c(2, 1), row_height_twips = 280L)
+#' # 2. A clinical-style table: a wide left-aligned row-label column, a spanning
+#' #    "Treatment" header over the two arms, and the TFL border preset.
+#' dm <- data.frame(
+#'   Parameter = c("Age (years)", "  Mean (SD)", "  Median"),
+#'   Placebo   = c("", "75.1 (8.2)", "76.0"),
+#'   Active    = c("", "74.3 (7.9)", "75.0"),
+#'   stringsAsFactors = FALSE
+#' )
+#' tbl <- rtftable(
+#'   dm,
+#'   col_header = list(
+#'     list(list(from = 2, to = 3, label = "Treatment", underline = TRUE)),
+#'     c("Parameter", "Placebo", "Active")
+#'   ),
+#'   col_spec      = list(list(col = 1, align = "left")),
+#'   col_rel_width = c(2, 1, 1),
+#'   border        = "tfl"
+#' )
 #'
-#' # Use in a pipe chain
-#' doc <- rtf_document() %>%
-#'   rtf_section(page = 1, secinfo = list(
-#'     header = rtf_header(rows = list(c(l = "Protocol: RTF-101", r = "ACME Pharma")))
-#'   )) %>%
-#'   rtf_tables(list(tbl))
-#'
-#' generate_rtfreport(doc, "output.rtf", overwrite = TRUE)
+#' doc <- rtf_document() |>
+#'   rtf_section(page = 1, secinfo = list(header = NULL, footer = NULL)) |>
+#'   rtf_tables(tbl, titles = list("Table 14.1.1"))
+#' \dontrun{
+#' generate_rtfreport(doc, "demographics.rtf", overwrite = TRUE)
 #' }
 #'
 #' @export
