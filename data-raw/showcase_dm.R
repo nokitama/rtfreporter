@@ -84,7 +84,13 @@ render_show <- function(pages, name, program = NULL, ...) {
   pages <- lapply(pages, function(p) {
     attr(p, "rtf_titles")    <- NULL
     attr(p, "rtf_footnotes") <- NULL
-    .add_group_blanks(p)
+    p <- .add_group_blanks(p)
+    # Column widths 40 : 20 : 20 : 20 (label column wide, one per arm).  Clear
+    # any framework-supplied absolute widths so the relative widths take effect.
+    nc <- ncol(p$data)
+    p$col_rel_width       <- c(40, rep(20, nc - 1L))
+    p$column_widths_twips <- NULL
+    p
   })
   if (is.null(program)) program <- paste0("/prod/abc/tfl/t_14_1_1_", name, ".R")
   doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape")) |>
