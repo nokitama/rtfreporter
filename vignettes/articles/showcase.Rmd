@@ -39,15 +39,19 @@ treatment -- a production-style Table 14.1 demographics layout.
 library(dplyr)
 arm_levels <- c("Placebo", "Xanomeline Low Dose", "Xanomeline High Dose")
 adsl <- pharmaverseadam::adsl |>
-  filter(TRT01A %in% arm_levels,
-         RACE %in% c("WHITE", "BLACK OR AFRICAN AMERICAN")) |>
+  filter(TRT01A %in% arm_levels) |>
   mutate(
     TRT01A = factor(TRT01A, levels = arm_levels),
     SEX    = factor(SEX, levels = c("M", "F"), labels = c("Male", "Female")),
     AGEGR  = cut(AGE, breaks = c(-Inf, 65, 81, Inf),
                  labels = c("<65", "65 - 80", ">80"), right = FALSE),
-    RACE   = factor(RACE, levels = c("WHITE", "BLACK OR AFRICAN AMERICAN"),
-                    labels = c("White", "Black or African American")))
+    # All race categories as a factor, so even zero-count levels (Asian,
+    # American Indian) appear as "0 (0.0%)" in every framework.
+    RACE   = factor(RACE, levels = c(
+      "WHITE", "BLACK OR AFRICAN AMERICAN", "ASIAN",
+      "AMERICAN INDIAN OR ALASKA NATIVE"),
+      labels = c("White", "Black or African American", "Asian",
+                 "American Indian or Alaska Native")))
 arm_n <- table(adsl$TRT01A)
 ```
 
@@ -71,8 +75,10 @@ dm_footer <- rtf_footer(rows = list(
   c(l = "Program: /prod/abc/tfl/t_14_1_1.R", r = "Generated: 2026-06-17 09:14"),
   c(l = "Source: ADSL", r = "CONFIDENTIAL")))
 
-# Every framework feeds its result to the same call.  `align_count_pct` lines
-# up the "n (xx.x%)" cells; the generator also drops a blank row between groups
+# Every framework feeds its result to the same call.  `align_count_pct` pads the
+# "n (xx.x%)" cells to a common width so they line up in the fixed-width font;
+# the generator also gives every page the same column header (with the arm Ns),
+# 40 : 20 : 20 : 20 widths, centred data columns, and a blank row between groups
 # and at the top / bottom (see data-raw/showcase_dm.R).
 doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape")) |>
   rtf_section(page = 1, secinfo = list(header = dm_header, footer = dm_footer)) |>

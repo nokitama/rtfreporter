@@ -25,11 +25,7 @@ dir.create(rtf_dir, showWarnings = FALSE, recursive = TRUE)
 # Safety-style population: the three randomised arms (drop screen failures).
 arm_levels <- c("Placebo", "Xanomeline Low Dose", "Xanomeline High Dose")
 adsl <- pharmaverseadam::adsl |>
-  filter(TRT01A %in% arm_levels,
-         # Keep races that are present in every arm (Asian = 0 and American
-         # Indian = 1 after restricting to the randomised arms, which would
-         # leave empty per-arm cells); this keeps every framework happy.
-         RACE %in% c("WHITE", "BLACK OR AFRICAN AMERICAN")) |>
+  filter(TRT01A %in% arm_levels) |>
   mutate(
     TRT01A = factor(TRT01A, levels = arm_levels),
     # Sex shown Male then Female.
@@ -37,8 +33,13 @@ adsl <- pharmaverseadam::adsl |>
     # A few age categories.
     AGEGR  = cut(AGE, breaks = c(-Inf, 65, 81, Inf),
                  labels = c("<65", "65 - 80", ">80"), right = FALSE),
-    RACE   = factor(RACE, levels = c("WHITE", "BLACK OR AFRICAN AMERICAN"),
-                    labels = c("White", "Black or African American"))
+    # All race categories, including ones with no records in some arms
+    # (Asian = 0, American Indian = 1); as a FACTOR every framework shows them.
+    RACE   = factor(RACE, levels = c(
+      "WHITE", "BLACK OR AFRICAN AMERICAN", "ASIAN",
+      "AMERICAN INDIAN OR ALASKA NATIVE"),
+      labels = c("White", "Black or African American", "Asian",
+                 "American Indian or Alaska Native"))
   )
 arm_n <- table(adsl$TRT01A)
 
@@ -85,11 +86,19 @@ render_show <- function(pages, name, program = NULL, ...) {
     attr(p, "rtf_titles")    <- NULL
     attr(p, "rtf_footnotes") <- NULL
     p <- .add_group_blanks(p)
-    # Column widths 40 : 20 : 20 : 20 (label column wide, one per arm).  Clear
-    # any framework-supplied absolute widths so the relative widths take effect.
     nc <- ncol(p$data)
+    # Column widths 40 : 20 : 20 : 20 (label column wide, one per arm); clear any
+    # framework-supplied absolute widths so the relative widths take effect.
     p$col_rel_width       <- c(40, rep(20, nc - 1L))
     p$column_widths_twips <- NULL
+    # One identical header for every framework, with the arm Ns underneath.
+    p$col_header <- list(c("Characteristic",
+                           paste0(arm_levels, "\nN = ", as.integer(arm_n))))
+    # Row labels left, data columns centred (header centred).
+    for (j in seq_len(nc)) {
+      p$col_spec[[j]]$align        <- if (j == 1L) "left" else "center"
+      p$col_spec[[j]]$header_align <- "center"
+    }
     p
   })
   if (is.null(program)) program <- paste0("/prod/abc/tfl/t_14_1_1_", name, ".R")
