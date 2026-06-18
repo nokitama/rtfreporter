@@ -22,6 +22,12 @@ Convenience wrapper that reads the files (via [assemble_spec()]) and returns
 the `toc =` list of [toc_heading()] / [toc_entry()] objects ready for
 [assemble_rtf()].  Pass a ready-made `spec` to convert that instead.
 }
+\examples{
+\dontrun{
+toc <- assemble_toc(files = assemble_files("output/tfl"))
+assemble_rtf(assemble_files("output/tfl"), "deliverable.rtf", toc = toc)
+}
+}
 \seealso{
 [assemble_spec()], [assemble_from_spec()].
 }

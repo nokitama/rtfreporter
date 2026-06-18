@@ -31,6 +31,12 @@ Runs [assemble_rtf()] with a Table of Contents built from an assembly spec
 (a `data.frame` from [assemble_spec()], or the path to a saved `.xlsx` /
 `.csv` spec).  Rows are ordered by the spec's `order` column when present.
 }
+\examples{
+\dontrun{
+spec <- assemble_spec("output/tfl")          # review / edit the order
+assemble_from_spec(spec, "deliverable.rtf", toc_title = "Table of Contents")
+}
+}
 \seealso{
 [assemble_spec()], [assemble_folder()], [assemble_rtf()].
 }

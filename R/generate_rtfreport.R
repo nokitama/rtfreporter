@@ -1697,13 +1697,26 @@
 #' Renders an `rtf_document` (from the pipe API) or internal `rtfreport`
 #' object to an RTF file.
 #'
-#' @param report An `rtf_document` object (from `rtf_document()`) or an
-#'   internal `rtfreport` object.
+#' @param report An `rtf_document` object (from [rtf_document()]) or an internal
+#'   `rtfreport` object.
 #' @param file_path Output RTF file path.
 #' @param overwrite Logical; whether to overwrite an existing file.
 #'   Default `FALSE`.
 #'
 #' @return Invisibly returns `file_path`.
+#'
+#' @seealso [rtf_document()] / [rtf_tables()] to compose the report, and
+#'   [assemble_rtf()] to concatenate several rendered files into one deliverable.
+#'
+#' @examples
+#' df  <- data.frame(Parameter = "Age, Mean (SD)", Value = "75.1 (8.2)")
+#' doc <- rtf_document() |>
+#'   rtf_section(page = 1, secinfo = list(header = NULL, footer = NULL)) |>
+#'   rtf_tables(as_rtftables(df), titles = list("Table 14.1.1"))
+#'
+#' out <- tempfile(fileext = ".rtf")     # write to a temporary file
+#' generate_rtfreport(doc, out, overwrite = TRUE)
+#' file.exists(out)
 #' @export
 generate_rtfreport <- function(report, file_path, overwrite = FALSE) {
   if (inherits(report, "rtf_document")) {

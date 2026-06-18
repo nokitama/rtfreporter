@@ -137,6 +137,11 @@ print.rtf_border <- function(x, ...) {
 #'   `NULL` to leave a side unchanged.
 #'
 #' @return A new `rtf_border` object.
+#'
+#' @examples
+#' b <- rtf_border(top = rtf_border_side(), bottom = rtf_border_side())
+#' rtf_border_with(b, bottom = rtf_border_side(color = "#003366"))  # recolour bottom
+#' rtf_border_with(b, top = rtf_border_side("none"))                # drop the top rule
 #' @export
 rtf_border_with <- function(border, top = NULL, bottom = NULL,
                             left = NULL, right = NULL) {
@@ -269,6 +274,11 @@ print.rtf_table_border <- function(x, ...) {
 #'
 #' @inheritParams rtf_border_side
 #' @return An `rtf_table_border` object.
+#'
+#' @examples
+#' rtf_border_tfl()                         # the standard clinical TFL rules
+#' rtf_border_tfl(width = 30L)              # heavier rules
+#' rtftable(data.frame(A = 1:2), border = rtf_border_tfl())
 #' @export
 rtf_border_tfl <- function(style = "single", width = 15L, color = NULL) {
   s <- rtf_border_side(style, width, color)

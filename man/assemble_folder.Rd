@@ -41,6 +41,13 @@ the assembly spec by reading each file's header ([assemble_spec()]),
 optionally writes the spec to disk, and assembles the deliverable with a
 Table of Contents ([assemble_from_spec()]).
 }
+\examples{
+\dontrun{
+# One call: scan a folder of TFL .rtf files and assemble them, in catalog
+# order, into a single deliverable with an auto table of contents.
+assemble_folder("output/tfl", "deliverable.rtf", toc_title = "Contents")
+}
+}
 \seealso{
 [assemble_files()], [assemble_spec()], [assemble_from_spec()].
 }

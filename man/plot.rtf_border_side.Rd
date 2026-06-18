@@ -19,3 +19,6 @@ Draws a 1cm-wide swatch of the line in the side's own style, width and
 colour.  Useful for previewing the exact look of a border before it is
 baked into an RTF document.
 }
+\examples{
+plot(rtf_border_side(style = "double", width = 30L, color = "#003366"))
+}

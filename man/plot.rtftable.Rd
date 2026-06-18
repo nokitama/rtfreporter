@@ -24,3 +24,9 @@ proportional to the table's effective layout.  Borders are sketched at
 the table's outer frame and at zone boundaries (TFL preset is shown by
 default).
 }
+\examples{
+tbl <- rtftable(data.frame(Parameter = "Age", Value = "75.1"), border = "tfl")
+\dontrun{
+plot(tbl)        # a quick on-screen preview of the table layout
+}
+}

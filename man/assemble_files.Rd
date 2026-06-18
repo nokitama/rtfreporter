@@ -23,6 +23,11 @@ Lists the `.rtf` files in `dir`, in natural-sorted order (so `t2` comes
 before `t10`), ready to hand to [assemble_rtf()] or the other assembly
 helpers.
 }
+\examples{
+\dontrun{
+files <- assemble_files("output/tfl")        # every .rtf, in catalog order
+}
+}
 \seealso{
 [assemble_spec()], [assemble_toc()], [assemble_folder()].
 }
