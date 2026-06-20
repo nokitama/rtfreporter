@@ -195,12 +195,17 @@ try_block("Tplyr", local({
                   "Mean (SD)" = f_str("xx.x (xx.xx)", mean, sd),
                   "Median"    = f_str("xx.x", median),
                   "Min, Max"  = f_str("xx, xx", min, max))) |>
+    # Use "x.x" (not "xx.x") for the percent: tfrmt / Tplyr right-pad the
+    # integer part of "xx.x", so a one-digit percent prints with a leading
+    # space inside the parens -- " 1 ( 1.2%)" -- and rtfreporter's
+    # align_count_pct cannot re-align it (its regex expects "(" immediately
+    # before the digit).  "x.x" gives a clean " 1 (1.2%)" that aligns.
     add_layer(group_count(AGEGR, by = "Age category") |>
-                set_format_strings(f_str("xx (xx.x%)", n, pct))) |>
+                set_format_strings(f_str("xx (x.x%)", n, pct))) |>
     add_layer(group_count(SEX, by = "Sex") |>
-                set_format_strings(f_str("xx (xx.x%)", n, pct))) |>
+                set_format_strings(f_str("xx (x.x%)", n, pct))) |>
     add_layer(group_count(RACE, by = "Race") |>
-                set_format_strings(f_str("xx (xx.x%)", n, pct))) |>
+                set_format_strings(f_str("xx (x.x%)", n, pct))) |>
     build()
 
   val_cols <- paste0("var1_", arm_levels)
@@ -234,11 +239,26 @@ try_block("Tplyr", local({
 }))
 
 # ===========================================================================
-# E. cards + tfrmt  -- build-and-read (one ARD, formatted with tfrmt)
+# E. cards + tfrmt  -- the SAME table, formatted TWO ways
 # ===========================================================================
-# The same cards ARD idea as the gtsummary-ARD example, rendered with tfrmt:
-# compute the ARD with cards, reshape it to tfrmt's group / label / column /
-# param / value long form, format with a tfrmt spec, then read the gt.
+# The same cards ARD reshaped to tfrmt's group / label / column / param / value
+# long form.  We render it TWICE to contrast WHO owns the "n (xx.x%)"
+# count/percent alignment:
+#
+#   E1  dm_tfrmt             -- tfrmt formats AND aligns; rtfreporter passes the
+#                              strings through unchanged (align_count_pct off).
+#   E2  dm_tfrmt_rtfreporter -- tfrmt only turns the numbers into clean
+#                              "n (x.x%)" strings; rtfreporter re-aligns them to
+#                              its canonical width (align_count_pct = TRUE).
+#
+# Why "x.x" and not "xx.x" for the percent: tfrmt's frmt("xx.x") right-pads the
+# integer part, so a one-digit percent prints with a leading space inside the
+# parens -- "( 3.5%)".  frmt("x.x") avoids that -- "(3.5%)".  That reads better
+# on its own (E1) AND gives rtfreporter a clean cell to re-align (E2).  The two
+# do NOT come out byte-identical: tfrmt anchors "(" right after the count, while
+# rtfreporter right-aligns the whole parenthetical (decimal points line up) and
+# drops the redundant decimal at 100% -- "100%" vs "100.0%".  That difference is
+# exactly the point of offering both.
 try_block("cards-tfrmt", local({
   library(cards); library(tfrmt)
 
@@ -270,7 +290,9 @@ try_block("cards-tfrmt", local({
       param  = ifelse(stat_name == "p", "pct", stat_name),
       value  = ifelse(stat_name == "p", value * 100, value))
 
-  spec <- tfrmt(
+  # Everything except the categorical n (pct%) cell is identical between the two
+  # renders; only the count/percent frmt and who aligns it differs.
+  tfrmt_spec <- function(count_pct) tfrmt(
     group = group, label = label, column = column, param = param, value = value,
     body_plan = body_plan(
       frmt_structure(".default", ".default", frmt("xx.x")),
@@ -281,14 +303,20 @@ try_block("cards-tfrmt", local({
       frmt_structure(".default", "Min, Max",
                      frmt_combine("{Min}, {Max}",
                                   Min = frmt("xx"), Max = frmt("xx"))),
-      frmt_structure(c("Age category", "Sex", "Race"), ".default",
-                     frmt_combine("{n} ({pct}%)",
-                                  n = frmt("xx"), pct = frmt("xx.x")))))
-  g <- print_to_gt(spec, long)
-  # tfrmt already pads each cell to a uniform width (count to "xx", percent to
-  # "xx.x"), so the cells are aligned as-is; align_count_pct would only reformat
-  # the subset whose cells happen to have no internal padding, so skip it here.
-  render_show(as_rtftables(g, read_meta = TRUE), "dm_cards_tfrmt")
+      frmt_structure(c("Age category", "Sex", "Race"), ".default", count_pct)))
+
+  # E1 -- tfrmt formats: count padded to "xx", percent "x.x" (no leading space).
+  #       rtfreporter leaves the strings untouched (align_count_pct off).
+  g1 <- print_to_gt(tfrmt_spec(
+    frmt_combine("{n} ({pct}%)", n = frmt("xx"), pct = frmt("x.x"))), long)
+  render_show(as_rtftables(g1, read_meta = TRUE), "dm_tfrmt")
+
+  # E2 -- rtfreporter formats: tfrmt emits minimal "n (x.x%)" cells (no count
+  #       padding); rtfreporter re-aligns them to its canonical width.
+  g2 <- print_to_gt(tfrmt_spec(
+    frmt_combine("{n} ({pct}%)", n = frmt("x"), pct = frmt("x.x"))), long)
+  render_show(as_rtftables(g2, read_meta = TRUE, align_count_pct = TRUE),
+              "dm_tfrmt_rtfreporter")
 }))
 
 # -- Placeholder snapshots --------------------------------------------------

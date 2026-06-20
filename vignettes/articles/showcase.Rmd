@@ -191,7 +191,10 @@ ard <- ard_stack(
 # reshape the ARD to tfrmt's long form: group / label / column / param / value
 long <- as.data.frame(ard) |> ...
 
-spec <- tfrmt(
+# Everything except the categorical "n (pct%)" cell is shared; only the
+# count/percent formatting -- and who aligns it -- changes between the two
+# renders below.
+tfrmt_spec <- function(count_pct) tfrmt(
   group = group, label = label, column = column, param = param, value = value,
   body_plan = body_plan(
     frmt_structure(".default", ".default", frmt("xx.x")),
@@ -199,17 +202,56 @@ spec <- tfrmt(
     frmt_structure(".default", "Mean (SD)",
                    frmt_combine("{Mean} ({SD})",
                                 Mean = frmt("xx.x"), SD = frmt("xx.xx"))),
-    frmt_structure(c("Age category", "Sex", "Race"), ".default",
-                   frmt_combine("{n} ({pct}%)",
-                                n = frmt("xx"), pct = frmt("xx.x")))))
-g <- print_to_gt(spec, long)
-
-as_rtftables(g, read_meta = TRUE)
+    frmt_structure(c("Age category", "Sex", "Race"), ".default", count_pct))
 ```
 
-```{r img-cards-tfrmt, eval = TRUE, echo = FALSE, out.width = "100%"}
-knitr::include_graphics("figures/showcase/dm_cards_tfrmt.png")
+#### Who formats the `n (xx.x%)` cell?
+
+This is a nice place to see the same table formatted **two ways**, because the
+count/percent cell is exactly where formatters differ.
+
+A small but important detail first: write the percent as **`x.x`**, not `xx.x`.
+`frmt("xx.x")` right-pads the integer part, so a one-digit percent prints with a
+leading space *inside* the parentheses -- `( 3.5%)`. `frmt("x.x")` gives a clean
+`(3.5%)`.
+
+**Way 1 -- tfrmt formats and aligns.** The percent uses `x.x`; the count is
+padded to `xx`. `rtfreporter` reads the strings and renders them *as-is*
+(`align_count_pct` left off):
+
+```{r tfrmt-self}
+g1 <- print_to_gt(
+  tfrmt_spec(frmt_combine("{n} ({pct}%)", n = frmt("xx"), pct = frmt("x.x"))),
+  long)
+as_rtftables(g1, read_meta = TRUE)              # tfrmt's own alignment, untouched
 ```
+
+```{r img-tfrmt, eval = TRUE, echo = FALSE, out.width = "100%"}
+knitr::include_graphics("figures/showcase/dm_tfrmt.png")
+```
+
+**Way 2 -- rtfreporter formats.** tfrmt does the bare minimum -- just clean
+`n (x.x%)` strings, no count padding -- and `rtfreporter` re-aligns them with
+`align_count_pct = TRUE`:
+
+```{r tfrmt-rtfreporter}
+g2 <- print_to_gt(
+  tfrmt_spec(frmt_combine("{n} ({pct}%)", n = frmt("x"), pct = frmt("x.x"))),
+  long)
+as_rtftables(g2, read_meta = TRUE, align_count_pct = TRUE)   # rtfreporter aligns
+```
+
+```{r img-tfrmt-rtfreporter, eval = TRUE, echo = FALSE, out.width = "100%"}
+knitr::include_graphics("figures/showcase/dm_tfrmt_rtfreporter.png")
+```
+
+The two are deliberately *not* byte-identical. tfrmt anchors the `(` right after
+the count, so the percentages stay left-aligned within the parentheses.
+`rtfreporter`'s `align_count_pct` instead right-aligns the whole parenthetical so
+the **decimal points line up**, and drops the redundant decimal at 100%
+(`100%`, not `100.0%`). Use whichever convention your SAP calls for -- the point
+is that you can hand `rtfreporter` already-formatted strings *or* let it own the
+count/percent alignment, from the very same tfrmt table.
 
 ## Shape the body, set the look in rtfreporter
 
@@ -232,12 +274,14 @@ built <- tplyr_table(adsl, TRT01A) |>
                                  "Mean (SD)" = f_str("xx.x (xx.xx)", mean, sd),
                                  "Median"    = f_str("xx.x", median),
                                  "Min, Max"  = f_str("xx, xx", min, max))) |>
+  # "x.x" (not "xx.x") so a one-digit percent has no leading space inside the
+  # parens -- a clean " 1 (1.2%)" that align_count_pct can re-align.
   add_layer(group_count(AGEGR, by = "Age category") |>
-              set_format_strings(f_str("xx (xx.x%)", n, pct))) |>
+              set_format_strings(f_str("xx (x.x%)", n, pct))) |>
   add_layer(group_count(SEX, by = "Sex") |>
-              set_format_strings(f_str("xx (xx.x%)", n, pct))) |>
+              set_format_strings(f_str("xx (x.x%)", n, pct))) |>
   add_layer(group_count(RACE, by = "Race") |>
-              set_format_strings(f_str("xx (xx.x%)", n, pct))) |>
+              set_format_strings(f_str("xx (x.x%)", n, pct))) |>
   build()
 
 # ... reshape `built` into `disp`: a label column (group headers + indented
