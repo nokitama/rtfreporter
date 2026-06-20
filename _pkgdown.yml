@@ -359,6 +359,7 @@ articles:
     desc: End-to-end recipes for typical clinical TFL deliverables.
     navbar: ~
     contents:
+      - articles/showcase
       - articles/tlg-catalog
       - articles/example-demog
       - articles/example-lab
