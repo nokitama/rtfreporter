@@ -148,6 +148,24 @@ contributor to several.
   way, put `Closes #<issue>` in the PR description so the issue closes on
   merge.
 
+- **Umbrella (tracker) issues spanning several PRs.**  A large effort -- a
+  multi-cut article, a docs sweep, a multi-batch refactor -- may land as
+  **several PRs under one issue**, with that issue kept **open as a
+  tracker** (precedents: #150 -> PR #151 + #153; #146 -> PR #147 + later
+  cuts).  When you do this:
+
+  * Each interim PR references the tracker with **`Refs #<issue>`** (not
+    `Closes`), so merging it does **not** close the tracker.  The **final**
+    PR may use `Closes #<issue>` (or close it by hand) once the whole scope
+    is done.
+  * Keep a **checklist in the issue body** of what is still outstanding, and
+    add a short **dated progress comment** each time a PR lands, so the
+    record survives even as the plan evolves.
+  * Give each cut's branch a **scope segment** so sibling branches/PRs stay
+    distinct: **`<type>/<issue>-<scope>-<slug>`** -- e.g.
+    `docs/146-showcase-dm`, `docs/146-showcase-ae` -- and mirror the scope in
+    the PR title (`Showcase (DM): ...`).
+
 - **Keep branches small and short-lived.**  Rebase (or merge) the latest
   `main` into your branch regularly so the eventual PR is a small,
   reviewable diff with no stale conflicts.
