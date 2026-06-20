@@ -19,14 +19,13 @@ rtf_config(
 
 \item{color_table}{Optional colour table; replaces the current one.}
 
-\item{page}{Optional page settings list (see [rtf_document()]); merged per
-key onto the current page settings.}
+\item{page}{New page geometry, **merged per key** onto the current page: an
+[rtf_page()] object, or a named list with the same keys (see [rtf_page()]).}
 
-\item{default_format}{Optional document-wide default formatting; merged per
-key onto the current defaults. Recognised keys: `font_size_half_points`,
-`row_height_twips`, `cell_padding_left_twips`, `cell_padding_right_twips`
-(see [rtf_document()]). These are document-wide **defaults** that any
-per-module setting overrides.}
+\item{default_format}{New document-wide default formatting, **merged per key**
+onto the current defaults: an [rtf_default_format()] object, or a named list
+with the same keys (see [rtf_default_format()]). Each is a document-wide
+*default* that any per-module setting overrides.}
 }
 \value{
 Modified rtf_document object (new copy, original unchanged).
@@ -56,9 +55,13 @@ base <- rtf_document() |>
   rtf_section(page = 1, secinfo = list(header = NULL, footer = NULL))
 
 letter <- base                                   # landscape Letter (default)
-a4     <- base |> rtf_config(page = list(width_in = 11.69, height_in = 8.27))
+a4     <- base |> rtf_config(page = rtf_page(paper_size = "A4"))
 
 # Only the page changed; the content/section are shared.
 identical(letter$contents, a4$contents)
 
+}
+\seealso{
+[rtf_document()] (the constructor), [rtf_page()] /
+  [rtf_default_format()] for the settings.
 }

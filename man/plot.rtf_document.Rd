@@ -22,3 +22,10 @@ Draws a grid of page thumbnails.  Each thumbnail shows the title /
 content / footnote regions, with header and footer bands sketched in
 grey.
 }
+\examples{
+doc <- rtf_document() |>
+  rtf_tables(data.frame(Parameter = "Age", Value = "75.1"))
+\dontrun{
+plot(doc)        # preview the document's pages on screen
+}
+}

@@ -20,6 +20,9 @@
 #' @param ... Unused.
 #'
 #' @return Invisibly returns `x`.
+#'
+#' @examples
+#' plot(rtf_border_side(style = "double", width = 30L, color = "#003366"))
 #' @export
 plot.rtf_border_side <- function(x, ...) {
   oldpar <- graphics::par(mar = c(2, 2, 2, 2), xpd = NA)
@@ -44,6 +47,9 @@ plot.rtf_border_side <- function(x, ...) {
 #' @param ... Unused.
 #'
 #' @return Invisibly returns `x`.
+#'
+#' @examples
+#' plot(rtf_border(top = rtf_border_side(), bottom = rtf_border_side(color = "#003366")))
 #' @export
 plot.rtf_border <- function(x, ...) {
   oldpar <- graphics::par(mar = c(2, 2, 3, 2), xpd = NA)
@@ -69,6 +75,9 @@ plot.rtf_border <- function(x, ...) {
 #' @param ... Unused.
 #'
 #' @return Invisibly returns `x`.
+#'
+#' @examples
+#' plot(rtf_border_tfl())          # preview the clinical TFL border zones
 #' @export
 plot.rtf_table_border <- function(x, ...) {
   oldpar <- graphics::par(mar = c(2, 2, 3, 2), xpd = NA)
@@ -110,6 +119,12 @@ plot.rtf_table_border <- function(x, ...) {
 #' @param ... Unused.
 #'
 #' @return Invisibly returns `x`.
+#'
+#' @examples
+#' tbl <- rtftable(data.frame(Parameter = "Age", Value = "75.1"), border = "tfl")
+#' \dontrun{
+#' plot(tbl)        # a quick on-screen preview of the table layout
+#' }
 #' @export
 plot.rtftable <- function(x, width = 8, ...) {
   oldpar <- graphics::par(mar = c(2, 2, 3, 2), xpd = NA)
@@ -195,6 +210,13 @@ plot.rtftable <- function(x, width = 8, ...) {
 #' @param ... Unused.
 #'
 #' @return Invisibly returns `x`.
+#'
+#' @examples
+#' doc <- rtf_document() |>
+#'   rtf_tables(data.frame(Parameter = "Age", Value = "75.1"))
+#' \dontrun{
+#' plot(doc)        # preview the document's pages on screen
+#' }
 #' @export
 plot.rtf_document <- function(x, max_pages = 12L, ...) {
   n_total <- length(x$contents)

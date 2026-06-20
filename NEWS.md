@@ -14,6 +14,15 @@
 
 ### New features
 
+- New constructors **`rtf_page()`** and **`rtf_default_format()`** turn the
+  structured `rtf_document()` / `rtf_config()` settings into first-class S3
+  objects whose **defaults are visible in their own signature / Usage** (#152):
+  `rtf_document(page = rtf_page(paper_size = "A4", orientation = "portrait"))`.
+  Site defaults still apply -- an argument you do not pass falls back to the
+  matching `rtfreporter.*` option (explicit argument > option > the factory
+  default shown in the signature). A plain named `list` is still accepted, so
+  existing code is unchanged.
+
 - The page **title** now renders as plain **text paragraphs** across the
   writable page width again (centred over the page), instead of the
   content-width single-column table introduced in v0.4.0 (#144). The legacy
@@ -50,6 +59,20 @@
   The `realign_count_pct()` / `format_count_pct()` conversion itself is unchanged
   (e.g. `"0 (0.0%)"` still becomes `"0"`, `"10 (100.0)"` still `"10 (100)"`)
   (#148).
+
+### Documentation
+
+- Reference pages are being made easier to read (#150): list-valued parameters
+  now break their keys out with a `\describe{}` list (so each sub-option is
+  headlined), and examples are fuller and story-driven. First batch:
+  `rtf_document()` (the `page` / `default_format` keys + a full worked example),
+  `rtf_section()` (the `secinfo` keys + a self-contained example), and
+  `rtf_header()` / `rtf_footer()` (the `l` / `c` / `r` cell rule + page-number
+  tokens). More functions to follow.
+- Continued the sweep (#150): the `read_gt` token list in `rtf_tables()`, the
+  accepted row forms in `rtf_col_header()`, and the `cover` fields / `toc`
+  shapes / `toc_page_numbering` options in `assemble_rtf()` now use `\describe{}`
+  lists instead of plain bullet prose.
 
 
 # rtfreporter 0.4.0

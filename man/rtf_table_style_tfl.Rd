@@ -26,3 +26,7 @@ To override one or more fields, pipe through [rtf_table_style_with()]:
             border_last_row = rtf_border(bottom = rtf_border_side()))
 }
 }
+\examples{
+style <- rtf_table_style_tfl()
+rtftable(data.frame(Parameter = "Age", Value = "75.1"), style = style)
+}

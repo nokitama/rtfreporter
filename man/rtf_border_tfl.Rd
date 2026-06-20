@@ -43,3 +43,8 @@ borders in the data area by default.  Specifically:
   last data row can set it explicitly:
   `rtf_table_border(last_row = rtf_border(bottom = rtf_border_side()))`.
 }
+\examples{
+rtf_border_tfl()                         # the standard clinical TFL rules
+rtf_border_tfl(width = 30L)              # heavier rules
+rtftable(data.frame(A = 1:2), border = rtf_border_tfl())
+}

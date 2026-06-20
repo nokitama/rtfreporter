@@ -116,6 +116,10 @@ rtf_table_style <- function(
 #'   [rtf_table_style()].
 #'
 #' @return A new `rtf_table_style` object.
+#'
+#' @examples
+#' base <- rtf_table_style_tfl()
+#' rtf_table_style_with(base, align = "center", row_height_twips = 280L)
 #' @export
 rtf_table_style_with <- function(style, ...) {
   if (!inherits(style, "rtf_table_style")) {
@@ -181,6 +185,10 @@ print.rtf_table_style <- function(x, ...) {
 #' }
 #'
 #' @return An `rtf_table_style` object.
+#'
+#' @examples
+#' style <- rtf_table_style_tfl()
+#' rtftable(data.frame(Parameter = "Age", Value = "75.1"), style = style)
 #' @export
 rtf_table_style_tfl <- function() {
   s <- rtf_border_side()

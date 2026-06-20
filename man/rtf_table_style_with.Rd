@@ -19,3 +19,7 @@ A new `rtf_table_style` object.
 Non-mutating derivation: returns a new `rtf_table_style` whose listed
 fields are overridden.  Unknown field names raise an error.
 }
+\examples{
+base <- rtf_table_style_tfl()
+rtf_table_style_with(base, align = "center", row_height_twips = 280L)
+}

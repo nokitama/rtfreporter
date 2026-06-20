@@ -41,21 +41,22 @@ rtf_tables(
 \arguments{
 \item{doc}{An rtf_document object.}
 
-\item{tables}{A list where each element is one page's content. Each
-element must be one of:
-- `data.frame`: simple table; the table-format arguments below apply.
-- `rtftable` object (from `rtftable()`): table with full formatting.
-- `rtfplot` object (from `rtfplot()`): embedded figure.
-- `gt_tbl` object (from the gt package): converted via
-  `as.data.frame()` and treated like a `data.frame`. Pass
-  `read_gt = TRUE` (or a vector of tokens) to also pull through
-  gt's column labels, alignment, title/subtitle, and source notes.
-  See `read_gt` below.
-- **gtsummary table** (`tbl_summary`, `tbl_regression`, `tbl_merge`,
-  `tbl_stack`, etc.): automatically converted to a `gt_tbl` via
-  `gtsummary::as_gt()` before any further processing. Pass
-  `read_gt = TRUE` to pull through column labels, titles, source
-  notes, footnotes, spanning headers, and hidden-column removal.
+\item{tables}{A list where each element is one page's content (a single
+content per page). Each element is one of:
+\describe{
+  \item{a `data.frame`}{a simple table; the table-format arguments below
+    apply to it.}
+  \item{an `rtftable` object}{(from [rtftable()]) a table with full
+    formatting -- usually the output of [as_rtftables()].}
+  \item{an `rtfplot` object}{(from [rtfplot()]) an embedded figure.}
+  \item{a `gt_tbl` object}{(from the gt package) treated like a
+    `data.frame`; pass `read_gt = TRUE` (or a token vector) to also pull
+    through gt's column labels, alignment, title / subtitle and source
+    notes (see `read_gt`).}
+  \item{a gtsummary table}{(`tbl_summary`, `tbl_regression`, ...)
+    auto-converted to a `gt_tbl` first; `read_gt = TRUE` pulls through its
+    labels, titles, source notes, footnotes and spanning headers.}
+}
   Note: cell-level formatting (row indentation, bold group-header
   rows, footnote marks in cells) is **not** transferred to RTF.
   See [as_rtftable()] for details on gtsummary limitations.}
@@ -110,14 +111,16 @@ paginates *and* reads metadata, then pass the resulting list here --
 the page-level titles / footnotes flow through automatically (via the
 `rtf_titles` / `rtf_footnotes` attributes) with `read_gt` left at its
 default.  Allowed values:
-* `FALSE` (default) -- treat `gt_tbl` items as a rendered body only;
-  ignore titles / labels / source notes.
-* `TRUE` -- read the render-relevant metadata: column labels,
-  per-column alignment, spanning headers, widths, plus the page-level
-  title / subtitle and footnote / source notes.  See [as_rtftables()]
-  for the full *What is carried, by source* table.
-* A character vector of tokens -- selective opt-in.  See
-  [as_rtftables()] for the token list.
+\describe{
+  \item{`FALSE` (default)}{treat `gt_tbl` items as a rendered body only;
+    ignore titles / labels / source notes.}
+  \item{`TRUE`}{read the render-relevant metadata: column labels,
+    per-column alignment, spanning headers, widths, plus the page-level
+    title / subtitle and footnote / source notes.  See [as_rtftables()]
+    for the full *What is carried, by source* table.}
+  \item{a character vector of tokens}{selective opt-in.  See
+    [as_rtftables()] for the token list.}
+}
 Explicit `rtf_tables()` / `rtf_titles()` / `rtf_footnotes()`
 values always override gt-extracted ones.}
 }
@@ -140,18 +143,25 @@ construction-time defaults only; it is not applied as an override to a
 pre-built table.)
 }
 \examples{
-\dontrun{
-df1 <- data.frame(A = 1:3, B = c("x", "y", "z"))
-df2 <- data.frame(A = 4:6, B = c("p", "q", "r"))
+# Two clinical tables in one document, each on its own page with its own
+# title; shared TFL borders and a wide row-label column are applied to both
+# bare data.frames, and a footnote is attached to the first page only.
+t1 <- data.frame(Parameter = c("Age (years)", "Sex, n (\%)"),
+                 Value = c("75.1 (8.2)", "120 (53\%)"))
+t2 <- data.frame(Parameter = c("Weight (kg)", "Height (cm)"),
+                 Value = c("78.0 (12.1)", "170 (9.5)"))
 
-# Three pages, shared formatting applied to both bare data.frames
-doc <- rtf_document() \%>\%
+doc <- rtf_document() |>
+  rtf_section(page = 1, secinfo = list(header = NULL, footer = NULL)) |>
   rtf_tables(
-    list(df1, df2, rtfplot("fig.png")),
-    col_rel_width    = c(1, 2),
-    border           = "tfl",
-    row_height_twips = 280L
+    list(t1, t2),
+    border        = "tfl",
+    col_rel_width = c(2, 1),
+    titles    = list("Table 14.1.1", "Table 14.1.2"),
+    footnotes = list("Source: ADSL", NULL)
   )
+\dontrun{
+generate_rtfreport(doc, "tables.rtf", overwrite = TRUE)
 }
 
 }

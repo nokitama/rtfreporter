@@ -20,3 +20,8 @@ A new `rtf_border` object.
 Non-mutating: returns a new `rtf_border` with the supplied side(s) set on
 top of `border`.  `NULL` arguments leave the corresponding side unchanged.
 }
+\examples{
+b <- rtf_border(top = rtf_border_side(), bottom = rtf_border_side())
+rtf_border_with(b, bottom = rtf_border_side(color = "#003366"))  # recolour bottom
+rtf_border_with(b, top = rtf_border_side("none"))                # drop the top rule
+}

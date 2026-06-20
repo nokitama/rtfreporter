@@ -477,29 +477,33 @@ toc_entry <- function(label, file = NULL, level = 2L) {
 #' Pass `cover = list(...)` to add a cover page section before the TOC.
 #' Recognised fields:
 #'
-#' * `title`     — large centred bold heading (default font size 22 pt).
-#' * `subtitle`  — medium centred line below the title (14 pt).
-#' * `date`      — centred line (11 pt).
-#' * `version`   — centred line (11 pt).
-#' * `meta`      — character vector of extra centred lines (10 pt).
+#' \describe{
+#'   \item{`title`}{large centred bold heading (default font size 22 pt).}
+#'   \item{`subtitle`}{medium centred line below the title (14 pt).}
+#'   \item{`date`}{centred line (11 pt).}
+#'   \item{`version`}{centred line (11 pt).}
+#'   \item{`meta`}{character vector of extra centred lines (10 pt).}
+#' }
 #'
 #' Any field that is `NULL` or empty is skipped.
 #'
 #' @section Table of Contents:
 #' `toc` can take any of these shapes:
 #'
-#' * `NULL` (default) — no TOC, no bookmarks.  Byte-for-byte the
-#'   pre-v0.0.29 behaviour.
-#' * `"auto"` — auto-extract each input file's title (the first
-#'   centred-bold cell of the title block) and use it as a level-1
-#'   TOC entry.  Falls back to the file's basename if no title is
-#'   detected.
-#' * A character vector of TOC labels (one per input file) — same as
-#'   `"auto"` but with explicit labels.
-#' * A `list(...)` of `toc_heading()` and `toc_entry()` objects for
-#'   multi-level (chapter / table) layouts.  `toc_entry(file = ...)`
-#'   selects which `input_files` element each row points to;
-#'   omitting `file` consumes the next file in order.
+#' \describe{
+#'   \item{`NULL` (default)}{no TOC, no bookmarks.  Byte-for-byte the
+#'     pre-v0.0.29 behaviour.}
+#'   \item{`"auto"`}{auto-extract each input file's title (the first
+#'     centred-bold cell of the title block) and use it as a level-1
+#'     TOC entry.  Falls back to the file's basename if no title is
+#'     detected.}
+#'   \item{a character vector of TOC labels}{one per input file -- same as
+#'     `"auto"` but with explicit labels.}
+#'   \item{a `list(...)` of `toc_heading()` and `toc_entry()` objects}{for
+#'     multi-level (chapter / table) layouts.  `toc_entry(file = ...)`
+#'     selects which `input_files` element each row points to;
+#'     omitting `file` consumes the next file in order.}
+#' }
 #'
 #' Each TOC entry is an RTF `HYPERLINK` field; clicking it in
 #' Word / Pages jumps to a per-source-file bookmark.  Each row also
@@ -510,13 +514,15 @@ toc_entry <- function(label, file = NULL, level = 2L) {
 #' `toc_page_numbering` controls how the TOC pages (and cover, if
 #' present) are numbered:
 #'
-#' * `"none"` (default) -- Arabic numbering flows continuously from
-#'   the first page; if the source files use \code{\{AUTO_PAGE\}} the
-#'   TOC counts as page 1, 2, ...
-#' * `"roman"` — TOC pages use lowercase Roman numerals (`i`, `ii`,
-#'   ...); body pages restart at `1`.
-#' * `"decimal"` — TOC pages use Arabic numerals starting at `1`;
-#'   body pages restart at `1`.
+#' \describe{
+#'   \item{`"none"` (default)}{Arabic numbering flows continuously from
+#'     the first page; if the source files use \code{\{AUTO_PAGE\}} the
+#'     TOC counts as page 1, 2, ...}
+#'   \item{`"roman"`}{TOC pages use lowercase Roman numerals (`i`, `ii`,
+#'     ...); body pages restart at `1`.}
+#'   \item{`"decimal"`}{TOC pages use Arabic numerals starting at `1`;
+#'     body pages restart at `1`.}
+#' }
 #'
 #' @param input_files Character vector of paths to RTF files to combine
 #'   (at least 2).

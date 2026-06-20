@@ -12,71 +12,35 @@ rtf_document(
 )
 }
 \arguments{
-\item{font_table}{Optional font table. Default: list(list(name = "Courier"))}
+\item{font_table}{Optional font table: a list of font specifications, each a
+named list with a `name` (e.g. `list(list(name = "Arial"))`). The first
+entry is the document's default font. Default: `list(list(name =
+"Courier"))` (a fixed-width font, which keeps clinical columns aligned).}
 
-\item{color_table}{Optional vector of `"#RRGGBB"` colours to pre-declare in
-the document's colour table (so they are available by index). Default
-`c("#000000")`. Colours used by borders and by `col_spec`/`cell_styles`
-`color` are added automatically, so you only need this to declare colours
-you reference elsewhere. Black/white are reserved and added implicitly.}
+\item{color_table}{Optional character vector of `"#RRGGBB"` colours to
+pre-declare in the document's colour table (so they are available by
+index). Default `c("#000000")`. Colours actually used by borders and by
+`col_spec` / `cell_styles` `color` are added automatically, so you only
+need this to declare colours you reference elsewhere. Black and white are
+reserved and added implicitly.}
 
-\item{page}{Optional page settings as a named list. Recognised keys (all in
-  inches unless noted): `paper_size` (a named preset, see below),
-  `orientation` (`"landscape"` / `"portrait"`), `width_in`, `height_in`,
-  `margin_top_in` / `margin_bottom_in` / `margin_left_in` / `margin_right_in`,
-  and `header_dist_in` / `footer_dist_in` (distance of the header/footer band
-  from the page edge; when omitted, each defaults to half the corresponding
-  top/bottom margin). Default: landscape letter, margins 0.9 inch
-  (top/bottom) and 0.6 inch (left/right).
+\item{page}{The page geometry. Pass an [rtf_page()] object (recommended --
+its help lists every key with its default), a named list with the same
+keys, or `NULL` (default) to use the option / factory defaults (landscape
+Letter, 0.9" top/bottom and 0.6" left/right margins). An omitted key falls
+back to the corresponding `rtfreporter.*` option (see [rtfreporter_options()]).}
 
-  These defaults are read from the `rtfreporter.*` options, so a site can
-  change them in `Rprofile.site` (see [rtfreporter_options()]); an explicit
-  key here always wins.
-
-  `paper_size` selects a named preset (case-insensitive): `"letter"`
-  (8.5x11"), `"legal"` (8.5x14"), `"A4"` (210x297mm), `"A3"`, `"A5"`. So
-  `list(paper_size = "A4")` gives **A4 landscape** in one line, and
-  `list(paper_size = "A4", orientation = "portrait")` gives A4 portrait.
-
-  Geometry is resolved as follows: (1) explicit `width_in` / `height_in`
-  **win** and are used as given -- the orientation is *inferred* from them
-  (`width_in >= height_in` means landscape); an explicit `orientation` that
-  contradicts the dimensions emits a warning and the dimensions are kept as
-  given (not swapped). If `paper_size` is also supplied it is ignored (with a
-  warning). (2) Otherwise `paper_size` + `orientation` selects and orients a
-  preset. (3) Otherwise the default (landscape letter) is used.}
-
-\item{default_format}{Optional document-wide default formatting (a list,
-merged per key). Recognised keys:
-* `font_size_half_points` -- body font size in half-points (18 = 9 pt).
-* `row_height_twips` -- document-wide default **row height** for every
-  table-shaped element (content table, page header/footer, title/footnote).
-  `NULL` keeps the font-aware default.
-* `cell_padding_left_twips`, `cell_padding_right_twips` -- document-wide
-  default **cell padding** (border-to-text distance), likewise applied to
-  every element.
-* `markup` -- document-wide default cell-text **markup** (`"script"`,
-  `"relational"`, `"all"`, or `"none"`; default `"script"`). Controls
-  whether `^{}`/`_{}` render as super/subscript and whether `>=`/`<=` are
-  converted to the `>=`/`<=` symbols. A per-table `rtftable(markup = )`
-  overrides it. See [rtftable()].
-* `title_format` -- how the page **title** block renders: `"text"`
-  (default) = plain centred paragraphs across the writable width, or
-  `"table"` = a content-width single-column table (the form used since
-  v0.4.0).
-* `footnote_format` -- how the **footnote** block renders: `"table"`
-  (default) keeps the content-width table with the separator rule, or
-  `"text"` = plain paragraphs (no separator rule).
-These are **defaults**: a per-module value -- `rtftable()` /
-`rtf_header()` / `rtf_footer()` / `rtf_table_style()` -- always overrides
-them. They can also be set globally as `rtfreporter.*` options (see
-[rtfreporter_options()]).}
+\item{default_format}{Document-wide default formatting. Pass an
+[rtf_default_format()] object (recommended -- its help lists every key with
+its default), a named list with the same keys, or `NULL` (default). Each
+value is a *default* that a per-module setting ([rtftable()] /
+[rtf_header()] / [rtf_footer()] / [rtf_table_style()]) overrides.}
 }
 \value{
-An rtf_document object (S3 class) with structure:
-  - document: list(font_table, color_table, page, default_format)
-  - contents: list (initially empty, populated by rtf_tables/rtf_figures)
-  - sections: list (initially empty, populated by rtf_section)
+An `rtf_document` S3 object: a list with `document`
+  (`font_table` / `color_table` / `page` / `default_format`), `contents`
+  (filled by [rtf_tables()] / [rtf_figures()]), `titles`, `footnotes`, and
+  `sections` (filled by [rtf_section()]).
 }
 \description{
 Initialize a new RTF document object for building reports with pipes.
@@ -94,8 +58,32 @@ an already-composed report with `rtf_document()` without discarding its
 content.
 }
 \examples{
-\dontrun{
+# 1. Simplest: every default (landscape Letter, Courier 9 pt).
 doc <- rtf_document()
+
+# 2. A fully specified document, built from the rtf_page() /
+#    rtf_default_format() constructors (whose own help shows every default):
+doc <- rtf_document(
+  font_table     = list(list(name = "Arial")),
+  color_table    = c("#000000", "#1F4E79"),
+  page           = rtf_page(paper_size = "A4", orientation = "portrait",
+                            margin_left_in = 0.75, margin_right_in = 0.75),
+  default_format = rtf_default_format(font_size_half_points = 20L,  # 10 pt
+                                      row_height_twips = 240L)
+)
+
+# ... then add content and render:
+df <- data.frame(Parameter = c("Age, Mean (SD)", "Sex, n (\%)"),
+                 Value = c("75.1 (8.2)", "120 (53\%)"))
+doc <- rtf_tables(doc, as_rtftables(df), titles = list("Table 14.1.1"))
+\dontrun{
+generate_rtfreport(doc, "demographics.rtf", overwrite = TRUE)
 }
 
+}
+\seealso{
+[rtf_page()] / [rtf_default_format()] for the page / formatting
+  settings, [rtf_config()] to edit an already-composed document, [rtf_tables()]
+  / [rtf_figures()] to add content, [rtf_section()] for headers / footers, and
+  [generate_rtfreport()] to render.
 }

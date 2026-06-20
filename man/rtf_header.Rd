@@ -24,9 +24,19 @@ rtf_footer(
 )
 }
 \arguments{
-\item{rows}{A named character vector (single row) or a `list` of named
-character vectors (multi-row). Each vector uses names `l`, `c`, `r` for
-left, center, right column content.}
+\item{rows}{The header (or footer) content, row by row: a single named
+character vector for one row, or a `list` of them for several rows. Within
+a row, the name of each element chooses its column:
+\describe{
+  \item{`l`}{left-aligned text}
+  \item{`c`}{centred text}
+  \item{`r`}{right-aligned text}
+}
+e.g. `c(l = "Protocol XYZ-001", r = "Page {AUTO_PAGE}")`. Cell text may
+contain **page-number tokens** that the renderer substitutes: `{AUTO_PAGE}`
+(the current page, updated live by the viewer), `{AUTO_TOTAL_PAGES}` (the
+document total), and `{PAGE}` / `{TOTAL_PAGES}` (static numbers baked in at
+render time).}
 
 \item{border}{An [rtf_border()] object controlling the border applied to
 all rows of the header/footer table. `NULL` = no border (default for

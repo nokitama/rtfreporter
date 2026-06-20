@@ -33,6 +33,13 @@ written by rtfreporter's headers) and returns a `data.frame` -- the
 section `heading`s, change `level`, reorder rows, or drop rows) and pass it
 to [assemble_from_spec()].
 }
+\examples{
+\dontrun{
+spec <- assemble_spec("output/tfl")   # one editable row per file
+spec$heading[spec$table == "14.1.1"] <- "Demographics"   # group entries
+assemble_from_spec(spec, "deliverable.rtf")
+}
+}
 \seealso{
 [assemble_from_spec()], [assemble_folder()].
 }

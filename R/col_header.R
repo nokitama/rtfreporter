@@ -127,9 +127,11 @@ print.rtf_col_cell <- function(x, ...) {
 #' can be passed to `rtftable(col_header = ...)`.  Each argument is one
 #' row; a row may be either:
 #'
-#' * a character vector -- one label per data column (legacy form), or
-#' * a list of [col_cell()] objects -- for a row with single and/or
-#'   spanning cells.
+#' \describe{
+#'   \item{a character vector}{one label per data column (legacy form), or}
+#'   \item{a list of [col_cell()] objects}{for a row with single and/or
+#'     spanning cells.}
+#' }
 #'
 #' @param ... Header rows in render order (top first).
 #'

@@ -121,6 +121,11 @@
 #'
 #' @return A character vector of file paths.
 #' @seealso [assemble_spec()], [assemble_toc()], [assemble_folder()].
+#'
+#' @examples
+#' \dontrun{
+#' files <- assemble_files("output/tfl")        # every .rtf, in catalog order
+#' }
 #' @export
 assemble_files <- function(dir, pattern = "[.]rtf$", recursive = FALSE,
                            sort = TRUE) {
@@ -156,6 +161,13 @@ assemble_files <- function(dir, pattern = "[.]rtf$", recursive = FALSE,
 #'     \item{`pages`}{page count of the file (informational).}
 #'   }
 #' @seealso [assemble_from_spec()], [assemble_folder()].
+#'
+#' @examples
+#' \dontrun{
+#' spec <- assemble_spec("output/tfl")   # one editable row per file
+#' spec$heading[spec$table == "14.1.1"] <- "Demographics"   # group entries
+#' assemble_from_spec(spec, "deliverable.rtf")
+#' }
 #' @export
 assemble_spec <- function(dir = NULL, files = NULL, recursive = FALSE) {
   if (is.null(files)) {
@@ -216,6 +228,12 @@ assemble_spec <- function(dir = NULL, files = NULL, recursive = FALSE) {
 #'
 #' @return A list suitable for `assemble_rtf(toc = )`.
 #' @seealso [assemble_spec()], [assemble_from_spec()].
+#'
+#' @examples
+#' \dontrun{
+#' toc <- assemble_toc(files = assemble_files("output/tfl"))
+#' assemble_rtf(assemble_files("output/tfl"), "deliverable.rtf", toc = toc)
+#' }
 #' @export
 assemble_toc <- function(files = NULL, spec = NULL, ...) {
   if (is.null(spec)) {
@@ -274,6 +292,12 @@ assemble_toc <- function(files = NULL, spec = NULL, ...) {
 #'
 #' @return Invisibly, `output_file`.
 #' @seealso [assemble_spec()], [assemble_folder()], [assemble_rtf()].
+#'
+#' @examples
+#' \dontrun{
+#' spec <- assemble_spec("output/tfl")          # review / edit the order
+#' assemble_from_spec(spec, "deliverable.rtf", toc_title = "Table of Contents")
+#' }
 #' @export
 assemble_from_spec <- function(spec, output_file,
                                toc_title = "Table of Contents",
@@ -318,6 +342,13 @@ assemble_from_spec <- function(spec, output_file,
 #' @return Invisibly, a list with `output` (the assembled file) and `spec`
 #'   (the assembly spec used).
 #' @seealso [assemble_files()], [assemble_spec()], [assemble_from_spec()].
+#'
+#' @examples
+#' \dontrun{
+#' # One call: scan a folder of TFL .rtf files and assemble them, in catalog
+#' # order, into a single deliverable with an auto table of contents.
+#' assemble_folder("output/tfl", "deliverable.rtf", toc_title = "Contents")
+#' }
 #' @export
 assemble_folder <- function(dir, output_file, spec_file = NULL,
                             recursive = FALSE,

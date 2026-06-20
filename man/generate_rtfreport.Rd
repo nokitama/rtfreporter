@@ -7,8 +7,8 @@
 generate_rtfreport(report, file_path, overwrite = FALSE)
 }
 \arguments{
-\item{report}{An `rtf_document` object (from `rtf_document()`) or an
-internal `rtfreport` object.}
+\item{report}{An `rtf_document` object (from [rtf_document()]) or an internal
+`rtfreport` object.}
 
 \item{file_path}{Output RTF file path.}
 
@@ -21,4 +21,18 @@ Invisibly returns `file_path`.
 \description{
 Renders an `rtf_document` (from the pipe API) or internal `rtfreport`
 object to an RTF file.
+}
+\examples{
+df  <- data.frame(Parameter = "Age, Mean (SD)", Value = "75.1 (8.2)")
+doc <- rtf_document() |>
+  rtf_section(page = 1, secinfo = list(header = NULL, footer = NULL)) |>
+  rtf_tables(as_rtftables(df), titles = list("Table 14.1.1"))
+
+out <- tempfile(fileext = ".rtf")     # write to a temporary file
+generate_rtfreport(doc, out, overwrite = TRUE)
+file.exists(out)
+}
+\seealso{
+[rtf_document()] / [rtf_tables()] to compose the report, and
+  [assemble_rtf()] to concatenate several rendered files into one deliverable.
 }

@@ -47,28 +47,27 @@ gt/gtsummary: `"col_header"`, `"alignment"`, `"spanning"`, `"widths"`,
 `"group_safe"` / `"group_force"` splits (required by them).  Ignored by
 `"none"`, `"rows"` (which uses `split_rows`) and `"by_value"`.}
 
-\item{split}{How to break the body into pages.  One of:
-  * `"none"` (default) -- one page, no row limit checked;
-  * `"rows"` -- fixed chunk size; requires `split_rows`;
-  * `"group_safe"` -- fill up to `max_rows` but never split a group
-    (defined by `group_col`) across a page boundary; requires `max_rows`
-    and `group_col`;
-  * `"group_force"` -- like `"group_safe"` but a single group larger than
-    `max_rows` is allowed to span pages (with a continuation label);
-    requires `max_rows` and `group_col`;
-  * `"by_value"` -- one page per distinct value of `group_col`; the pages
-    are named by that value.
-
-  `split` may also be a **custom function** for bespoke page-break rules.
-  It is called as
-  `split(df, max_rows = , group_col = , group_by = , cont_label = , min_group_rows = )`
-  on the (cell-formatted) body and must return a **non-empty list of
-  data.frames** -- one per page.  Named list elements become page names (as
-  with `"by_value"`).  Your function implements only the split; the shared
-  pipeline (blank rows, metadata, per-page assembly, and header / width /
-  style replication) is applied to its output unchanged.  Write the function
-  with a `...` so it tolerates the context arguments it does not use, and see
-  [add_cont_label()] for re-creating the `" (Cont.)"` continuation row.}
+\item{split}{How to break the body into pages. A strategy name:
+\describe{
+  \item{`"none"`}{(default) one page; no row limit checked.}
+  \item{`"rows"`}{fixed chunk size; requires `split_rows`.}
+  \item{`"group_safe"`}{fill up to `max_rows` but never split a group
+    (defined by `group_col`) across a page; requires `max_rows`.}
+  \item{`"group_force"`}{like `"group_safe"`, but a single group larger than
+    `max_rows` may span pages with a continuation label; requires `max_rows`.}
+  \item{`"by_value"`}{one page per distinct value of `group_col`; the pages
+    are named by that value.}
+}
+`split` may also be a **custom function** for bespoke page-break rules.
+It is called as
+`split(df, max_rows = , group_col = , group_by = , cont_label = , min_group_rows = )`
+on the (cell-formatted) body and must return a **non-empty list of
+data.frames** -- one per page.  Named list elements become page names (as
+with `"by_value"`).  Your function implements only the split; the shared
+pipeline (blank rows, metadata, per-page assembly, and header / width /
+style replication) is applied to its output unchanged.  Write the function
+with a `...` so it tolerates the context arguments it does not use, and see
+[add_cont_label()] for re-creating the `" (Cont.)"` continuation row.}
 
 \item{split_rows}{Integer or `NULL`.  Rows per page for `split = "rows"`
 (required by it; ignored otherwise).}
@@ -82,19 +81,21 @@ selects only the *column*; how a group boundary is found on it is set by
 huxtable the columns are renamed `V1`, `V2`, ... -- so an **integer** index
 is the most portable.}
 
-\item{group_by}{How a group boundary is detected on `group_col`.  One of:
-* `"auto"` (default) -- pick from the column content: leading indentation
-  present -> `"indent"`; otherwise empty cells interspersed -> `"filled"`;
-  otherwise -> `"value"`.
-* `"indent"` -- a row starts a group when its `group_col` cell is non-empty
-  and does **not** begin with whitespace (space / tab / non-breaking
-  space); indented or empty cells are members.  This is the typical
-  clinical row-label layout (gt / tfrmt bake indentation as NBSP).
-* `"value"` -- each maximal run of rows sharing the same `group_col` value
-  is one group.
-* `"filled"` -- a row starts a group when its `group_col` cell is non-empty;
-  only `NA` / `""` cells are members (the group label appears once, on the
-  first row of the group).}
+\item{group_by}{How a group boundary is found on `group_col`:
+\describe{
+  \item{`"auto"`}{(default) pick from the column content: leading
+    indentation present -> `"indent"`; else interspersed empty cells ->
+    `"filled"`; else -> `"value"`.}
+  \item{`"indent"`}{a row starts a group when its `group_col` cell is
+    non-empty and does **not** begin with whitespace (space / tab /
+    non-breaking space); indented or empty cells are members. The typical
+    clinical row-label layout (gt / tfrmt bake indentation as NBSP).}
+  \item{`"value"`}{each maximal run of rows sharing the same `group_col`
+    value is one group.}
+  \item{`"filled"`}{a row starts a group when its `group_col` cell is
+    non-empty; only `NA` / `""` cells are members (the label appears once,
+    on the group's first row).}
+}}
 
 \item{cont_label}{Character (default `" (Cont.)"`).  Suffix appended to a
 group's label on the second and later pages it continues onto (the
@@ -109,22 +110,22 @@ foot of a page with none (or too few) of its members.  Set to `0` to
 disable (the previous behaviour).}
 
 \item{blank_rows}{Where to insert blank separator rows in the body.  `NULL`
-  (default) inserts none (but an `rtf_blank_rows` attribute already on the
-  input is still honoured).  Accepts any of, or a `list()` combining, three
-  forms:
-  * an **integer vector of positions** -- a blank row is inserted *after*
-    each given data-row index; `0` means before the first row and `-1` means
-    after the last row, e.g. `c(0, 5, -1)`;
-  * a **[blank_rows_by_change()]** object -- insert a blank whenever the
-    value of one or more columns changes;
-  * a **[blank_rows_by_rule()]** object -- insert a blank before/after rows
-    whose column matches a regular expression.
-
-  For example
-  `blank_rows = list(c(-1), blank_rows_by_change("Visit"))` adds a trailing
-  blank and a blank at every change of `Visit`.  By default these blanks are
-  added *after* the split and do not count toward `max_rows`; see
-  `count_blank_rows` to count them.}
+(default) inserts none (but an `rtf_blank_rows` attribute already on the
+input is still honoured).  Accepts any of -- or a `list()` combining:
+\describe{
+  \item{an integer vector of positions}{a blank row is inserted *after* each
+    given data-row index; `0` = before the first row, `-1` = after the last
+    row (e.g. `c(0, 5, -1)`).}
+  \item{a [blank_rows_by_change()] object}{insert a blank whenever the value
+    of one or more columns changes.}
+  \item{a [blank_rows_by_rule()] object}{insert a blank before / after rows
+    whose column matches a regular expression.}
+}
+For example
+`blank_rows = list(c(-1), blank_rows_by_change("Visit"))` adds a trailing
+blank and a blank at every change of `Visit`.  By default these blanks are
+added *after* the split and do not count toward `max_rows`; see
+`count_blank_rows` to count them.}
 
 \item{blank_row_first, blank_row_end}{Logical (default `FALSE`).  Add a single
 blank row at the very top (`blank_row_first`) or bottom (`blank_row_end`)

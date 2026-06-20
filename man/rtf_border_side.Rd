@@ -28,3 +28,12 @@ A list of class `"rtf_border_side"`.
 Defines the line style, weight, and colour for one edge of a cell.
 Use this as an argument to [rtf_border()].
 }
+\examples{
+rtf_border_side()                                   # thin black rule (~0.5 pt)
+rtf_border_side(style = "double", width = 30L, color = "#003366")
+rtf_border_side("none")   # explicit "no line" that removes an inherited rule
+}
+\seealso{
+[rtf_border()] to assemble sides into a cell border, and
+  [rtf_table_border()] for whole-table border zones.
+}

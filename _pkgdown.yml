@@ -161,6 +161,8 @@ reference:
     contents:
       - rtf_document
       - rtf_config
+      - rtf_page
+      - rtf_default_format
       - generate_rtfreport
       - print.rtf_document
 

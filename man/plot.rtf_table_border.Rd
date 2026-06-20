@@ -18,3 +18,6 @@ Invisibly returns `x`.
 Draws a schematic table with the four zones (header, body, first_row,
 last_row) coloured to show which one provides which border.
 }
+\examples{
+plot(rtf_border_tfl())          # preview the clinical TFL border zones
+}

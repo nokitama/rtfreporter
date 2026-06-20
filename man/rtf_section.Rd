@@ -7,33 +7,47 @@
 rtf_section(doc, page = NULL, secinfo)
 }
 \arguments{
-\item{doc}{An rtf_document object.}
+\item{doc}{An `rtf_document` object.}
 
-\item{page}{Integer or vector of page numbers to assign this section.
-- Single integer: one section starts at this page
-- Vector: assign multiple pages to sections (length must match secinfo)}
+\item{page}{Where this section starts. Pages are auto-numbered from the
+content order (starting at 1), so this is a **page number**. A single
+integer starts one section at that page; a vector starts several sections
+at once (its length must match the number of sections in `secinfo`).}
 
-\item{secinfo}{Section information (one or more section definitions):
-- Single section: list(header = ..., footer = ...)
-- Multiple sections: list(sec1, sec2, ...) where each is a section list}
+\item{secinfo}{The section definition(s). A single section is a named list:
+\describe{
+  \item{`header`}{an [rtf_header()] object, or `NULL` for no header}
+  \item{`footer`}{an [rtf_footer()] object, or `NULL` for no footer}
+}
+For several sections, pass a `list` of such section lists -- one per entry
+of `page`.}
 }
 \value{
-Modified rtf_document with section definitions added.
+The `rtf_document` with the section definition(s) added.
 }
 \description{
 Map page numbers to sections with headers/footers.
 Pages are automatically numbered based on content order (starting at 1).
 }
-\details{
-The `page` parameter identifies where each section starts. Pages are
-auto-numbered from your content list (rtf_tables and rtf_figures).
-}
 \examples{
-\dontrun{
-doc <- rtf_document() \%>\%
-  rtf_tables(list(df1, df2, df3)) \%>\%
-  rtf_section(page = 1, secinfo = list(header = h1, footer = f1)) \%>\%
-  rtf_section(page = 3, secinfo = list(header = h2, footer = f2))
-}
+df  <- data.frame(Parameter = "Age, Mean (SD)", Value = "75.1 (8.2)")
+h1  <- rtf_header(c(l = "Table 14.1.1", r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"))
+h2  <- rtf_header(c(l = "Table 14.2.1", r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"))
+ftr <- rtf_footer(c(l = "Confidential"))
 
+# One header / footer applied to the whole document:
+doc <- rtf_document() |>
+  rtf_tables(list(df, df)) |>
+  rtf_section(page = 1, secinfo = list(header = h1, footer = ftr))
+
+# A second section, with a different header, starting at page 2:
+doc <- rtf_document() |>
+  rtf_tables(list(df, df)) |>
+  rtf_section(page = 1, secinfo = list(header = h1, footer = ftr)) |>
+  rtf_section(page = 2, secinfo = list(header = h2, footer = ftr))
+
+}
+\seealso{
+[rtf_header()] / [rtf_footer()] to build the header / footer, and
+  [rtf_document()] for the document and its `page` geometry.
 }

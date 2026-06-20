@@ -29,14 +29,15 @@
 #' ...)` actually do.
 #'
 #' @param df A data.frame (or tibble).
-#' @param blank_rows Blank-row specification.  Accepts:
-#'
-#'   * `NULL` (default) — no positions from this argument.
-#'   * integer vector — explicit positions (`0` = before first row,
-#'     `k` = after row `k`).
-#'   * `"between_groups"` — auto-insert a blank at every group
-#'     transition (same indent-based detection as `paginate()`).
-#'   * `list(...)` combining any of the above — positions unioned.
+#' @param blank_rows Blank-row specification. One of -- or a `list()` combining
+#'   any of (positions are unioned):
+#'   \describe{
+#'     \item{`NULL`}{(default) no positions from this argument.}
+#'     \item{an integer vector}{explicit positions: `0` = before the first row,
+#'       `k` = after row `k`.}
+#'     \item{`"between_groups"`}{auto-insert a blank at every group transition
+#'       (the same indent-based detection as the pagination splits).}
+#'   }
 #'
 #' @param blank_row_first Logical, default `FALSE`.  When `TRUE`,
 #'   also adds position `0` (blank row at the top of `df`).
