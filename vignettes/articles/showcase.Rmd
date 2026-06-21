@@ -335,8 +335,72 @@ Both produce the **same RTF**. Pick whichever keeps the work where it already
 lives: if your framework already knows the headers, let `rtfreporter` read them;
 if it only knows the numbers, let `rtfreporter` dress them.
 
+# Adverse Events (AE)
+
+The demographics table fits on a page; a real **adverse-events** table does not.
+This is where `rtfreporter`'s **pagination** earns its keep: a long
+System-Organ-Class / Preferred-Term table is split across pages, and a class
+that straddles a page boundary has its label **repeated with `(Cont.)`** at the
+top of the next page.
+
+We count the **number of subjects** with at least one treatment-emergent AE,
+by treatment group, shown as `n (xx.x%)`:
+
+- **"Subjects with any adverse event"** overall on top, then per **System Organ
+  Class (SOC)**, and -- indented -- per **Preferred Term (PT)**.
+- Limited to AEs occurring in **>= 5% of subjects in any group** (the overall /
+  SOC subtotals are still over *all* TEAEs), so the table is a readable couple
+  of pages.
+- Rows ordered by **subject count, descending**; ties broken **alphabetically**.
+
+## rtables / tern
+
+`tern` is the pharmaverse standard for this table: `analyze_num_patients()`
+gives the overall "any AE" row and each SOC subtotal, `count_occurrences()`
+gives the PT rows. We build on the full data, **prune** PT rows below 5% with
+`rtables::prune_table()`, and **sort** by subject count -- alphabetical factor
+levels plus a stable `sort_at_path()` break ties A -> Z. `rtfreporter` then
+paginates with **`split = "group_force"`** (`max_rows` per page), which is what
+inserts the `(Cont.)` rows.
+
+```{r ae-tern}
+library(rtables); library(tern)
+adae <- pharmaverseadam::adae |>
+  filter(TRT01A %in% arm_levels, TRTEMFL == "Y") |>
+  mutate(TRT01A  = factor(TRT01A, levels = arm_levels),
+         AESOC   = factor(AESOC,   levels = sort(unique(AESOC))),     # ties A->Z
+         AEDECOD = factor(AEDECOD, levels = sort(unique(AEDECOD))))
+
+ae <- basic_table(show_colcounts = TRUE) |>
+  split_cols_by("TRT01A") |>
+  analyze_num_patients(vars = "USUBJID", .stats = "unique",
+                       .labels = c(unique = "Subjects with any adverse event")) |>
+  split_rows_by("AESOC", child_labels = "visible", nested = FALSE,
+                split_fun = drop_split_levels, label_pos = "topleft",
+                split_label = "System Organ Class") |>
+  summarize_num_patients(var = "USUBJID", .stats = "unique",
+                         .labels = c(unique = "Subjects with any adverse event")) |>
+  count_occurrences(vars = "AEDECOD", .indent_mods = -1L) |>
+  build_table(df = adae, alt_counts_df = adsl) |>
+  prune_table(keep_rows(has_fraction_in_any_col(atleast = 0.05))) |>     # >= 5%
+  sort_at_path(path = c("AESOC"),                 scorefun = cont_n_allcols) |>
+  sort_at_path(path = c("AESOC", "*", "AEDECOD"), scorefun = score_occurrences)
+
+# group_force = fill each page to max_rows and repeat a split SOC with "(Cont.)"
+as_rtftables(ae, split = "group_force", max_rows = 26,
+             blank_rows = "between_groups", cell_format = fmt_count_paren_bare)
+```
+
+```{r img-ae-tern, eval = TRUE, echo = FALSE, out.width = "100%"}
+.snapshot("ae_tern.png", "AE summary via rtables/tern, paginated with (Cont.)")
+```
+
+The same `as_rtftables()` call returns a **list of pages**; `rtf_tables()`
+renders them in order, and the running header's `{AUTO_PAGE}` /
+`{AUTO_TOTAL_PAGES}` number them.
+
 ---
 
-*Coming next: the same treatment for an **Adverse Events (AE)** summary (SOC / PT
-with spanning headers), and additional frameworks (tidytlg, flextable,
-huxtable).*
+*Coming next, under the same showcase: the AE table from more frameworks
+(**cards + tfrmt**, **Tplyr**, **gtsummary `tbl_hierarchical`**), then real Word
+snapshots, plus flextable / huxtable variants.*

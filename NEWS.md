@@ -11,6 +11,13 @@
   tfrmt, and formatted by rtfreporter (`align_count_pct`) from the same table --
   to contrast who owns the `n (x.x%)` count/percent alignment. Generator in
   `data-raw/showcase_dm.R`.
+- Showcase gained an **Adverse Events (AE)** section (#146): subjects with a
+  treatment-emergent AE by System Organ Class / Preferred Term (any-AE on top,
+  AEs in >= 5% of any group, ordered by subject count then alphabetically),
+  built with rtables/tern and **paginated** by rtfreporter with
+  `split = "group_force"` so a class split across a page repeats with `(Cont.)`.
+  Generator in `data-raw/showcase_ae.R`. (cards+tfrmt / Tplyr / gtsummary AE
+  variants to follow.)
 
 ### New features
 
