@@ -414,8 +414,66 @@ The same `as_rtftables()` call returns a **list of pages**; `rtf_tables()`
 renders them in order, and the running header's `{AUTO_PAGE}` /
 `{AUTO_TOTAL_PAGES}` number them.
 
+## gtsummary
+
+`gtsummary::tbl_hierarchical()` builds the **same** table directly:
+`overall_row = TRUE` is the any-AE row, each SOC row carries its own subject
+count, and PTs are nested beneath. `filter_hierarchical()` keeps the >= 3% PTs.
+A small helper reorders the table body to the shared order (SOCs alphabetical,
+PTs by subject count) and relabels the overall row; `fmt_ae()` collapses a zero
+cell to a bare `0` to match the tern output.
+
+```{r ae-gtsummary}
+library(gtsummary)
+tbl <- tbl_hierarchical(
+    data = adae, variables = c(AESOC, AEDECOD), by = TRT01A,
+    denominator = adsl, id = USUBJID, overall_row = TRUE,
+    statistic = ~ "{n} ({p}%)", digits = everything() ~ list(p = 1)) |>
+  filter_hierarchical(p >= 0.03) |>
+  reorder_ae()                         # SOCs A->Z, PTs by subject count (helper)
+
+as_rtftables(tbl, read_meta = TRUE, split = "group_force", max_rows = 32,
+             blank_rows = "between_groups", cell_format = fmt_ae)
+```
+
+```{r img-ae-gtsummary, eval = TRUE, echo = FALSE, out.width = "100%"}
+.snapshot("ae_gtsummary.png", "AE summary via gtsummary tbl_hierarchical()")
+```
+
+## cards + gtsummary
+
+The ARD-first variant: compute the hierarchical **Analysis Results Dataset** with
+`cards::ard_stack_hierarchical()`, then summarise it with
+`tbl_ard_hierarchical()`. It has no `overall_row` argument, so the any-AE row is
+added from the ARD; everything else is identical, and the rendered table matches
+the two above cell-for-cell.
+
+```{r ae-cards-gtsummary}
+library(cards); library(gtsummary)
+ard <- ard_stack_hierarchical(
+  data = adae, variables = c(AESOC, AEDECOD), by = TRT01A,
+  denominator = adsl, id = USUBJID)
+
+tbl <- tbl_ard_hierarchical(
+    cards = ard, variables = c(AESOC, AEDECOD), by = TRT01A,
+    statistic = ~ "{n} ({p}%)") |>
+  filter_hierarchical(p >= 0.03) |>
+  add_any_ae_row() |>                  # tbl_ard_hierarchical has no overall row
+  reorder_ae()
+
+as_rtftables(tbl, read_meta = TRUE, split = "group_force", max_rows = 32,
+             blank_rows = "between_groups", cell_format = fmt_ae)
+```
+
+```{r img-ae-cards-gtsummary, eval = TRUE, echo = FALSE, out.width = "100%"}
+.snapshot("ae_gtsummary_ard.png", "AE summary via cards + gtsummary tbl_ard_hierarchical()")
+```
+
+> The three AE tables above are the **same report** -- same numbers, same SOC /
+> PT order -- built three different ways and all rendered by `rtfreporter`.
+
 ---
 
-*Coming next, under the same showcase: the AE table from more frameworks
-(**cards + tfrmt**, **Tplyr**, **gtsummary `tbl_hierarchical`**), then real Word
-snapshots, plus flextable / huxtable variants.*
+*Coming next, under the same showcase: the AE table in the **transpose-and-set**
+style (**Tplyr**) and via **cards + tfrmt**, then real Word snapshots, plus
+flextable / huxtable variants.*

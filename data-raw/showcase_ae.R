@@ -95,6 +95,72 @@ try_block <- function(name, expr) {
            error = function(e) cat(sprintf("  [SKIP] %s: %s\n", name, conditionMessage(e))))
 }
 
+# -- Canonical orderings, shared by every framework so the tables match --------
+# Preferred Terms ordered by total distinct subjects (all arms) descending, ties
+# A -> Z.  Because a PT belongs to a single SOC, this also orders the PTs within
+# each SOC.  SOCs themselves are always alphabetical.
+.pt_tot   <- adae |> distinct(USUBJID, AEDECOD) |>
+  dplyr::count(AEDECOD, name = "tot")
+.pt_order <- .pt_tot |> dplyr::arrange(dplyr::desc(tot), AEDECOD) |>
+  dplyr::pull(AEDECOD) |> as.character()
+
+# Cell format shared by the read-meta frameworks: collapse a zero cell
+# "0 (0.0%)" to a bare "0" (so SOC and PT zeros match), then align the column.
+fmt_ae_cell <- function(x, nbsp = " ") {
+  z <- grepl("^[[:space:]]*0[[:space:]]*\\([[:space:]]*0(\\.0)?%?[[:space:]]*\\)[[:space:]]*$", x)
+  x[z] <- "0"
+  fmt_count_paren_bare(x, nbsp = nbsp)
+}
+
+# Reorder a gtsummary hierarchical table_body to the canonical order: SOC blocks
+# alphabetical, PTs within each block by `.pt_order`, the overall row kept on top
+# (and relabelled to match tern).  gtsummary always lists PTs alphabetically and
+# sort_hierarchical() would also reorder the SOCs, so we reorder the body once.
+reorder_ae <- function(tbl, pt_order = .pt_order,
+                       overall_label = ANY_AE) {
+  tb <- tbl$table_body
+  tb$label[tb$variable == "..ard_hierarchical_overall.."] <- overall_label
+  is_soc <- tb$variable == "AESOC"
+  blk     <- cumsum(is_soc)
+  block_ids <- sort(unique(blk[blk > 0]))
+  soc_lab   <- vapply(block_ids, function(b) tb$label[blk == b & is_soc][1], character(1))
+  new <- which(blk == 0)
+  for (b in block_ids[order(soc_lab)]) {
+    rows    <- which(blk == b)
+    soc_row <- rows[tb$variable[rows] == "AESOC"]
+    pt_rows <- rows[tb$variable[rows] == "AEDECOD"]
+    pt_rows <- pt_rows[order(match(tb$label[pt_rows], pt_order))]
+    new <- c(new, soc_row, pt_rows)
+  }
+  tbl$table_body <- tb[new, ]
+  tbl
+}
+
+# Prepend an "any adverse event" overall row to a gtsummary hierarchical
+# table_body.  tbl_ard_hierarchical() has no overall_row argument, so we add the
+# row ourselves with the distinct-subject any-AE count per arm.
+add_any_ae_row <- function(tbl, label = ANY_AE) {
+  N     <- as.integer(arm_n[arm_levels])
+  anyae <- adae |> dplyr::distinct(TRT01A, USUBJID) |> dplyr::count(TRT01A)
+  vals  <- vapply(seq_along(arm_levels), function(i) {
+    n <- anyae$n[match(arm_levels[i], as.character(anyae$TRT01A))]
+    if (is.na(n)) n <- 0L
+    sprintf("%d (%.1f%%)", n, 100 * n / N[i])
+  }, character(1))
+  tb  <- tbl$table_body
+  row <- tb[1, ]; row[seq_len(ncol(row))] <- NA
+  row$variable <- "..ard_hierarchical_overall.."
+  row$row_type <- "level"
+  row$label    <- label
+  row$stat_1   <- vals[1]; row$stat_2 <- vals[2]; row$stat_3 <- vals[3]
+  tbl$table_body <- dplyr::bind_rows(row, tb)
+  # The injected row inherits the default level indent; un-indent it via the
+  # public API so it lines up with the SOC rows.
+  gtsummary::modify_indent(tbl, columns = "label",
+                           rows = variable == "..ard_hierarchical_overall..",
+                           indent = 0L)
+}
+
 cat("Generating AE showcase RTFs...\n")
 
 # ===========================================================================
@@ -144,6 +210,52 @@ try_block("tern", local({
                         col_header = ae_col_header, col_spec = ae_col_spec,
                         col_rel_width = ae_widths, row_height_twips = 200)
   render_ae(pages, "ae_tern")
+}))
+
+# ===========================================================================
+# B. gtsummary (standalone)  -- build-and-read (read_meta)
+# ===========================================================================
+# tbl_hierarchical() builds the whole thing: overall_row = the any-AE row, each
+# SOC row carries its own subject count, PTs are indented beneath.  We keep only
+# PTs >= 3% in any arm (filter_hierarchical) and reorder to the canonical order.
+try_block("gtsummary", local({
+  library(gtsummary)
+  tbl <- tbl_hierarchical(
+      data = adae, variables = c(AESOC, AEDECOD), by = TRT01A,
+      denominator = adsl, id = USUBJID, overall_row = TRUE,
+      statistic = ~ "{n} ({p}%)", digits = everything() ~ list(p = 1)) |>
+    filter_hierarchical(p >= 0.03) |>
+    reorder_ae()
+  pages <- as_rtftables(tbl, read_meta = TRUE, split = "group_force",
+                        max_rows = AE_MAX_ROWS, blank_rows = "between_groups",
+                        cell_format = fmt_ae_cell,
+                        col_header = ae_col_header, col_spec = ae_col_spec,
+                        col_rel_width = ae_widths, row_height_twips = 200)
+  render_ae(pages, "ae_gtsummary")
+}))
+
+# ===========================================================================
+# C. cards / cardx + gtsummary (ARD workflow)  -- build-and-read
+# ===========================================================================
+# Compute the hierarchical Analysis Results Dataset with cards, then summarise it
+# with gtsummary::tbl_ard_hierarchical() -- the same table, ARD-first.
+try_block("gtsummary-ARD", local({
+  library(cards); library(gtsummary)
+  ard <- ard_stack_hierarchical(
+    data = adae, variables = c(AESOC, AEDECOD), by = TRT01A,
+    denominator = adsl, id = USUBJID)
+  tbl <- tbl_ard_hierarchical(
+      cards = ard, variables = c(AESOC, AEDECOD), by = TRT01A,
+      statistic = ~ "{n} ({p}%)") |>
+    filter_hierarchical(p >= 0.03) |>
+    add_any_ae_row() |>
+    reorder_ae()
+  pages <- as_rtftables(tbl, read_meta = TRUE, split = "group_force",
+                        max_rows = AE_MAX_ROWS, blank_rows = "between_groups",
+                        cell_format = fmt_ae_cell,
+                        col_header = ae_col_header, col_spec = ae_col_spec,
+                        col_rel_width = ae_widths, row_height_twips = 200)
+  render_ae(pages, "ae_gtsummary_ard")
 }))
 
 cat("Done.  Capture PNGs into", rtf_dir, "to replace the article placeholders.\n")

@@ -22,7 +22,10 @@
   and
   **paginated** by rtfreporter with `split = "group_force"` so a class split
   across a page repeats with `(Cont.)`. Generator in `data-raw/showcase_ae.R`.
-  (cards+tfrmt / Tplyr / gtsummary AE variants to follow.)
+- The AE showcase now also builds the same table with **gtsummary**
+  (`tbl_hierarchical()`) and **cards + gtsummary** (`tbl_ard_hierarchical()` on a
+  hierarchical ARD) -- three frameworks, identical numbers and SOC / PT order,
+  all rendered by rtfreporter. (Tplyr and cards + tfrmt variants to follow.)
 
 ### New features
 
