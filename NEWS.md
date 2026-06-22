@@ -2,6 +2,15 @@
 
 ### Documentation
 
+- `tlg-catalog` article: the data preparation is now **verbatim from the
+  pharmaverse examples** (#163). The demographic table drops screen failures
+  (`!ACTARM %in% "Screen Failure"`) and recodes `SEX` / `AGEGR1`, so the
+  "All Patients" column is N=254 (not 306). The cards + tfrmt adverse-events
+  table now uses the example's safety / treatment-emergent filters
+  (`SAFFL == "Y"`, `SAFFL == "Y" & TRTEMFL == "Y"`). The tern adverse-events
+  table already matched. Generator `data-raw/gen_tlg_catalog_rtf.R` and the
+  article chunks regenerated.
+
 - New showcase article *"Same report, every table framework"* (#146): the same
   demographics (DM) report built from gtsummary, gtsummary on a cards/cardx ARD,
   rtables/tern, tfrmt and Tplyr, each rendered to RTF by rtfreporter --

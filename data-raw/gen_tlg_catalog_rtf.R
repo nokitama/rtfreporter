@@ -30,6 +30,20 @@ if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
 adsl <- pharmaverseadam::adsl
 adae <- pharmaverseadam::adae
 
+# Demographic data prep -- verbatim from the pharmaverse "Demographic Table"
+# example (drops screen failures; recodes SEX / AGEGR1; sets variable labels).
+adsl_dm <- pharmaverseadam::adsl |>
+  filter(!ACTARM %in% "Screen Failure") |>
+  mutate(
+    SEX = case_match(SEX, "M" ~ "MALE", "F" ~ "FEMALE"),
+    AGEGR1 = case_when(
+      between(AGE, 18, 40) ~ "18-40",
+      between(AGE, 41, 64) ~ "41-64",
+      AGE > 64            ~ ">=65") |>
+      factor(levels = c("18-40", "41-64", ">=65"))) |>
+  labelled::set_variable_labels(
+    AGE = "Age (yr)", AGEGR1 = "Age group", SEX = "Sex", RACE = "Race")
+
 make_header <- function(table_no, title, subtitle = "Safety Analysis Set") {
   rtf_header(rows = list(
     c(l = "HOGESTER Co. Limited1", r = "CONFIDENTIAL"),
@@ -59,7 +73,7 @@ ae_title    <- "Adverse Events by System Organ Class and Preferred Term"
 }
 
 # ---- 1a. Demographics (tern + rtables) -------------------------------------
-adsl2 <- adsl |> df_explicit_na()
+adsl2 <- adsl_dm |> df_explicit_na()
 vars <- c("AGE", "AGEGR1", "SEX", "RACE")
 var_labels <- c("Age (yr)", "Age group", "Sex", "Race")
 dm_tern <- build_table(
@@ -79,7 +93,7 @@ out_dm_tern <- .write(
 
 # ---- 1b. Demographics (gtsummary + cards) ----------------------------------
 theme_gtsummary_compact()
-ard <- ard_stack(adsl,
+ard <- ard_stack(adsl_dm,
   ard_continuous(variables = AGE),
   ard_categorical(variables = c(AGEGR1, SEX, RACE)),
   .by = ACTARM, .attributes = TRUE)
@@ -100,7 +114,7 @@ out_dm_gts <- .write(
   "pharmaverse-demographic-gtsummary.rtf")
 
 # ---- 1c. Demographics (tfrmt + cards) --------------------------------------
-ard <- ard_stack(adsl,
+ard <- ard_stack(adsl_dm,
   ard_continuous(variables = AGE,
     statistic = ~ continuous_summary_fns(c("N", "mean", "sd", "min", "max"))),
   ard_categorical(variables = c(AGEGR1, SEX, RACE)),
@@ -187,14 +201,18 @@ out_ae_tern <- .write(
   "pharmaverse-adverse-events-tern.rtf", length(ae_tern_pages))
 
 # ---- 2b. Adverse events (cards + tfrmt, paginated) -------------------------
+# Data prep verbatim from the pharmaverse cards + tfrmt example: safety
+# population, treatment-emergent events.
+adsl_ae_tf <- pharmaverseadam::adsl |> filter(SAFFL == "Y")
+adae_ae_tf <- pharmaverseadam::adae |> filter(SAFFL == "Y" & TRTEMFL == "Y")
 ae_ard <- ard_stack_hierarchical(
-  data = adae_ae, by = ACTARM, variables = c(AEBODSYS, AEDECOD),
-  statistic = ~ c("n", "p"), denominator = adsl_ae, id = USUBJID,
+  data = adae_ae_tf, by = ACTARM, variables = c(AEBODSYS, AEDECOD),
+  statistic = ~ c("n", "p"), denominator = adsl_ae_tf, id = USUBJID,
   over_variables = TRUE, overall = TRUE)
 ae_tot <- ard_stack_hierarchical(
-  data = mutate(adae_ae, ACTARM = "All Patients"), by = ACTARM,
+  data = mutate(adae_ae_tf, ACTARM = "All Patients"), by = ACTARM,
   variables = c(AEBODSYS, AEDECOD),
-  denominator = mutate(adsl_ae, ACTARM = "All Patients"),
+  denominator = mutate(adsl_ae_tf, ACTARM = "All Patients"),
   statistic = ~ c("n", "p"), id = USUBJID,
   over_variables = TRUE, overall = TRUE) |>
   filter(group2 == "ACTARM" | variable == "ACTARM")
@@ -230,7 +248,7 @@ ae_hdr <- c("System Organ Class /\nPreferred Term",
             "Placebo\n(N=86)",
             "Xanomeline\nHigh Dose\n(N=72)",
             "Xanomeline\nLow Dose\n(N=96)",
-            "All Patients\n(N=306)")
+            "All Patients\n(N=254)")
 ae_tfrmt_pages <- as_rtftables(ae_tfrmt, split = "group_force", max_rows = 36,
                                col_header = ae_hdr,
                                col_rel_width = c(0.50, 0.125, 0.125, 0.125, 0.125),

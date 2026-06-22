@@ -106,19 +106,37 @@ The Pharmaverse *demographic* example builds the same table three different
 ways -- a tern `TableTree`, a gtsummary `gt_tbl` and a tfrmt `gt_tbl`.
 `as_rtftables()` reads all three and the RTF comes out the same clinical shape.
 
+The data preparation is shared -- verbatim from the pharmaverse example: screen
+failures are dropped and `SEX` / `AGEGR1` are recoded and labelled.
+
+```{r dm-data, results = "hide"}
+library(dplyr)
+adsl <- pharmaverseadam::adsl |>
+  filter(!ACTARM %in% "Screen Failure") |>
+  mutate(
+    SEX = case_match(SEX, "M" ~ "MALE", "F" ~ "FEMALE"),
+    AGEGR1 = case_when(
+      between(AGE, 18, 40) ~ "18-40",
+      between(AGE, 41, 64) ~ "41-64",
+      AGE > 64            ~ ">=65") |>
+      factor(levels = c("18-40", "41-64", ">=65"))) |>
+  labelled::set_variable_labels(
+    AGE = "Age (yr)", AGEGR1 = "Age group", SEX = "Sex", RACE = "Race")
+```
+
 ### tern + rtables (a `TableTree`)
 
 <details><summary>Pharmaverse Example code (expand to copy)</summary>
 ```{r dm-tern-ex, results = "hide"}
-library(tern); library(dplyr)
-adsl <- pharmaverseadam::adsl |> df_explicit_na()
+library(tern)
+adsl2 <- adsl |> df_explicit_na()
 vars <- c("AGE", "AGEGR1", "SEX", "RACE")
 var_labels <- c("Age (yr)", "Age group", "Sex", "Race")
 lyt <- basic_table(show_colcounts = TRUE) |>
   split_cols_by(var = "ACTARM") |>
   add_overall_col("All Patients") |>
   analyze_vars(vars = vars, var_labels = var_labels)
-dm_tern <- build_table(lyt, adsl)
+dm_tern <- build_table(lyt, adsl2)
 ```
 </details>
 
@@ -150,7 +168,6 @@ rtf_document() |>
 <details><summary>Pharmaverse Example code (expand to copy)</summary>
 ```{r dm-gts-ex, results = "hide"}
 library(gtsummary); library(cards)
-adsl <- pharmaverseadam::adsl
 theme_gtsummary_compact()
 ard <- ard_stack(
   adsl,
@@ -195,8 +212,7 @@ rtf_document() |>
 
 <details><summary>Pharmaverse Example code (expand to copy)</summary>
 ```{r dm-tfrmt-ex, results = "hide"}
-library(tfrmt); library(cards); library(forcats); library(dplyr)
-adsl <- pharmaverseadam::adsl
+library(tfrmt); library(cards); library(forcats)
 ard <- ard_stack(
   adsl,
   ard_continuous(
@@ -341,19 +357,17 @@ rtf_document() |>
 <details><summary>Pharmaverse Example code (expand to copy)</summary>
 ```{r ae-tfrmt-ex, results = "hide"}
 library(tfrmt); library(cards); library(dplyr)
-adsl_ae <- pharmaverseadam::adsl |> df_explicit_na()
-adae_ae <- pharmaverseadam::adae |> df_explicit_na() |>
-  var_relabel(AEBODSYS = "MedDRA System Organ Class",
-              AEDECOD  = "MedDRA Preferred Term") |>
-  filter(SAFFL == "Y")
+# pharmaverse cards + tfrmt example: safety population, treatment-emergent events
+adsl_ae_tf <- pharmaverseadam::adsl |> filter(SAFFL == "Y")
+adae_ae_tf <- pharmaverseadam::adae |> filter(SAFFL == "Y" & TRTEMFL == "Y")
 ae_ard <- ard_stack_hierarchical(
-  data = adae_ae, by = ACTARM, variables = c(AEBODSYS, AEDECOD),
-  statistic = ~ c("n", "p"), denominator = adsl_ae, id = USUBJID,
+  data = adae_ae_tf, by = ACTARM, variables = c(AEBODSYS, AEDECOD),
+  statistic = ~ c("n", "p"), denominator = adsl_ae_tf, id = USUBJID,
   over_variables = TRUE, overall = TRUE)
 ae_tot <- ard_stack_hierarchical(
-  data = mutate(adae_ae, ACTARM = "All Patients"), by = ACTARM,
+  data = mutate(adae_ae_tf, ACTARM = "All Patients"), by = ACTARM,
   variables = c(AEBODSYS, AEDECOD),
-  denominator = mutate(adsl_ae, ACTARM = "All Patients"),
+  denominator = mutate(adsl_ae_tf, ACTARM = "All Patients"),
   statistic = ~ c("n", "p"), id = USUBJID,
   over_variables = TRUE, overall = TRUE) |>
   filter(group2 == "ACTARM" | variable == "ACTARM")
@@ -398,7 +412,7 @@ two/three-line column headers (so the data columns can be narrow), and
 ```{r ae-tfrmt-rtf}
 ae_hdr <- c("System Organ Class /\nPreferred Term", "Placebo\n(N=86)",
             "Xanomeline\nHigh Dose\n(N=72)",
-            "Xanomeline\nLow Dose\n(N=96)", "All Patients\n(N=306)")
+            "Xanomeline\nLow Dose\n(N=96)", "All Patients\n(N=254)")
 ae_tfrmt_pages <- as_rtftables(ae_tfrmt, split = "group_force", max_rows = 36,
                                col_header = ae_hdr,
                                col_rel_width = c(0.50, 0.125, 0.125, 0.125, 0.125),
