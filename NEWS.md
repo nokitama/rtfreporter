@@ -24,9 +24,10 @@
   across a page repeats with `(Cont.)`. Generator in `data-raw/showcase_ae.R`.
 - The AE showcase now also builds the same table with **gtsummary**
   (`tbl_hierarchical()`), **cards + gtsummary** (`tbl_ard_hierarchical()` on a
-  hierarchical ARD) and **Tplyr** (transpose-and-set: Tplyr counts, rtfreporter
-  sets the look) -- four frameworks, identical numbers and SOC / PT order, all
-  rendered by rtfreporter. (A cards + tfrmt variant is still to follow.)
+  hierarchical ARD), **Tplyr** (transpose-and-set) and **cards + tfrmt** -- the
+  tfrmt version uses a `group == label` row to put the SOC count on the SOC row.
+  All **five** frameworks render the same numbers and SOC / PT order, paginated
+  by rtfreporter.
 
 ### New features
 
