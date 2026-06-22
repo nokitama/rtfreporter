@@ -170,6 +170,31 @@ add_any_ae_row <- function(tbl, label = ANY_AE) {
                            indent = 0L)
 }
 
+# Build the standalone-gtsummary AE table (used directly, and as the source for
+# the flextable / huxtable conversions below).
+ae_gtsummary_tbl <- function() {
+  gtsummary::tbl_hierarchical(
+      data = adae, variables = c(AESOC, AEDECOD), by = TRT01A,
+      denominator = adsl, id = USUBJID, overall_row = TRUE,
+      statistic = ~ "{n} ({p}%)",
+      digits = gtsummary::everything() ~ list(p = 1)) |>
+    gtsummary::filter_hierarchical(p >= 0.03) |>
+    reorder_ae()
+}
+
+# gtsummary indents PTs via a styling rule that as_flex_table() / as_hux_table()
+# turn into cell padding -- which rtfreporter's flextable / huxtable adapters do
+# not read as a row label indent.  Bake the indent into the label TEXT (NBSP, so
+# it survives), and drop the styling rule so it is not applied twice.
+bake_indent <- function(tbl, n = 4L) {
+  tb <- tbl$table_body
+  pt <- tb$variable == "AEDECOD"
+  tb$label[pt] <- paste0(strrep(" ", n), tb$label[pt])
+  tbl$table_body <- tb
+  tbl$table_styling$indent <- tbl$table_styling$indent[0, ]
+  tbl
+}
+
 cat("Generating AE showcase RTFs...\n")
 
 # ===========================================================================
@@ -229,12 +254,7 @@ try_block("tern", local({
 # PTs >= 3% in any arm (filter_hierarchical) and reorder to the canonical order.
 try_block("gtsummary", local({
   library(gtsummary)
-  tbl <- tbl_hierarchical(
-      data = adae, variables = c(AESOC, AEDECOD), by = TRT01A,
-      denominator = adsl, id = USUBJID, overall_row = TRUE,
-      statistic = ~ "{n} ({p}%)", digits = everything() ~ list(p = 1)) |>
-    filter_hierarchical(p >= 0.03) |>
-    reorder_ae()
+  tbl <- ae_gtsummary_tbl()
   pages <- as_rtftables(tbl, read_meta = TRUE, split = "group_force",
                         max_rows = AE_MAX_ROWS, blank_rows = "between_groups",
                         cell_format = fmt_ae_cell,
@@ -388,6 +408,35 @@ try_block("cards-tfrmt", local({
                         col_header = ae_col_header, col_spec = ae_col_spec,
                         col_rel_width = ae_widths, row_height_twips = 200)
   render_ae(pages, "ae_tfrmt")
+}))
+
+# ===========================================================================
+# F. gtsummary -> flextable  -- convert, then read the flextable
+# ===========================================================================
+# No need to rebuild: gtsummary::as_flex_table() converts the AE table to a
+# flextable, which rtfreporter reads via its flextable adapter.  We bake the PT
+# indent into the label text first (see bake_indent()).
+try_block("flextable", local({
+  library(gtsummary); library(flextable)
+  ft <- gtsummary::as_flex_table(bake_indent(ae_gtsummary_tbl()))
+  pages <- as_rtftables(ft, split = "group_force", max_rows = AE_MAX_ROWS,
+                        blank_rows = "between_groups", cell_format = fmt_ae_cell,
+                        col_header = ae_col_header, col_spec = ae_col_spec,
+                        col_rel_width = ae_widths, row_height_twips = 200)
+  render_ae(pages, "ae_flextable")
+}))
+
+# ===========================================================================
+# G. gtsummary -> huxtable  -- convert, then read the huxtable
+# ===========================================================================
+try_block("huxtable", local({
+  library(gtsummary); library(huxtable)
+  hx <- gtsummary::as_hux_table(bake_indent(ae_gtsummary_tbl()))
+  pages <- as_rtftables(hx, split = "group_force", max_rows = AE_MAX_ROWS,
+                        blank_rows = "between_groups", cell_format = fmt_ae_cell,
+                        col_header = ae_col_header, col_spec = ae_col_spec,
+                        col_rel_width = ae_widths, row_height_twips = 200)
+  render_ae(pages, "ae_huxtable")
 }))
 
 cat("Done.  Capture PNGs into", rtf_dir, "to replace the article placeholders.\n")

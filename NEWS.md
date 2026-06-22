@@ -26,8 +26,10 @@
   (`tbl_hierarchical()`), **cards + gtsummary** (`tbl_ard_hierarchical()` on a
   hierarchical ARD), **Tplyr** (transpose-and-set) and **cards + tfrmt** -- the
   tfrmt version uses a `group == label` row to put the SOC count on the SOC row.
-  All **five** frameworks render the same numbers and SOC / PT order, paginated
-  by rtfreporter.
+  The same gtsummary table is also converted to a **flextable** and a
+  **huxtable** (`as_flex_table()` / `as_hux_table()`) and read back. All **seven**
+  renderings produce the same numbers and SOC / PT order, paginated by
+  rtfreporter.
 
 ### New features
 

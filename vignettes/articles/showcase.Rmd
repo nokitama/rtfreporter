@@ -538,11 +538,40 @@ as_rtftables(print_to_gt(spec, long), read_meta = TRUE, split = "group_force",
 .snapshot("ae_tfrmt.png", "AE summary via cards + tfrmt (group == label puts the count on the SOC row)")
 ```
 
-> **Five frameworks, one report.** rtables/tern, gtsummary, cards + gtsummary,
-> Tplyr and cards + tfrmt all produce the same AE table -- and `rtfreporter`
-> renders every one of them to the same paginated RTF.
+## flextable and huxtable (convert and render)
+
+No need to rebuild the table for these two: a gtsummary table converts straight
+to a **flextable** or a **huxtable**, and `rtfreporter` reads either. (We bake
+the PT indent into the label text first, because the converters turn gtsummary's
+indent into cell padding that the flextable / huxtable adapters do not read as a
+row-label indent.)
+
+```{r ae-flextable-huxtable}
+library(flextable); library(huxtable)
+g <- ae_gtsummary_tbl()                       # the gtsummary table from above
+
+# flextable
+as_rtftables(gtsummary::as_flex_table(bake_indent(g)), split = "group_force",
+             max_rows = 32, blank_rows = "between_groups", cell_format = fmt_ae)
+
+# huxtable
+as_rtftables(gtsummary::as_hux_table(bake_indent(g)), split = "group_force",
+             max_rows = 32, blank_rows = "between_groups", cell_format = fmt_ae)
+```
+
+```{r img-ae-flextable, eval = TRUE, echo = FALSE, out.width = "100%"}
+.snapshot("ae_flextable.png", "AE summary via gtsummary -> flextable")
+```
+
+```{r img-ae-huxtable, eval = TRUE, echo = FALSE, out.width = "100%"}
+.snapshot("ae_huxtable.png", "AE summary via gtsummary -> huxtable")
+```
+
+> **Seven ways, one report.** rtables/tern, gtsummary, cards + gtsummary, Tplyr,
+> cards + tfrmt, and gtsummary converted to flextable / huxtable -- all the same
+> AE table, all rendered to the same paginated RTF by `rtfreporter`.
 
 ---
 
-*Coming next, under the same showcase: real Word snapshots, plus flextable /
-huxtable variants.*
+*Coming next, under the same showcase: real Word snapshots in place of the
+current placeholders.*
