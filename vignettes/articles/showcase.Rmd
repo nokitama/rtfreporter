@@ -504,7 +504,45 @@ as_rtftables(disp, col_header = ae_col_header, split = "group_force",
 .snapshot("ae_tplyr.png", "AE summary via Tplyr (transpose-and-set)")
 ```
 
+## cards + tfrmt
+
+`tfrmt` is driven by a long **group / label / column / param / value** table. The
+trick for an AE table is that a row whose **`group` equals its `label`** renders
+as a *single* line that also carries its statistic -- so giving each SOC a
+`group = label = <SOC>` row puts the SOC count **on the SOC row**, just like the
+others; the PT rows (`group = SOC`, `label = PT`) become the indented children,
+and the overall row is its own one-row group. We complete the arm x row grid so
+a zero is a real `0`, and sort via `sorting_cols`.
+
+```{r ae-tfrmt}
+library(tidyr); library(tfrmt)
+# long form: a SOC row has group == label (count shown on the SOC line); PT rows
+# are group = SOC, label = PT; the overall row is its own group. `long` also
+# carries the n / p values per column and the ord1 / ord2 sort keys (see
+# data-raw/showcase_ae.R for the full count + grid-completion code).
+
+spec <- tfrmt(
+  group = group, label = label, column = column, param = param, value = value,
+  sorting_cols = c(ord1, ord2),                       # SOCs A->Z, PTs by count
+  body_plan = body_plan(frmt_structure(".default", ".default",
+    frmt_combine("{n} ({p}%)", n = frmt("x"),
+                 p = frmt("x.x", transform = ~ . * 100)))),
+  col_plan = col_plan(group, label, Placebo, `Xanomeline Low Dose`,
+                      `Xanomeline High Dose`, -ord1, -ord2))
+
+as_rtftables(print_to_gt(spec, long), read_meta = TRUE, split = "group_force",
+             max_rows = 32, blank_rows = "between_groups", cell_format = fmt_ae)
+```
+
+```{r img-ae-tfrmt, eval = TRUE, echo = FALSE, out.width = "100%"}
+.snapshot("ae_tfrmt.png", "AE summary via cards + tfrmt (group == label puts the count on the SOC row)")
+```
+
+> **Five frameworks, one report.** rtables/tern, gtsummary, cards + gtsummary,
+> Tplyr and cards + tfrmt all produce the same AE table -- and `rtfreporter`
+> renders every one of them to the same paginated RTF.
+
 ---
 
-*Coming next, under the same showcase: the AE table via **cards + tfrmt**, then
-real Word snapshots, plus flextable / huxtable variants.*
+*Coming next, under the same showcase: real Word snapshots, plus flextable /
+huxtable variants.*

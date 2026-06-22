@@ -327,4 +327,67 @@ try_block("Tplyr", local({
   render_ae(pages, "ae_tplyr")
 }))
 
+# ===========================================================================
+# E. cards + tfrmt  -- build-and-read (formatted by a tfrmt spec)
+# ===========================================================================
+# tfrmt renders a row with the SAME `group` and `label` value as a single line
+# that ALSO carries its statistic -- so giving each SOC a row with
+# group = label = <SOC> puts the SOC count ON the SOC row, exactly like the
+# others; the PT rows (group = SOC, label = PT) are the indented children, and
+# the overall row is its own one-row group.  We complete the arm x row grid so a
+# zero cell is a real 0 (printed bare), and sort SOCs alphabetically / PTs by
+# subject count.
+try_block("cards-tfrmt", local({
+  library(tidyr); library(tfrmt)
+  N         <- as.integer(arm_n[arm_levels]); names(N) <- arm_levels
+  real_pairs <- .soc_pt |> dplyr::filter(AEDECOD %in% .keep_pt)
+  kept_socs  <- sort(unique(real_pairs$AESOC))
+
+  pt_c <- adae |> dplyr::distinct(TRT01A, USUBJID, AESOC, AEDECOD) |>
+    dplyr::count(TRT01A, AESOC, AEDECOD, name = "n") |>
+    dplyr::mutate(AESOC = as.character(AESOC), AEDECOD = as.character(AEDECOD)) |>
+    dplyr::semi_join(real_pairs, by = c("AESOC", "AEDECOD")) |>
+    tidyr::complete(TRT01A, tidyr::nesting(AESOC, AEDECOD), fill = list(n = 0)) |>
+    dplyr::mutate(p = n / N[as.character(TRT01A)])
+  soc_c <- adae |> dplyr::distinct(TRT01A, USUBJID, AESOC) |>
+    dplyr::count(TRT01A, AESOC, name = "n") |>
+    dplyr::mutate(AESOC = as.character(AESOC)) |>
+    dplyr::filter(AESOC %in% kept_socs) |>
+    tidyr::complete(TRT01A, AESOC = kept_socs, fill = list(n = 0)) |>
+    dplyr::mutate(p = n / N[as.character(TRT01A)])
+  ov_c <- adae |> dplyr::distinct(TRT01A, USUBJID) |> dplyr::count(TRT01A, name = "n") |>
+    dplyr::mutate(p = n / N[as.character(TRT01A)])
+
+  long <- dplyr::bind_rows(
+      ov_c  |> dplyr::transmute(group = ANY_AE, label = ANY_AE,
+                                column = as.character(TRT01A), n, p),
+      soc_c |> dplyr::transmute(group = AESOC,  label = AESOC,
+                                column = as.character(TRT01A), n, p),
+      pt_c  |> dplyr::transmute(group = AESOC,  label = AEDECOD,
+                                column = as.character(TRT01A), n, p)) |>
+    tidyr::pivot_longer(c(n, p), names_to = "param", values_to = "value") |>
+    dplyr::mutate(
+      ord1   = ifelse(group == ANY_AE, 0L, match(group, kept_socs)),
+      ord2   = ifelse(label == group, 0L, match(label, .pt_order)),
+      column = factor(column, levels = arm_levels),
+      group  = factor(group, levels = c(ANY_AE, kept_socs)))
+
+  spec <- tfrmt(
+    group = group, label = label, column = column, param = param, value = value,
+    sorting_cols = c(ord1, ord2),
+    body_plan = body_plan(frmt_structure(".default", ".default",
+      frmt_combine("{n} ({p}%)", n = frmt("x"),
+                   p = frmt("x.x", transform = ~ . * 100)))),
+    col_plan = col_plan(group, label, Placebo, `Xanomeline Low Dose`,
+                        `Xanomeline High Dose`, -ord1, -ord2))
+  g <- print_to_gt(spec, long)
+
+  pages <- as_rtftables(g, read_meta = TRUE, split = "group_force",
+                        max_rows = AE_MAX_ROWS, blank_rows = "between_groups",
+                        cell_format = fmt_ae_cell,
+                        col_header = ae_col_header, col_spec = ae_col_spec,
+                        col_rel_width = ae_widths, row_height_twips = 200)
+  render_ae(pages, "ae_tfrmt")
+}))
+
 cat("Done.  Capture PNGs into", rtf_dir, "to replace the article placeholders.\n")
