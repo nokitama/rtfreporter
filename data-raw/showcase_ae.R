@@ -60,7 +60,7 @@ ae_header <- function() rtf_header(rows = list(
   c(l = sponsor,  r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
   c(l = protocol, r = "Status: Draft"),
   c(c = "Table 14.3.1"),
-  c(c = "Treatment-Emergent Adverse Events Occurring in >= 5% of Subjects in Any Treatment Group"),
+  c(c = "Treatment-Emergent Adverse Events Occurring in >= 2.5% of Subjects in Any Treatment Group"),
   c(c = "by System Organ Class and Preferred Term -- Safety Population"),
   c(c = "")
 ))
@@ -77,7 +77,7 @@ ae_col_spec <- c(
   list(list(col = 1L, align = "left",   header_align = "center")),
   lapply(2:4, function(j) list(col = j, align = "center", header_align = "center")))
 ae_widths   <- c(0.52, 0.16, 0.16, 0.16)
-AE_MAX_ROWS <- 26L
+AE_MAX_ROWS <- 32L
 
 # Wrap a paginated list of rtftable pages into the AE document and write it.
 render_ae <- function(pages, name) {
@@ -100,27 +100,37 @@ cat("Generating AE showcase RTFs...\n")
 # ===========================================================================
 # A. rtables / tern  -- build-and-read (read_meta)
 # ===========================================================================
-# analyze_num_patients() gives the overall "any AE" row and each SOC subtotal;
-# count_occurrences() gives the PT rows.  Build on the FULL TEAE data, then
-# prune PT rows to >= 5% (subtotals / overall stay full), and sort by subject
-# count.  Alphabetical factor levels + a stable sort break ties A -> Z.
+# Three levels, each an INDEPENDENT distinct-subject count (so a level never
+# equals the sum of the level below it -- a subject with two PTs in one SOC is
+# counted once for the SOC):
+#   * overall "any AE"      -- analyze_num_patients(), the top row.
+#   * SOC (level 1)         -- the count sits ON the SOC name row, via a content
+#                              summary (summarize_row_groups + child_labels
+#                              "hidden") so there is no separate subtotal row.
+#   * SOC / PT (level 2)    -- count_occurrences(), indented under the SOC.
+# Build on the FULL TEAE data, then prune PT rows to >= 2.5% (overall / SOC
+# counts stay over all TEAEs), and sort by subject count.  Alphabetical factor
+# levels + a stable sort break ties A -> Z.
 try_block("tern", local({
   library(rtables); library(tern)
   adae_f <- adae |>
     mutate(AESOC   = factor(AESOC,   levels = sort(unique(AESOC))),
            AEDECOD = factor(AEDECOD, levels = sort(unique(AEDECOD))))
+  # Content function: distinct subjects with any AE in this SOC, per column.
+  soc_count <- function(df, labelstr, .N_col, ...) {
+    n <- length(unique(df$USUBJID))
+    in_rows(rcell(c(n, n / .N_col), format = "xx (xx.x%)"), .labels = labelstr)
+  }
   lyt <- basic_table(show_colcounts = TRUE) |>
     split_cols_by("TRT01A") |>
     analyze_num_patients(vars = "USUBJID", .stats = "unique",
                          .labels = c(unique = ANY_AE)) |>
-    split_rows_by("AESOC", child_labels = "visible", nested = FALSE,
-                  split_fun = drop_split_levels, label_pos = "topleft",
-                  split_label = "System Organ Class") |>
-    summarize_num_patients(var = "USUBJID", .stats = "unique",
-                          .labels = c(unique = ANY_AE)) |>
-    count_occurrences(vars = "AEDECOD", .indent_mods = -1L)
+    split_rows_by("AESOC", child_labels = "hidden", nested = FALSE,
+                  split_fun = drop_split_levels) |>
+    summarize_row_groups(cfun = soc_count) |>
+    count_occurrences(vars = "AEDECOD", .indent_mods = 1L)
   tbl <- build_table(lyt, df = adae_f, alt_counts_df = adsl) |>
-    prune_table(keep_rows(has_fraction_in_any_col(atleast = 0.05))) |>
+    prune_table(keep_rows(has_fraction_in_any_col(atleast = 0.025))) |>
     sort_at_path(path = c("AESOC"),               scorefun = cont_n_allcols) |>
     sort_at_path(path = c("AESOC", "*", "AEDECOD"), scorefun = score_occurrences)
   pages <- as_rtftables(tbl, split = "group_force", max_rows = AE_MAX_ROWS,

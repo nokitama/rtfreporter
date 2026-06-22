@@ -12,12 +12,14 @@
   to contrast who owns the `n (x.x%)` count/percent alignment. Generator in
   `data-raw/showcase_dm.R`.
 - Showcase gained an **Adverse Events (AE)** section (#146): subjects with a
-  treatment-emergent AE by System Organ Class / Preferred Term (any-AE on top,
-  AEs in >= 5% of any group, ordered by subject count then alphabetically),
-  built with rtables/tern and **paginated** by rtfreporter with
-  `split = "group_force"` so a class split across a page repeats with `(Cont.)`.
-  Generator in `data-raw/showcase_ae.R`. (cards+tfrmt / Tplyr / gtsummary AE
-  variants to follow.)
+  treatment-emergent AE by System Organ Class / Preferred Term. The **SOC-level
+  count sits on the SOC row itself** (an independent distinct-subject count, not
+  the sum of its PTs), with the overall any-AE on top and PTs (in >= 2.5% of any
+  group) indented under each SOC; ordered by subject count then alphabetically.
+  Built with rtables/tern (`summarize_row_groups()` for the SOC row) and
+  **paginated** by rtfreporter with `split = "group_force"` so a class split
+  across a page repeats with `(Cont.)`. Generator in `data-raw/showcase_ae.R`.
+  (cards+tfrmt / Tplyr / gtsummary AE variants to follow.)
 
 ### New features
 

@@ -348,16 +348,21 @@ by treatment group, shown as `n (xx.x%)`:
 
 - **"Subjects with any adverse event"** overall on top, then per **System Organ
   Class (SOC)**, and -- indented -- per **Preferred Term (PT)**.
-- Limited to AEs occurring in **>= 5% of subjects in any group** (the overall /
-  SOC subtotals are still over *all* TEAEs), so the table is a readable couple
-  of pages.
+- Each level is an **independent distinct-subject count**: the SOC count sits on
+  the **SOC row itself** and counts a subject once even if they had several PTs
+  in that class, so a SOC count is **not** the sum of its PTs.
+- Limited to PTs occurring in **>= 2.5% of subjects in any group** (the overall /
+  SOC counts are still over *all* TEAEs), so the table is a readable couple of
+  pages.
 - Rows ordered by **subject count, descending**; ties broken **alphabetically**.
 
 ## rtables / tern
 
-`tern` is the pharmaverse standard for this table: `analyze_num_patients()`
-gives the overall "any AE" row and each SOC subtotal, `count_occurrences()`
-gives the PT rows. We build on the full data, **prune** PT rows below 5% with
+`tern` is the pharmaverse standard for this table. `analyze_num_patients()`
+gives the overall "any AE" row; a SOC-level content summary
+(`summarize_row_groups()` with `child_labels = "hidden"`) puts each SOC's
+distinct-subject count **on the SOC name row**; `count_occurrences()` gives the
+indented PT rows. We build on the full data, **prune** PT rows below 2.5% with
 `rtables::prune_table()`, and **sort** by subject count -- alphabetical factor
 levels plus a stable `sort_at_path()` break ties A -> Z. `rtfreporter` then
 paginates with **`split = "group_force"`** (`max_rows` per page), which is what
@@ -371,23 +376,27 @@ adae <- pharmaverseadam::adae |>
          AESOC   = factor(AESOC,   levels = sort(unique(AESOC))),     # ties A->Z
          AEDECOD = factor(AEDECOD, levels = sort(unique(AEDECOD))))
 
+# distinct subjects with any AE in a SOC, per column -- shown on the SOC row
+soc_count <- function(df, labelstr, .N_col, ...) {
+  n <- length(unique(df$USUBJID))
+  in_rows(rcell(c(n, n / .N_col), format = "xx (xx.x%)"), .labels = labelstr)
+}
+
 ae <- basic_table(show_colcounts = TRUE) |>
   split_cols_by("TRT01A") |>
   analyze_num_patients(vars = "USUBJID", .stats = "unique",
                        .labels = c(unique = "Subjects with any adverse event")) |>
-  split_rows_by("AESOC", child_labels = "visible", nested = FALSE,
-                split_fun = drop_split_levels, label_pos = "topleft",
-                split_label = "System Organ Class") |>
-  summarize_num_patients(var = "USUBJID", .stats = "unique",
-                         .labels = c(unique = "Subjects with any adverse event")) |>
-  count_occurrences(vars = "AEDECOD", .indent_mods = -1L) |>
+  split_rows_by("AESOC", child_labels = "hidden", nested = FALSE,
+                split_fun = drop_split_levels) |>
+  summarize_row_groups(cfun = soc_count) |>              # SOC count on the SOC row
+  count_occurrences(vars = "AEDECOD", .indent_mods = 1L) |>
   build_table(df = adae, alt_counts_df = adsl) |>
-  prune_table(keep_rows(has_fraction_in_any_col(atleast = 0.05))) |>     # >= 5%
+  prune_table(keep_rows(has_fraction_in_any_col(atleast = 0.025))) |>   # >= 2.5%
   sort_at_path(path = c("AESOC"),                 scorefun = cont_n_allcols) |>
   sort_at_path(path = c("AESOC", "*", "AEDECOD"), scorefun = score_occurrences)
 
 # group_force = fill each page to max_rows and repeat a split SOC with "(Cont.)"
-as_rtftables(ae, split = "group_force", max_rows = 26,
+as_rtftables(ae, split = "group_force", max_rows = 32,
              blank_rows = "between_groups", cell_format = fmt_count_paren_bare)
 ```
 
