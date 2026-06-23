@@ -2,6 +2,18 @@
 
 ### Documentation
 
+- `showcase` article *"Same report, every table framework"*: every code block is
+  now **copy-paste runnable, from data creation to the written `.rtf`** (#165).
+  The article-only helpers that the prose referred to (`reorder_ae()`, `fmt_ae`,
+  `add_any_ae_row()`, `bake_indent()`, `ae_gtsummary_tbl()`, and a `render_dm()`
+  / `render_ae()` furniture helper) are now **defined in the article's setup
+  blocks**, the abbreviated `...` reshapes (Tplyr DM, cards + tfrmt DM/AE, Tplyr
+  AE) are spelled out in full, and each framework block ends by rendering its
+  actual `.rtf` -- faithful to the `data-raw/showcase_*.R` generators that
+  produced the screenshots. Chunks stay `eval = FALSE` (the screenshots are
+  unchanged); run a section's setup block once, then any framework block. Refs
+  #146.
+
 - `tlg-catalog` article: the data preparation is now **verbatim from the
   pharmaverse examples** (#163). The demographic table drops screen failures
   (`!ACTARM %in% "Screen Failure"`) and recodes `SEX` / `AGEGR1`, so the
