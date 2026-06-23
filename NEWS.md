@@ -2,6 +2,17 @@
 
 ### Documentation
 
+- `showcase` article, AE cards + gtsummary example: the any-AE overall row is now
+  derived **generically from the ARD** instead of by re-counting the raw `adae`
+  data frame (#167). A second `cards::ard_stack_hierarchical(..., over_variables =
+  TRUE)` computes the distinct-subject "any event" count, and a generic
+  `add_overall_row(tbl, ard)` reads it straight off that ARD (mapping by-levels to
+  the table's `stat_*` columns via its own header, formatting with the table's
+  glue `statistic`). `reorder_ae()` now takes `pt_order` explicitly, and the
+  opaque `ae_gtsummary_tbl()` wrapper is gone -- the `tbl_hierarchical()` build is
+  shown inline -- so the helpers stay generic / package-idiomatic rather than
+  sample-specific. Rendered numbers unchanged. Refs #146.
+
 - `showcase` article *"Same report, every table framework"*: every code block is
   now **copy-paste runnable, from data creation to the written `.rtf`** (#165).
   The article-only helpers that the prose referred to (`reorder_ae()`, `fmt_ae`,
