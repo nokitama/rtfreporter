@@ -43,13 +43,19 @@ frameworks and renders each to RTF through `rtfreporter`. The point is not that
 one framework is best -- it is that **whatever you already use, rtfreporter is
 the RTF back end**.
 
-> The code below is shown for reference (`eval = FALSE`); each table's RTF is
-> rendered offline and the Word output is shown as a screenshot. The full,
-> runnable generator lives in
-> [`data-raw/showcase_dm.R`](https://github.com/ichirio/rtfreporter/blob/main/data-raw/showcase_dm.R),
+> **Every block here is copy-paste runnable, from data creation to the written
+> `.rtf`.** Run the **setup** block of a section once (it prepares the data, the
+> shared header/footer, and a small `render_*()` helper), then copy any single
+> framework block to reproduce its `.rtf`. We render with `eval = FALSE` in the
+> article itself -- so pkgdown does not have to run the entire framework stack --
+> and show the Word output as a screenshot. The same generators also live in
+> [`data-raw/showcase_dm.R`](https://github.com/ichirio/rtfreporter/blob/main/data-raw/showcase_dm.R)
+> and
+> [`data-raw/showcase_ae.R`](https://github.com/ichirio/rtfreporter/blob/main/data-raw/showcase_ae.R),
 > and the rendered `.rtf` files are committed to
-> [`inst/rtf-examples/showcase/`](https://github.com/ichirio/rtfreporter/tree/main/inst/rtf-examples/showcase)
-> so you can open them yourself.
+> [`inst/rtf-examples/showcase/`](https://github.com/ichirio/rtfreporter/tree/main/inst/rtf-examples/showcase).
+
+# Demographics (DM)
 
 ## The data
 
@@ -82,34 +88,74 @@ arm_n <- table(adsl$TRT01A)
 
 The running **header** (sponsor, protocol, page number and the table title) and
 the **footer** (analysis note, program path and run time), the **Letter
-landscape** page -- all of this is set **once, in rtfreporter**, and is identical
-for every framework below. Only the *body* changes from framework to framework.
+landscape** page, the 40 : 20 : 20 : 20 column widths, the centred data columns
+and the blank rows between groups -- all of this is set **once, in rtfreporter**,
+and is identical for every framework below. Only the *body* changes from
+framework to framework.
+
+The `render_dm()` helper below takes whatever table the framework produced
+(`as_rtftables()` returns rtfreporter page objects), applies that shared look,
+and writes `<name>.rtf` to the working directory. Run this block once after the
+data block; every DM framework block then ends with a single `render_dm()` call.
 
 ```{r furniture}
+# Running header: sponsor / protocol / page number, then the table title block.
 dm_header <- rtf_header(rows = list(
   c(l = "Acme Biopharma, Inc.", r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
   c(l = "Protocol ABC-2026-001", r = "Status: Draft"),
   c(c = "Table 14.1.1"),
   c(c = "Summary of Demographic and Baseline Characteristics"),
   c(c = "Safety Population"),
-  c(c = "")))
-dm_footer <- rtf_footer(rows = list(
-  c(l = "Note: Percentages are based on the number of non-missing subjects in each treatment group."),
-  c(l = "Program: /prod/abc/tfl/t_14_1_1.R", r = "Generated: 2026-06-17 09:14"),
-  c(l = "Source: ADSL", r = "CONFIDENTIAL")))
+  c(c = "")))                                       # gap before the content
 
-# Every framework feeds its result to the same call.  `align_count_pct` pads the
-# "n (xx.x%)" cells to a common width so they line up in the fixed-width font;
-# the generator also gives every page the same column header (with the arm Ns),
-# 40 : 20 : 20 : 20 widths, centred data columns, and a blank row between groups
-# and at the top / bottom (see data-raw/showcase_dm.R).
-doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape")) |>
-  rtf_section(page = 1, secinfo = list(header = dm_header, footer = dm_footer)) |>
-  rtf_tables(as_rtftables(tbl, align_count_pct = TRUE))   # `tbl` = framework table
-generate_rtfreport(doc, "dm.rtf", overwrite = TRUE)
+# Insert blank separator rows around the group structure of a built rtftable:
+# one before each group header (a non-empty, non-indented column-1 cell) except
+# the first, plus one at the very top (0) and the very bottom (nrow).
+.add_group_blanks <- function(rt) {
+  d <- rt$data
+  if (is.null(d) || nrow(d) == 0L) return(rt)
+  col1 <- as.character(d[[1L]])
+  indent_chars <- c(" ", "\t", intToUtf8(160L))     # space, tab, NBSP
+  is_header <- nzchar(col1) & !(substr(col1, 1L, 1L) %in% indent_chars)
+  hdr <- which(is_header)
+  between <- hdr[hdr > 1L] - 1L
+  rt$blank_rows <- sort(unique(as.integer(c(0L, between, nrow(d)))))
+  rt
+}
+
+# Apply the shared look to the framework's page(s) and write <name>.rtf.
+render_dm <- function(pages, name) {
+  if (!is.list(pages) || inherits(pages, "rtftable")) pages <- list(pages)
+  pages <- lapply(pages, function(p) {
+    attr(p, "rtf_titles")    <- NULL   # the title lives in the running header,
+    attr(p, "rtf_footnotes") <- NULL   # the notes in the footer
+    p <- .add_group_blanks(p)
+    nc <- ncol(p$data)
+    # 40 : 20 : 20 : 20 widths; clear any framework-supplied absolute widths so
+    # the relative widths take effect.
+    p$col_rel_width       <- c(40, rep(20, nc - 1L))
+    p$column_widths_twips <- NULL
+    # One identical header for every framework, with the arm Ns underneath.
+    p$col_header <- list(c("Characteristic",
+                           paste0(arm_levels, "\nN = ", as.integer(arm_n))))
+    # Row labels left, data columns centred (header centred).
+    for (j in seq_len(nc)) {
+      p$col_spec[[j]]$align        <- if (j == 1L) "left" else "center"
+      p$col_spec[[j]]$header_align <- "center"
+    }
+    p
+  })
+  footer <- rtf_footer(rows = list(
+    c(l = "Note: Percentages are based on the number of non-missing subjects in each treatment group."),
+    c(l = paste0("Program: /prod/abc/tfl/t_14_1_1_", name, ".R"),
+      r = "Generated: 2026-06-17 09:14"),
+    c(l = "Source: ADSL", r = "CONFIDENTIAL")))
+  doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape")) |>
+    rtf_section(page = 1, secinfo = list(header = dm_header, footer = footer)) |>
+    rtf_tables(pages)
+  generate_rtfreport(doc, paste0(name, ".rtf"), overwrite = TRUE)
+}
 ```
-
-# Demographics (DM)
 
 ## Build it once, let rtfreporter read it
 
@@ -135,7 +181,10 @@ tbl <- adsl |>
                              median = 1, min = 0, max = 0))) |>
   modify_header(all_stat_cols() ~ "**{level}**  \nN = {n}")
 
-as_rtftables(tbl, read_meta = TRUE)   # column labels + Ns read from gtsummary
+# column labels + Ns are read from gtsummary; align_count_pct lines up the
+# "n (xx.x%)" cells; render_dm() supplies the page furniture and writes the .rtf.
+render_dm(as_rtftables(tbl, read_meta = TRUE, align_count_pct = TRUE),
+          "dm_gtsummary")
 ```
 
 ```{r img-gtsummary, eval = TRUE, echo = FALSE, out.width = "100%"}
@@ -165,7 +214,8 @@ tbl <- tbl_ard_summary(
   statistic = list(AGE = c("{N}", "{mean} ({sd})", "{median}", "{min}, {max}"),
                    all_categorical() ~ "{n} ({p}%)"))
 
-as_rtftables(tbl, read_meta = TRUE)
+render_dm(as_rtftables(tbl, read_meta = TRUE, align_count_pct = TRUE),
+          "dm_gtsummary_ard")
 ```
 
 ```{r img-gtsummary-ard, eval = TRUE, echo = FALSE, out.width = "100%"}
@@ -185,10 +235,15 @@ lyt <- basic_table(show_colcounts = TRUE) |>
     vars = c("AGE", "AGEGR", "SEX", "RACE"),
     var_labels = c(AGE = "Age (years)", AGEGR = "Age category",
                    SEX = "Sex", RACE = "Race"),
-    .stats = c("n", "mean_sd", "median", "range", "count_fraction"))
+    .stats = c("n", "mean_sd", "median", "range", "count_fraction"),
+    # render the count/percent cells as "n (xx.x%)" to match the other frameworks.
+    .formats = c(count_fraction = function(x) {
+      sprintf("%d (%.1f%%)", round(x[1]), 100 * x[2])
+    }))
 tbl <- build_table(lyt, adsl)
 
-as_rtftables(tbl, read_meta = TRUE)
+render_dm(as_rtftables(tbl, read_meta = TRUE, align_count_pct = TRUE),
+          "dm_rtables")
 ```
 
 ```{r img-rtables, eval = TRUE, echo = FALSE, out.width = "100%"}
@@ -211,8 +266,28 @@ ard <- ard_stack(
                                     Median = median, Min = min, Max = max)),
   ard_categorical(variables = c(AGEGR, SEX, RACE)))
 
-# reshape the ARD to tfrmt's long form: group / label / column / param / value
-long <- as.data.frame(ard) |> ...
+# Reshape the ARD to tfrmt's long form: group / label / column / param / value.
+# sc1()/nm1() pull the first element of each list-column as character / numeric.
+d   <- as.data.frame(ard)
+sc1 <- function(x) vapply(x, function(v) if (length(v)) as.character(v[[1]]) else NA_character_, character(1))
+nm1 <- function(x) vapply(x, function(v) if (length(v)) suppressWarnings(as.numeric(v[[1]])) else NA_real_, numeric(1))
+
+long <- d |>
+  mutate(column = sc1(group1_level), vlev = sc1(variable_level), value = nm1(stat)) |>
+  filter((variable == "AGE" & stat_name %in% c("n", "Mean", "SD", "Median", "Min", "Max")) |
+         (variable %in% c("AGEGR", "SEX", "RACE") & stat_name %in% c("n", "p"))) |>
+  transmute(
+    column = factor(column, levels = arm_levels),
+    group  = recode(variable, AGE = "Age (years)", AGEGR = "Age category",
+                    SEX = "Sex", RACE = "Race"),
+    label  = case_when(
+      variable == "AGE" & stat_name == "n" ~ "n",
+      variable == "AGE" & stat_name %in% c("Mean", "SD") ~ "Mean (SD)",
+      variable == "AGE" & stat_name == "Median" ~ "Median",
+      variable == "AGE" & stat_name %in% c("Min", "Max") ~ "Min, Max",
+      TRUE ~ vlev),
+    param  = ifelse(stat_name == "p", "pct", stat_name),
+    value  = ifelse(stat_name == "p", value * 100, value))
 
 # Everything except the categorical "n (pct%)" cell is shared; only the
 # count/percent formatting -- and who aligns it -- changes between the two
@@ -225,13 +300,17 @@ tfrmt_spec <- function(count_pct) tfrmt(
     frmt_structure(".default", "Mean (SD)",
                    frmt_combine("{Mean} ({SD})",
                                 Mean = frmt("xx.x"), SD = frmt("xx.xx"))),
-    frmt_structure(c("Age category", "Sex", "Race"), ".default", count_pct))
+    frmt_structure(".default", "Min, Max",
+                   frmt_combine("{Min}, {Max}",
+                                Min = frmt("xx"), Max = frmt("xx"))),
+    frmt_structure(c("Age category", "Sex", "Race"), ".default", count_pct)))
 ```
 
 #### Who formats the `n (xx.x%)` cell?
 
 This is a nice place to see the same table formatted **two ways**, because the
-count/percent cell is exactly where formatters differ.
+count/percent cell is exactly where formatters differ. (Both render chunks
+reuse `long` and `tfrmt_spec` from the block just above.)
 
 A small but important detail first: write the percent as **`x.x`**, not `xx.x`.
 `frmt("xx.x")` right-pads the integer part, so a one-digit percent prints with a
@@ -246,7 +325,7 @@ padded to `xx`. `rtfreporter` reads the strings and renders them *as-is*
 g1 <- print_to_gt(
   tfrmt_spec(frmt_combine("{n} ({pct}%)", n = frmt("xx"), pct = frmt("x.x"))),
   long)
-as_rtftables(g1, read_meta = TRUE)              # tfrmt's own alignment, untouched
+render_dm(as_rtftables(g1, read_meta = TRUE), "dm_tfrmt")   # tfrmt's alignment
 ```
 
 ```{r img-tfrmt, eval = TRUE, echo = FALSE, out.width = "100%"}
@@ -261,7 +340,8 @@ as_rtftables(g1, read_meta = TRUE)              # tfrmt's own alignment, untouch
 g2 <- print_to_gt(
   tfrmt_spec(frmt_combine("{n} ({pct}%)", n = frmt("x"), pct = frmt("x.x"))),
   long)
-as_rtftables(g2, read_meta = TRUE, align_count_pct = TRUE)   # rtfreporter aligns
+render_dm(as_rtftables(g2, read_meta = TRUE, align_count_pct = TRUE),
+          "dm_tfrmt_rtfreporter")                           # rtfreporter aligns
 ```
 
 ```{r img-tfrmt-rtfreporter, eval = TRUE, echo = FALSE, out.width = "100%"}
@@ -286,8 +366,9 @@ header, alignment and grouping**.
 ### Tplyr
 
 `Tplyr::build()` returns a data frame of formatted strings (plus ordering
-helpers). We reshape it into a labelled body and pass the column header to
-`rtftable()` ourselves.
+helpers). We reshape it into a labelled body -- group headers with indented
+stats and a "Number of Subjects" row on top -- and let `render_dm()` supply the
+column header.
 
 ```{r tplyr}
 library(Tplyr)
@@ -307,12 +388,35 @@ built <- tplyr_table(adsl, TRT01A) |>
               set_format_strings(f_str("xx (x.x%)", n, pct))) |>
   build()
 
-# ... reshape `built` into `disp`: a label column (group headers + indented
-#     stats, a "Number of Subjects" row on top) and one column per arm ...
+# Reshape `built` into `disp`: one column per arm, a label column with each
+# group header followed by its indented stat rows, in a fixed display order.
+val_cols <- paste0("var1_", arm_levels)
+ord <- c("Age (years)", "n", "Mean (SD)", "Median", "Min, Max",
+         "Age category", "<65", "65 - 80", ">80",
+         "Sex", "Male", "Female",
+         "Race", "White", "Black or African American", "Asian",
+         "American Indian or Alaska Native")
+groups <- c("Age (years)", "Age category", "Sex", "Race")
+body <- built[order(built$ord_layer_index, built$ord_layer_1, built$ord_layer_2), ]
+disp <- do.call(rbind, lapply(split(body, factor(body$row_label1, groups)), function(g) {
+  hdr <- data.frame(Characteristic = g$row_label1[1], stringsAsFactors = FALSE)
+  hdr[val_cols] <- ""
+  rows <- data.frame(Characteristic = paste0("  ", g$row_label2),
+                     stringsAsFactors = FALSE)
+  rows[val_cols] <- lapply(val_cols, function(c) g[[c]])
+  rbind(hdr, rows)
+}))
+disp <- disp[order(match(sub("^  ", "", disp$Characteristic), ord)), ]
+# "Number of Subjects" line on top (just N).
+top <- data.frame(Characteristic = "Number of Subjects", stringsAsFactors = FALSE)
+top[val_cols] <- as.character(as.integer(arm_n))
+disp <- rbind(top, disp)
+names(disp) <- c("Characteristic", arm_levels)
+rownames(disp) <- NULL
 
-# Metadata lives HERE, in rtfreporter -- not in Tplyr:
-col_header <- c("Characteristic", paste0(arm_levels, "\nN = ", arm_n))
-rtftable(disp, col_header = col_header)
+# Metadata lives HERE, in rtfreporter -- not in Tplyr.  render_dm() injects the
+# shared column header, so we just hand it the body.
+render_dm(as_rtftables(disp, align_count_pct = TRUE), "dm_tplyr")
 ```
 
 ```{r img-tplyr, eval = TRUE, echo = FALSE, out.width = "100%"}
@@ -357,13 +461,154 @@ by treatment group, shown as `n (xx.x%)`:
 - **SOCs are listed alphabetically**; within each SOC the **PTs are ordered by
   subject count (all arms), descending**, ties broken **alphabetically**.
 
+## The data, furniture and shared helpers
+
+Run this block once before any AE framework block. It prepares the AE analysis
+data (`adae`), the canonical orderings every framework reuses so the tables
+match cell-for-cell, the shared column header / spec / widths, the running
+header and footer, and a `render_ae()` helper that wraps a paginated list of
+pages into the AE document and writes `<name>.rtf`. (It reuses `arm_levels` /
+`arm_n` from the DM data block.)
+
+```{r ae-setup}
+library(dplyr)
+# Treatment-emergent AEs only, in the same three arms as the DM table.
+adae <- pharmaverseadam::adae |>
+  filter(TRT01A %in% arm_levels, TRTEMFL == "Y") |>
+  mutate(TRT01A = factor(TRT01A, levels = arm_levels))
+ANY_AE <- "Subjects with any adverse event"
+
+# -- Canonical orderings, shared by every framework -------------------------
+# PTs ordered by total distinct subjects (all arms) descending, ties A -> Z.
+.pt_order <- adae |> distinct(USUBJID, AEDECOD) |>
+  count(AEDECOD, name = "tot") |>
+  arrange(desc(tot), AEDECOD) |> pull(AEDECOD) |> as.character()
+# PTs kept in the table: >= 3% of subjects in any treatment group.
+.keep_pt <- adae |> distinct(USUBJID, TRT01A, AEDECOD) |>
+  count(TRT01A, AEDECOD, name = "n") |>
+  mutate(p = 100 * n / as.integer(arm_n[as.character(TRT01A)])) |>
+  group_by(AEDECOD) |> summarise(mx = max(p), .groups = "drop") |>
+  filter(mx >= 3) |> pull(AEDECOD) |> as.character()
+# Real SOC / PT pairs (a PT belongs to exactly one SOC).
+.soc_pt <- adae |> distinct(AESOC, AEDECOD) |>
+  mutate(across(everything(), as.character))
+
+# -- Shared column header / spec / widths / page budget ---------------------
+ae_col_header <- c("System Organ Class /\nPreferred Term",
+                   paste0(arm_levels, "\nN = ", as.integer(arm_n)))
+ae_col_spec <- c(
+  list(list(col = 1L, align = "left",   header_align = "left")),
+  lapply(2:4, function(j) list(col = j, align = "center", header_align = "center")))
+ae_widths   <- c(0.52, 0.16, 0.16, 0.16)
+AE_MAX_ROWS <- 32L
+
+# -- Running header (footer is built per-framework inside render_ae) --------
+ae_header <- rtf_header(rows = list(
+  c(l = "Acme Biopharma, Inc.",  r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
+  c(l = "Protocol ABC-2026-001", r = "Status: Draft"),
+  c(c = "Table 14.3.1"),
+  c(c = "Treatment-Emergent Adverse Events Occurring in >= 3% of Subjects in Any Treatment Group"),
+  c(c = "by System Organ Class and Preferred Term -- Safety Population"),
+  c(c = "")))
+
+# Cell format shared by the read-meta frameworks: collapse a zero cell
+# "0 (0.0%)" to a bare "0" (so SOC and PT zeros match tern), then align.
+fmt_ae <- function(x, nbsp = " ") {
+  z <- grepl("^[[:space:]]*0[[:space:]]*\\([[:space:]]*0(\\.0)?%?[[:space:]]*\\)[[:space:]]*$", x)
+  x[z] <- "0"
+  fmt_count_paren_bare(x, nbsp = nbsp)
+}
+
+# Reorder a gtsummary hierarchical table_body to the canonical order: SOC blocks
+# alphabetical, PTs within each block by `.pt_order`, the overall row kept on top
+# (relabelled to match tern).
+reorder_ae <- function(tbl, pt_order = .pt_order, overall_label = ANY_AE) {
+  tb <- tbl$table_body
+  tb$label[tb$variable == "..ard_hierarchical_overall.."] <- overall_label
+  is_soc    <- tb$variable == "AESOC"
+  blk       <- cumsum(is_soc)
+  block_ids <- sort(unique(blk[blk > 0]))
+  soc_lab   <- vapply(block_ids, function(b) tb$label[blk == b & is_soc][1], character(1))
+  new <- which(blk == 0)
+  for (b in block_ids[order(soc_lab)]) {
+    rows    <- which(blk == b)
+    soc_row <- rows[tb$variable[rows] == "AESOC"]
+    pt_rows <- rows[tb$variable[rows] == "AEDECOD"]
+    pt_rows <- pt_rows[order(match(tb$label[pt_rows], pt_order))]
+    new <- c(new, soc_row, pt_rows)
+  }
+  tbl$table_body <- tb[new, ]
+  tbl
+}
+
+# Prepend an "any adverse event" overall row to a gtsummary hierarchical
+# table_body (tbl_ard_hierarchical() has no overall_row argument).
+add_any_ae_row <- function(tbl, label = ANY_AE) {
+  N     <- as.integer(arm_n[arm_levels])
+  anyae <- adae |> distinct(TRT01A, USUBJID) |> count(TRT01A)
+  vals  <- vapply(seq_along(arm_levels), function(i) {
+    n <- anyae$n[match(arm_levels[i], as.character(anyae$TRT01A))]
+    if (is.na(n)) n <- 0L
+    sprintf("%d (%.1f%%)", n, 100 * n / N[i])
+  }, character(1))
+  tb  <- tbl$table_body
+  row <- tb[1, ]; row[seq_len(ncol(row))] <- NA
+  row$variable <- "..ard_hierarchical_overall.."
+  row$row_type <- "level"
+  row$label    <- label
+  row$stat_1   <- vals[1]; row$stat_2 <- vals[2]; row$stat_3 <- vals[3]
+  tbl$table_body <- dplyr::bind_rows(row, tb)
+  # Un-indent the injected row via the public API so it lines up with the SOCs.
+  gtsummary::modify_indent(tbl, columns = "label",
+                           rows = variable == "..ard_hierarchical_overall..",
+                           indent = 0L)
+}
+
+# Build the standalone-gtsummary AE table (used directly, and as the source for
+# the flextable / huxtable conversions below).
+ae_gtsummary_tbl <- function() {
+  gtsummary::tbl_hierarchical(
+      data = adae, variables = c(AESOC, AEDECOD), by = TRT01A,
+      denominator = adsl, id = USUBJID, overall_row = TRUE,
+      statistic = ~ "{n} ({p}%)",
+      digits = gtsummary::everything() ~ list(p = 1)) |>
+    gtsummary::filter_hierarchical(p >= 0.03) |>
+    reorder_ae()
+}
+
+# Bake the PT indent into the label TEXT (NBSP), because as_flex_table() /
+# as_hux_table() turn gtsummary's indent into cell padding that the flextable /
+# huxtable adapters do not read as a row-label indent.
+bake_indent <- function(tbl, n = 4L) {
+  tb <- tbl$table_body
+  pt <- tb$variable == "AEDECOD"
+  tb$label[pt] <- paste0(strrep(" ", n), tb$label[pt])
+  tbl$table_body <- tb
+  tbl$table_styling$indent <- tbl$table_styling$indent[0, ]
+  tbl
+}
+
+# Wrap a paginated list of rtftable pages into the AE document and write it.
+render_ae <- function(pages, name) {
+  footer <- rtf_footer(rows = list(
+    c(l = "Note: A subject with multiple events within a category is counted once for that category. Percentages use the number of subjects in the safety population per group."),
+    c(l = paste0("Program: /prod/abc/tfl/t_14_3_1_", name, ".R"),
+      r = "Generated: 2026-06-17 09:14"),
+    c(l = "Source: ADSL, ADAE", r = "CONFIDENTIAL")))
+  doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape")) |>
+    rtf_section(page = 1, secinfo = list(header = ae_header, footer = footer)) |>
+    rtf_tables(pages)
+  generate_rtfreport(doc, paste0(name, ".rtf"), overwrite = TRUE)
+}
+```
+
 ## rtables / tern
 
 `tern` is the pharmaverse standard for this table. `analyze_num_patients()`
 gives the overall "any AE" row; a SOC-level content summary
 (`summarize_row_groups()` with `child_labels = "hidden"`) puts each SOC's
 distinct-subject count **on the SOC name row**; `count_occurrences()` gives the
-indented PT rows. We build on the full data, **prune** PT rows below 2.5% with
+indented PT rows. We build on the full data, **prune** PT rows below 3% with
 `rtables::prune_table()`, and **sort** by subject count -- alphabetical factor
 levels plus a stable `sort_at_path()` break ties A -> Z. `rtfreporter` then
 paginates with **`split = "group_force"`** (`max_rows` per page), which is what
@@ -371,13 +616,12 @@ inserts the `(Cont.)` rows.
 
 ```{r ae-tern}
 library(rtables); library(tern)
-adae <- pharmaverseadam::adae |>
-  filter(TRT01A %in% arm_levels, TRTEMFL == "Y") |>
-  mutate(TRT01A  = factor(TRT01A, levels = arm_levels),
-         AESOC   = factor(AESOC,   levels = sort(unique(AESOC))),     # ties A->Z
+# Alphabetical factor levels so SOCs / PTs tie-break A -> Z.
+adae_f <- adae |>
+  mutate(AESOC   = factor(AESOC,   levels = sort(unique(AESOC))),
          AEDECOD = factor(AEDECOD, levels = sort(unique(AEDECOD))))
 
-# distinct subjects with any AE in a SOC, per column -- shown on the SOC row.
+# Distinct subjects with any AE in a SOC, per column -- shown on the SOC row.
 # A zero count prints as a bare "0" (no parens), exactly like count_occurrences()
 # renders the PT rows, so both levels format a zero the same way.
 soc_count <- function(df, labelstr, .N_col, ...) {
@@ -390,20 +634,24 @@ soc_count <- function(df, labelstr, .N_col, ...) {
 ae <- basic_table(show_colcounts = TRUE) |>
   split_cols_by("TRT01A") |>
   analyze_num_patients(vars = "USUBJID", .stats = "unique",
-                       .labels = c(unique = "Subjects with any adverse event")) |>
+                       .labels = c(unique = ANY_AE)) |>
   split_rows_by("AESOC", child_labels = "hidden", nested = FALSE,
                 split_fun = drop_split_levels) |>
   summarize_row_groups(cfun = soc_count) |>              # SOC count on the SOC row
   count_occurrences(vars = "AEDECOD", .indent_mods = 1L) |>
-  build_table(df = adae, alt_counts_df = adsl) |>
+  build_table(df = adae_f, alt_counts_df = adsl) |>
   prune_table(keep_rows(has_fraction_in_any_col(atleast = 0.03))) |>    # >= 3%
   # SOCs stay alphabetical (factor order); only the PTs within each SOC are
   # ordered by subject count (all arms), ties A -> Z.
   sort_at_path(path = c("AESOC", "*", "AEDECOD"), scorefun = score_occurrences)
 
 # group_force = fill each page to max_rows and repeat a split SOC with "(Cont.)"
-as_rtftables(ae, split = "group_force", max_rows = 32,
-             blank_rows = "between_groups", cell_format = fmt_count_paren_bare)
+render_ae(
+  as_rtftables(ae, split = "group_force", max_rows = AE_MAX_ROWS,
+               blank_rows = "between_groups", cell_format = fmt_count_paren_bare,
+               col_header = ae_col_header, col_spec = ae_col_spec,
+               col_rel_width = ae_widths, row_height_twips = 200),
+  "ae_tern")
 ```
 
 ```{r img-ae-tern, eval = TRUE, echo = FALSE, out.width = "100%"}
@@ -419,21 +667,22 @@ renders them in order, and the running header's `{AUTO_PAGE}` /
 `gtsummary::tbl_hierarchical()` builds the **same** table directly:
 `overall_row = TRUE` is the any-AE row, each SOC row carries its own subject
 count, and PTs are nested beneath. `filter_hierarchical()` keeps the >= 3% PTs.
-A small helper reorders the table body to the shared order (SOCs alphabetical,
-PTs by subject count) and relabels the overall row; `fmt_ae()` collapses a zero
-cell to a bare `0` to match the tern output.
+The shared `reorder_ae()` helper reorders the table body to the shared order
+(SOCs alphabetical, PTs by subject count) and relabels the overall row; `fmt_ae()`
+collapses a zero cell to a bare `0` to match the tern output. (`ae_gtsummary_tbl()`
+is defined in the setup block -- it is `tbl_hierarchical()` + `filter_hierarchical()`
++ `reorder_ae()` and is reused by the flextable / huxtable blocks below.)
 
 ```{r ae-gtsummary}
 library(gtsummary)
-tbl <- tbl_hierarchical(
-    data = adae, variables = c(AESOC, AEDECOD), by = TRT01A,
-    denominator = adsl, id = USUBJID, overall_row = TRUE,
-    statistic = ~ "{n} ({p}%)", digits = everything() ~ list(p = 1)) |>
-  filter_hierarchical(p >= 0.03) |>
-  reorder_ae()                         # SOCs A->Z, PTs by subject count (helper)
+tbl <- ae_gtsummary_tbl()            # tbl_hierarchical |> filter |> reorder_ae
 
-as_rtftables(tbl, read_meta = TRUE, split = "group_force", max_rows = 32,
-             blank_rows = "between_groups", cell_format = fmt_ae)
+render_ae(
+  as_rtftables(tbl, read_meta = TRUE, split = "group_force", max_rows = AE_MAX_ROWS,
+               blank_rows = "between_groups", cell_format = fmt_ae,
+               col_header = ae_col_header, col_spec = ae_col_spec,
+               col_rel_width = ae_widths, row_height_twips = 200),
+  "ae_gtsummary")
 ```
 
 ```{r img-ae-gtsummary, eval = TRUE, echo = FALSE, out.width = "100%"}
@@ -445,8 +694,8 @@ as_rtftables(tbl, read_meta = TRUE, split = "group_force", max_rows = 32,
 The ARD-first variant: compute the hierarchical **Analysis Results Dataset** with
 `cards::ard_stack_hierarchical()`, then summarise it with
 `tbl_ard_hierarchical()`. It has no `overall_row` argument, so the any-AE row is
-added from the ARD; everything else is identical, and the rendered table matches
-the two above cell-for-cell.
+added from the ARD with `add_any_ae_row()`; everything else is identical, and the
+rendered table matches the two above cell-for-cell.
 
 ```{r ae-cards-gtsummary}
 library(cards); library(gtsummary)
@@ -461,8 +710,12 @@ tbl <- tbl_ard_hierarchical(
   add_any_ae_row() |>                  # tbl_ard_hierarchical has no overall row
   reorder_ae()
 
-as_rtftables(tbl, read_meta = TRUE, split = "group_force", max_rows = 32,
-             blank_rows = "between_groups", cell_format = fmt_ae)
+render_ae(
+  as_rtftables(tbl, read_meta = TRUE, split = "group_force", max_rows = AE_MAX_ROWS,
+               blank_rows = "between_groups", cell_format = fmt_ae,
+               col_header = ae_col_header, col_spec = ae_col_spec,
+               col_rel_width = ae_widths, row_height_twips = 200),
+  "ae_gtsummary_ard")
 ```
 
 ```{r img-ae-cards-gtsummary, eval = TRUE, echo = FALSE, out.width = "100%"}
@@ -476,28 +729,62 @@ as_rtftables(tbl, read_meta = TRUE, split = "group_force", max_rows = 32,
 
 `Tplyr` returns **formatted strings**; as with the DM table we do the
 *transpose-and-set* here -- Tplyr counts the distinct subjects, and we assemble
-the layout (overall row, SOC count on the SOC row, indented PTs) and hand the
-column header to `rtfreporter`.
+the layout (overall row, SOC count on the SOC row, indented PTs in subject-count
+order) and hand the column header to `rtfreporter` via the setup block's
+`ae_col_header` / `ae_col_spec`.
 
 ```{r ae-tplyr}
 library(Tplyr)
-# distinct-subject counts: one layer for SOC totals, one for PT-by-SOC
+varcols <- paste0("var1_", arm_levels)
+rn <- function(df) df |> dplyr::rename_with(~ arm_levels, dplyr::all_of(varcols))
+
+# distinct-subject counts: one layer for SOC totals, one for PT-by-SOC.
 soc <- tplyr_table(adae, TRT01A) |> set_pop_data(adsl) |> set_pop_treat_var(TRT01A) |>
   add_layer(group_count(AESOC) |> set_distinct_by(USUBJID) |>
               set_format_strings(f_str("xx (xx.x%)", distinct_n, distinct_pct))) |>
-  build()
+  build() |> dplyr::transmute(AESOC = as.character(row_label1),
+                              dplyr::across(dplyr::all_of(varcols))) |> rn()
 pt <- tplyr_table(adae, TRT01A) |> set_pop_data(adsl) |> set_pop_treat_var(TRT01A) |>
   add_layer(group_count(AEDECOD, by = vars(AESOC)) |> set_distinct_by(USUBJID) |>
               set_format_strings(f_str("xx (xx.x%)", distinct_n, distinct_pct))) |>
-  build()
+  build() |> dplyr::transmute(AESOC = as.character(row_label1),
+                              AEDECOD = as.character(row_label2),
+                              dplyr::across(dplyr::all_of(varcols))) |>
+  dplyr::semi_join(.soc_pt, by = c("AESOC", "AEDECOD")) |>
+  dplyr::filter(AEDECOD %in% .keep_pt) |> rn()
 
-# ... keep real SOC/PT pairs and PTs >= 3%, then assemble `disp`: an overall
-#     row, each SOC row (its count), and its PTs indented in subject-count order
-#     (see data-raw/showcase_ae.R) ...
+# Assemble `disp`: an overall any-AE row, then each SOC row (its count) and its
+# PTs indented in subject-count order.
+any_n <- adae |> dplyr::distinct(TRT01A, USUBJID) |> dplyr::count(TRT01A)
+ov <- vapply(arm_levels, function(a) {
+  n <- any_n$n[match(a, as.character(any_n$TRT01A))]
+  sprintf("%d (%.1f%%)", n, 100 * n / as.integer(arm_n[a]))
+}, character(1))
 
-# Metadata lives HERE, in rtfreporter -- not in Tplyr:
-as_rtftables(disp, col_header = ae_col_header, split = "group_force",
-             max_rows = 32, blank_rows = "between_groups", cell_format = fmt_ae)
+rows <- list(setNames(data.frame(ANY_AE, t(ov), check.names = FALSE,
+                                 stringsAsFactors = FALSE),
+                      c("Characteristic", arm_levels)))
+for (s in sort(unique(pt$AESOC))) {
+  sc <- soc |> dplyr::filter(AESOC == s)
+  rows[[length(rows) + 1]] <- setNames(
+    data.frame(s, sc[, arm_levels], check.names = FALSE, stringsAsFactors = FALSE),
+    c("Characteristic", arm_levels))
+  pts <- pt |> dplyr::filter(AESOC == s) |> dplyr::arrange(match(AEDECOD, .pt_order))
+  if (nrow(pts))
+    rows[[length(rows) + 1]] <- setNames(
+      data.frame(paste0("    ", pts$AEDECOD), pts[, arm_levels],
+                 check.names = FALSE, stringsAsFactors = FALSE),
+      c("Characteristic", arm_levels))
+}
+disp <- dplyr::bind_rows(rows)
+
+# Metadata lives HERE, in rtfreporter -- not in Tplyr.
+render_ae(
+  as_rtftables(disp, col_header = ae_col_header, split = "group_force",
+               max_rows = AE_MAX_ROWS, blank_rows = "between_groups",
+               cell_format = fmt_ae, col_spec = ae_col_spec,
+               col_rel_width = ae_widths, row_height_twips = 200),
+  "ae_tplyr")
 ```
 
 ```{r img-ae-tplyr, eval = TRUE, echo = FALSE, out.width = "100%"}
@@ -516,10 +803,44 @@ a zero is a real `0`, and sort via `sorting_cols`.
 
 ```{r ae-tfrmt}
 library(tidyr); library(tfrmt)
+N          <- as.integer(arm_n[arm_levels]); names(N) <- arm_levels
+real_pairs <- .soc_pt |> dplyr::filter(AEDECOD %in% .keep_pt)
+kept_socs  <- sort(unique(real_pairs$AESOC))
+
+# PT counts per arm, completed to a full grid so a missing cell is a real 0.
+pt_c <- adae |> dplyr::distinct(TRT01A, USUBJID, AESOC, AEDECOD) |>
+  dplyr::count(TRT01A, AESOC, AEDECOD, name = "n") |>
+  dplyr::mutate(AESOC = as.character(AESOC), AEDECOD = as.character(AEDECOD)) |>
+  dplyr::semi_join(real_pairs, by = c("AESOC", "AEDECOD")) |>
+  tidyr::complete(TRT01A, tidyr::nesting(AESOC, AEDECOD), fill = list(n = 0)) |>
+  dplyr::mutate(p = n / N[as.character(TRT01A)])
+# SOC distinct-subject counts (independent of the PTs).
+soc_c <- adae |> dplyr::distinct(TRT01A, USUBJID, AESOC) |>
+  dplyr::count(TRT01A, AESOC, name = "n") |>
+  dplyr::mutate(AESOC = as.character(AESOC)) |>
+  dplyr::filter(AESOC %in% kept_socs) |>
+  tidyr::complete(TRT01A, AESOC = kept_socs, fill = list(n = 0)) |>
+  dplyr::mutate(p = n / N[as.character(TRT01A)])
+# Overall any-AE count.
+ov_c <- adae |> dplyr::distinct(TRT01A, USUBJID) |> dplyr::count(TRT01A, name = "n") |>
+  dplyr::mutate(p = n / N[as.character(TRT01A)])
+
 # long form: a SOC row has group == label (count shown on the SOC line); PT rows
-# are group = SOC, label = PT; the overall row is its own group. `long` also
-# carries the n / p values per column and the ord1 / ord2 sort keys (see
-# data-raw/showcase_ae.R for the full count + grid-completion code).
+# are group = SOC, label = PT; the overall row is its own group.  ord1 / ord2 are
+# the SOC and PT sort keys.
+long <- dplyr::bind_rows(
+    ov_c  |> dplyr::transmute(group = ANY_AE, label = ANY_AE,
+                              column = as.character(TRT01A), n, p),
+    soc_c |> dplyr::transmute(group = AESOC,  label = AESOC,
+                              column = as.character(TRT01A), n, p),
+    pt_c  |> dplyr::transmute(group = AESOC,  label = AEDECOD,
+                              column = as.character(TRT01A), n, p)) |>
+  tidyr::pivot_longer(c(n, p), names_to = "param", values_to = "value") |>
+  dplyr::mutate(
+    ord1   = ifelse(group == ANY_AE, 0L, match(group, kept_socs)),
+    ord2   = ifelse(label == group, 0L, match(label, .pt_order)),
+    column = factor(column, levels = arm_levels),
+    group  = factor(group, levels = c(ANY_AE, kept_socs)))
 
 spec <- tfrmt(
   group = group, label = label, column = column, param = param, value = value,
@@ -530,8 +851,13 @@ spec <- tfrmt(
   col_plan = col_plan(group, label, Placebo, `Xanomeline Low Dose`,
                       `Xanomeline High Dose`, -ord1, -ord2))
 
-as_rtftables(print_to_gt(spec, long), read_meta = TRUE, split = "group_force",
-             max_rows = 32, blank_rows = "between_groups", cell_format = fmt_ae)
+render_ae(
+  as_rtftables(print_to_gt(spec, long), read_meta = TRUE, split = "group_force",
+               max_rows = AE_MAX_ROWS, blank_rows = "between_groups",
+               cell_format = fmt_ae, col_header = ae_col_header,
+               col_spec = ae_col_spec, col_rel_width = ae_widths,
+               row_height_twips = 200),
+  "ae_tfrmt")
 ```
 
 ```{r img-ae-tfrmt, eval = TRUE, echo = FALSE, out.width = "100%"}
@@ -540,23 +866,33 @@ as_rtftables(print_to_gt(spec, long), read_meta = TRUE, split = "group_force",
 
 ## flextable and huxtable (convert and render)
 
-No need to rebuild the table for these two: a gtsummary table converts straight
+No need to rebuild the table for these two: the gtsummary table converts straight
 to a **flextable** or a **huxtable**, and `rtfreporter` reads either. (We bake
-the PT indent into the label text first, because the converters turn gtsummary's
-indent into cell padding that the flextable / huxtable adapters do not read as a
-row-label indent.)
+the PT indent into the label text first with `bake_indent()`, because the
+converters turn gtsummary's indent into cell padding that the flextable /
+huxtable adapters do not read as a row-label indent.)
 
 ```{r ae-flextable-huxtable}
 library(flextable); library(huxtable)
 g <- ae_gtsummary_tbl()                       # the gtsummary table from above
 
 # flextable
-as_rtftables(gtsummary::as_flex_table(bake_indent(g)), split = "group_force",
-             max_rows = 32, blank_rows = "between_groups", cell_format = fmt_ae)
+render_ae(
+  as_rtftables(gtsummary::as_flex_table(bake_indent(g)), split = "group_force",
+               max_rows = AE_MAX_ROWS, blank_rows = "between_groups",
+               cell_format = fmt_ae, col_header = ae_col_header,
+               col_spec = ae_col_spec, col_rel_width = ae_widths,
+               row_height_twips = 200),
+  "ae_flextable")
 
 # huxtable
-as_rtftables(gtsummary::as_hux_table(bake_indent(g)), split = "group_force",
-             max_rows = 32, blank_rows = "between_groups", cell_format = fmt_ae)
+render_ae(
+  as_rtftables(gtsummary::as_hux_table(bake_indent(g)), split = "group_force",
+               max_rows = AE_MAX_ROWS, blank_rows = "between_groups",
+               cell_format = fmt_ae, col_header = ae_col_header,
+               col_spec = ae_col_spec, col_rel_width = ae_widths,
+               row_height_twips = 200),
+  "ae_huxtable")
 ```
 
 ```{r img-ae-flextable, eval = TRUE, echo = FALSE, out.width = "100%"}
