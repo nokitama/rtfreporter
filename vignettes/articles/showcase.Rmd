@@ -478,8 +478,15 @@ adae <- pharmaverseadam::adae |>
   mutate(TRT01A = factor(TRT01A, levels = arm_levels))
 ANY_AE <- "Subjects with any adverse event"
 
-# -- Canonical orderings, shared by every framework -------------------------
-# PTs ordered by total distinct subjects (all arms) descending, ties A -> Z.
+# -- Canonical order -------------------------------------------------------
+# SOCs alphabetical; within each SOC, PTs by total distinct subjects (all arms)
+# descending, ties A -> Z.  The gtsummary / cards + gtsummary tables get this in
+# one native call -- sort_hierarchical() takes a PER-VARIABLE `sort` (one rule
+# per hierarchy level); "descending" sorts by the total distinct-subject count
+# across all by-groups and breaks ties A -> Z, exactly the order we want.
+AE_SORT <- list(AESOC ~ "alphanumeric", AEDECOD ~ "descending")
+# The transpose-and-set frameworks (Tplyr, tfrmt) build the body themselves, so
+# they need the same PT order as an explicit vector.
 .pt_order <- adae |> distinct(USUBJID, AEDECOD) |>
   count(AEDECOD, name = "tot") |>
   arrange(desc(tot), AEDECOD) |> pull(AEDECOD) |> as.character()
@@ -517,28 +524,6 @@ fmt_ae <- function(x, nbsp = " ") {
   z <- grepl("^[[:space:]]*0[[:space:]]*\\([[:space:]]*0(\\.0)?%?[[:space:]]*\\)[[:space:]]*$", x)
   x[z] <- "0"
   fmt_count_paren_bare(x, nbsp = nbsp)
-}
-
-# Reorder a gtsummary hierarchical table_body to the canonical order: SOC blocks
-# alphabetical, PTs within each block by the supplied `pt_order`, the overall row
-# kept on top (relabelled to match tern).  Generic given an order vector.
-reorder_ae <- function(tbl, pt_order, overall_label = ANY_AE) {
-  tb <- tbl$table_body
-  tb$label[tb$variable == "..ard_hierarchical_overall.."] <- overall_label
-  is_soc    <- tb$variable == "AESOC"
-  blk       <- cumsum(is_soc)
-  block_ids <- sort(unique(blk[blk > 0]))
-  soc_lab   <- vapply(block_ids, function(b) tb$label[blk == b & is_soc][1], character(1))
-  new <- which(blk == 0)
-  for (b in block_ids[order(soc_lab)]) {
-    rows    <- which(blk == b)
-    soc_row <- rows[tb$variable[rows] == "AESOC"]
-    pt_rows <- rows[tb$variable[rows] == "AEDECOD"]
-    pt_rows <- pt_rows[order(match(tb$label[pt_rows], pt_order))]
-    new <- c(new, soc_row, pt_rows)
-  }
-  tbl$table_body <- tb[new, ]
-  tbl
 }
 
 # Prepend an "any event" overall row to a tbl_ard_hierarchical() (which, unlike
@@ -669,19 +654,21 @@ renders them in order, and the running header's `{AUTO_PAGE}` /
 
 `gtsummary::tbl_hierarchical()` builds the **same** table directly:
 `overall_row = TRUE` is the any-AE row, each SOC row carries its own subject
-count, and PTs are nested beneath. `filter_hierarchical()` keeps the >= 3% PTs.
-The shared `reorder_ae()` helper reorders the table body to the shared order
-(SOCs alphabetical, PTs by the `.pt_order` from setup) and relabels the overall
-row; `fmt_ae()` collapses a zero cell to a bare `0` to match the tern output.
+count, and PTs are nested beneath. `filter_hierarchical()` keeps the >= 3% PTs,
+and `sort_hierarchical()` puts them in the canonical order natively -- its `sort`
+takes one rule **per hierarchy level** (`AE_SORT` from setup: SOCs alphabetical,
+PTs by subject count, ties A -> Z). The overall row is labelled to match tern via
+the native `label` argument, and `fmt_ae()` collapses a zero cell to a bare `0`.
 
 ```{r ae-gtsummary}
 library(gtsummary)
 tbl <- tbl_hierarchical(
     data = adae, variables = c(AESOC, AEDECOD), by = TRT01A,
     denominator = adsl, id = USUBJID, overall_row = TRUE,
+    label = list("..ard_hierarchical_overall.." ~ ANY_AE),
     statistic = ~ "{n} ({p}%)", digits = everything() ~ list(p = 1)) |>
   filter_hierarchical(p >= 0.03) |>
-  reorder_ae(.pt_order)                # SOCs A->Z, PTs by subject count
+  sort_hierarchical(sort = AE_SORT)    # SOCs A->Z, PTs by subject count
 
 render_ae(
   as_rtftables(tbl, read_meta = TRUE, split = "group_force", max_rows = AE_MAX_ROWS,
@@ -703,8 +690,9 @@ The ARD-first variant: compute the hierarchical **Analysis Results Dataset** wit
 still **the ARD's job, not the raw data's**: a second `ard_stack_hierarchical()`
 with **`over_variables = TRUE`** computes the distinct-subject "any event" count
 across all the hierarchy variables, and `add_overall_row()` reads it straight off
-that ARD (no re-counting of `adae`). Everything else is identical, and the
-rendered table matches the two above cell-for-cell.
+that ARD (no re-counting of `adae`). Ordering uses the same native
+`sort_hierarchical(sort = AE_SORT)`, so the rendered table matches the two above
+cell-for-cell.
 
 ```{r ae-cards-gtsummary}
 library(cards); library(gtsummary)
@@ -721,8 +709,8 @@ tbl <- tbl_ard_hierarchical(
     cards = ard, variables = c(AESOC, AEDECOD), by = TRT01A,
     statistic = ~ "{n} ({p}%)") |>
   filter_hierarchical(p >= 0.03) |>
-  add_overall_row(ard_any) |>          # any-AE row read from the ARD, generically
-  reorder_ae(.pt_order)
+  sort_hierarchical(sort = AE_SORT) |> # SOCs A->Z, PTs by subject count (native)
+  add_overall_row(ard_any)             # any-AE row read from the ARD, generically
 
 render_ae(
   as_rtftables(tbl, read_meta = TRUE, split = "group_force", max_rows = AE_MAX_ROWS,
@@ -892,9 +880,10 @@ library(gtsummary); library(flextable); library(huxtable)
 g <- tbl_hierarchical(
     data = adae, variables = c(AESOC, AEDECOD), by = TRT01A,
     denominator = adsl, id = USUBJID, overall_row = TRUE,
+    label = list("..ard_hierarchical_overall.." ~ ANY_AE),
     statistic = ~ "{n} ({p}%)", digits = everything() ~ list(p = 1)) |>
   filter_hierarchical(p >= 0.03) |>
-  reorder_ae(.pt_order)
+  sort_hierarchical(sort = AE_SORT)
 
 # flextable
 render_ae(

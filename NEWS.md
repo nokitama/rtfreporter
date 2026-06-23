@@ -2,6 +2,16 @@
 
 ### Documentation
 
+- `showcase` article, AE gtsummary / cards + gtsummary examples: the canonical
+  SOC/PT order (SOCs alphabetical, PTs by total subject count descending, ties
+  A -> Z) is now produced by gtsummary's **native** `sort_hierarchical()` with a
+  per-variable `sort` (`list(AESOC ~ "alphanumeric", AEDECOD ~ "descending")`),
+  replacing the custom `reorder_ae()` `$table_body` surgery, which is removed
+  (#169). The standalone `tbl_hierarchical()` overall-row label is set via the
+  native `label` argument. Verified byte-identical row order / render to the
+  previous helper. `.pt_order` is kept for the Tplyr / tfrmt transpose-and-set
+  blocks. Refs #146.
+
 - `showcase` article, AE cards + gtsummary example: the any-AE overall row is now
   derived **generically from the ARD** instead of by re-counting the raw `adae`
   data frame (#167). A second `cards::ard_stack_hierarchical(..., over_variables =
