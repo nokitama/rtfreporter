@@ -520,9 +520,9 @@ fmt_ae <- function(x, nbsp = " ") {
 }
 
 # Reorder a gtsummary hierarchical table_body to the canonical order: SOC blocks
-# alphabetical, PTs within each block by `.pt_order`, the overall row kept on top
-# (relabelled to match tern).
-reorder_ae <- function(tbl, pt_order = .pt_order, overall_label = ANY_AE) {
+# alphabetical, PTs within each block by the supplied `pt_order`, the overall row
+# kept on top (relabelled to match tern).  Generic given an order vector.
+reorder_ae <- function(tbl, pt_order, overall_label = ANY_AE) {
   tb <- tbl$table_body
   tb$label[tb$variable == "..ard_hierarchical_overall.."] <- overall_label
   is_soc    <- tb$variable == "AESOC"
@@ -541,39 +541,42 @@ reorder_ae <- function(tbl, pt_order = .pt_order, overall_label = ANY_AE) {
   tbl
 }
 
-# Prepend an "any adverse event" overall row to a gtsummary hierarchical
-# table_body (tbl_ard_hierarchical() has no overall_row argument).
-add_any_ae_row <- function(tbl, label = ANY_AE) {
-  N     <- as.integer(arm_n[arm_levels])
-  anyae <- adae |> distinct(TRT01A, USUBJID) |> count(TRT01A)
-  vals  <- vapply(seq_along(arm_levels), function(i) {
-    n <- anyae$n[match(arm_levels[i], as.character(anyae$TRT01A))]
-    if (is.na(n)) n <- 0L
-    sprintf("%d (%.1f%%)", n, 100 * n / N[i])
+# Prepend an "any event" overall row to a tbl_ard_hierarchical() (which, unlike
+# tbl_hierarchical(), has no overall_row argument).  This is generic and
+# ARD-driven: the overall n / N / p are read straight off an ARD built with
+# `cards::ard_stack_hierarchical(..., over_variables = TRUE)` -- the rows whose
+# variable is "..ard_hierarchical_overall..".  The by-level -> stat_* column
+# mapping comes from the table's own header (`modify_stat_level`), and each cell
+# is formatted with the same glue `statistic` template the table uses.  Nothing
+# here touches the original data frame.
+add_overall_row <- function(tbl, ard, label = ANY_AE,
+                            statistic = "{n} ({p}%)", digits = 1L) {
+  hdr <- tbl$table_styling$header
+  hdr <- hdr[startsWith(hdr$column, "stat_"), ]
+  hdr <- hdr[order(hdr$column), ]                  # stat_1, stat_2, ... order
+  ov <- ard |>
+    dplyr::filter(variable == "..ard_hierarchical_overall..",
+                  stat_name %in% c("n", "N", "p")) |>
+    dplyr::transmute(level = as.character(unlist(group1_level)),
+                     stat_name, stat = unlist(stat)) |>
+    tidyr::pivot_wider(names_from = stat_name, values_from = stat)
+  cells <- vapply(hdr$modify_stat_level, function(lvl) {
+    r <- ov[match(lvl, ov$level), ]
+    glue::glue_data(list(n = r$n, N = r$N,
+                         p = formatC(100 * r$p, format = "f", digits = digits)),
+                    statistic)
   }, character(1))
   tb  <- tbl$table_body
   row <- tb[1, ]; row[seq_len(ncol(row))] <- NA
   row$variable <- "..ard_hierarchical_overall.."
   row$row_type <- "level"
   row$label    <- label
-  row$stat_1   <- vals[1]; row$stat_2 <- vals[2]; row$stat_3 <- vals[3]
+  for (j in seq_len(nrow(hdr))) row[[hdr$column[j]]] <- cells[j]
   tbl$table_body <- dplyr::bind_rows(row, tb)
   # Un-indent the injected row via the public API so it lines up with the SOCs.
   gtsummary::modify_indent(tbl, columns = "label",
                            rows = variable == "..ard_hierarchical_overall..",
                            indent = 0L)
-}
-
-# Build the standalone-gtsummary AE table (used directly, and as the source for
-# the flextable / huxtable conversions below).
-ae_gtsummary_tbl <- function() {
-  gtsummary::tbl_hierarchical(
-      data = adae, variables = c(AESOC, AEDECOD), by = TRT01A,
-      denominator = adsl, id = USUBJID, overall_row = TRUE,
-      statistic = ~ "{n} ({p}%)",
-      digits = gtsummary::everything() ~ list(p = 1)) |>
-    gtsummary::filter_hierarchical(p >= 0.03) |>
-    reorder_ae()
 }
 
 # Bake the PT indent into the label TEXT (NBSP), because as_flex_table() /
@@ -668,14 +671,17 @@ renders them in order, and the running header's `{AUTO_PAGE}` /
 `overall_row = TRUE` is the any-AE row, each SOC row carries its own subject
 count, and PTs are nested beneath. `filter_hierarchical()` keeps the >= 3% PTs.
 The shared `reorder_ae()` helper reorders the table body to the shared order
-(SOCs alphabetical, PTs by subject count) and relabels the overall row; `fmt_ae()`
-collapses a zero cell to a bare `0` to match the tern output. (`ae_gtsummary_tbl()`
-is defined in the setup block -- it is `tbl_hierarchical()` + `filter_hierarchical()`
-+ `reorder_ae()` and is reused by the flextable / huxtable blocks below.)
+(SOCs alphabetical, PTs by the `.pt_order` from setup) and relabels the overall
+row; `fmt_ae()` collapses a zero cell to a bare `0` to match the tern output.
 
 ```{r ae-gtsummary}
 library(gtsummary)
-tbl <- ae_gtsummary_tbl()            # tbl_hierarchical |> filter |> reorder_ae
+tbl <- tbl_hierarchical(
+    data = adae, variables = c(AESOC, AEDECOD), by = TRT01A,
+    denominator = adsl, id = USUBJID, overall_row = TRUE,
+    statistic = ~ "{n} ({p}%)", digits = everything() ~ list(p = 1)) |>
+  filter_hierarchical(p >= 0.03) |>
+  reorder_ae(.pt_order)                # SOCs A->Z, PTs by subject count
 
 render_ae(
   as_rtftables(tbl, read_meta = TRUE, split = "group_force", max_rows = AE_MAX_ROWS,
@@ -692,23 +698,31 @@ render_ae(
 ## cards + gtsummary
 
 The ARD-first variant: compute the hierarchical **Analysis Results Dataset** with
-`cards::ard_stack_hierarchical()`, then summarise it with
-`tbl_ard_hierarchical()`. It has no `overall_row` argument, so the any-AE row is
-added from the ARD with `add_any_ae_row()`; everything else is identical, and the
+`cards::ard_stack_hierarchical()`, then summarise it with `tbl_ard_hierarchical()`.
+`tbl_ard_hierarchical()` has no `overall_row` argument -- but the any-AE row is
+still **the ARD's job, not the raw data's**: a second `ard_stack_hierarchical()`
+with **`over_variables = TRUE`** computes the distinct-subject "any event" count
+across all the hierarchy variables, and `add_overall_row()` reads it straight off
+that ARD (no re-counting of `adae`). Everything else is identical, and the
 rendered table matches the two above cell-for-cell.
 
 ```{r ae-cards-gtsummary}
 library(cards); library(gtsummary)
+# Hierarchical ARD for the SOC / PT body.
 ard <- ard_stack_hierarchical(
   data = adae, variables = c(AESOC, AEDECOD), by = TRT01A,
   denominator = adsl, id = USUBJID)
+# "Any event" ARD: over_variables = TRUE adds the distinct-subject overall count.
+ard_any <- ard_stack_hierarchical(
+  data = adae, variables = c(AESOC, AEDECOD), by = TRT01A,
+  denominator = adsl, id = USUBJID, over_variables = TRUE)
 
 tbl <- tbl_ard_hierarchical(
     cards = ard, variables = c(AESOC, AEDECOD), by = TRT01A,
     statistic = ~ "{n} ({p}%)") |>
   filter_hierarchical(p >= 0.03) |>
-  add_any_ae_row() |>                  # tbl_ard_hierarchical has no overall row
-  reorder_ae()
+  add_overall_row(ard_any) |>          # any-AE row read from the ARD, generically
+  reorder_ae(.pt_order)
 
 render_ae(
   as_rtftables(tbl, read_meta = TRUE, split = "group_force", max_rows = AE_MAX_ROWS,
@@ -873,8 +887,14 @@ converters turn gtsummary's indent into cell padding that the flextable /
 huxtable adapters do not read as a row-label indent.)
 
 ```{r ae-flextable-huxtable}
-library(flextable); library(huxtable)
-g <- ae_gtsummary_tbl()                       # the gtsummary table from above
+library(gtsummary); library(flextable); library(huxtable)
+# The same gtsummary table as the gtsummary section above.
+g <- tbl_hierarchical(
+    data = adae, variables = c(AESOC, AEDECOD), by = TRT01A,
+    denominator = adsl, id = USUBJID, overall_row = TRUE,
+    statistic = ~ "{n} ({p}%)", digits = everything() ~ list(p = 1)) |>
+  filter_hierarchical(p >= 0.03) |>
+  reorder_ae(.pt_order)
 
 # flextable
 render_ae(
