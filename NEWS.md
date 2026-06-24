@@ -2,6 +2,17 @@
 
 ### Documentation
 
+- `showcase` article, DM chapter: restructured so rtfreporter's own functions are
+  used **directly** instead of behind a `render_dm()` wrapper (#171). The shared
+  report furniture (`rtf_header()` / `rtf_footer()` plus the column header, spec
+  and widths) is now defined **once**, and each framework block ends with the full
+  `as_rtftables()` -> `rtf_document() |> rtf_section() |> rtf_tables()` ->
+  `generate_rtfreport()` pipeline written out in the open. The overrides the old
+  helper applied (uniform column header, 40:20:20:20 widths, alignment, group
+  blanks) are now expressed as plain `as_rtftables()` arguments
+  (`col_header` / `col_spec` / `col_rel_width` / `blank_rows = "between_groups"`),
+  so the rendered RTF is unchanged. Refs #146.
+
 - `showcase` article, AE gtsummary / cards + gtsummary examples: the canonical
   SOC/PT order (SOCs alphabetical, PTs by total subject count descending, ties
   A -> Z) is now produced by gtsummary's **native** `sort_hierarchical()` with a
