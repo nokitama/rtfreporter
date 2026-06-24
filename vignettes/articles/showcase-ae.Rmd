@@ -2,7 +2,7 @@
 title: "Same report, every framework: Adverse events (AE)"
 ---
 
-```{r, include = FALSE}
+```{r, include = FALSE, purl = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
                       message = FALSE, warning = FALSE, eval = FALSE)
 
@@ -27,7 +27,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
 }
 ```
 
-```{r setup}
+```{r setup, purl = FALSE}
 library(rtfreporter)
 ```
 
@@ -54,10 +54,12 @@ table; this article tackles a longer table that `rtfreporter` must **paginate**.
 > shared `AE_SORT` rule and PT orderings, so a framework block runs on its own
 > once the data block has.) We render with `eval = FALSE` in the
 > article itself -- so pkgdown does not have to run the entire framework stack --
-> and show the Word output as a screenshot. The same generator also lives in
-> [`data-raw/showcase_ae.R`](https://github.com/ichirio/rtfreporter/blob/main/data-raw/showcase_ae.R),
-> and the rendered `.rtf` files are committed to
-> [`inst/rtf-examples/showcase/`](https://github.com/ichirio/rtfreporter/tree/main/inst/rtf-examples/showcase).
+> and show the Word output as a screenshot. The committed `.rtf` files are
+> produced by **running these very chunks**:
+> [`data-raw/showcase_ae.R`](https://github.com/ichirio/rtfreporter/blob/main/data-raw/showcase_ae.R)
+> extracts them with `knitr::purl()` and writes them to
+> [`inst/rtf-examples/showcase/`](https://github.com/ichirio/rtfreporter/tree/main/inst/rtf-examples/showcase)
+> -- so the code you read here *is* the generator.
 
 The demographics table fits on a page; a real **adverse-events** table does not.
 This is where `rtfreporter`'s **pagination** earns its keep: a long
@@ -237,7 +239,7 @@ doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape"
 generate_rtfreport(doc, "ae_tern.rtf", overwrite = TRUE)
 ```
 
-```{r img-ae-tern, eval = TRUE, echo = FALSE, out.width = "100%"}
+```{r img-ae-tern, eval = TRUE, echo = FALSE, out.width = "100%", purl = FALSE}
 .snapshot("ae_tern.png", "AE summary via rtables/tern, paginated with (Cont.)")
 ```
 
@@ -276,7 +278,7 @@ doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape"
 generate_rtfreport(doc, "ae_gtsummary.rtf", overwrite = TRUE)
 ```
 
-```{r img-ae-gtsummary, eval = TRUE, echo = FALSE, out.width = "100%"}
+```{r img-ae-gtsummary, eval = TRUE, echo = FALSE, out.width = "100%", purl = FALSE}
 .snapshot("ae_gtsummary.png", "AE summary via gtsummary tbl_hierarchical()")
 ```
 
@@ -357,7 +359,7 @@ doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape"
 generate_rtfreport(doc, "ae_gtsummary_ard.rtf", overwrite = TRUE)
 ```
 
-```{r img-ae-cards-gtsummary, eval = TRUE, echo = FALSE, out.width = "100%"}
+```{r img-ae-cards-gtsummary, eval = TRUE, echo = FALSE, out.width = "100%", purl = FALSE}
 .snapshot("ae_gtsummary_ard.png", "AE summary via cards + gtsummary tbl_ard_hierarchical()")
 ```
 
@@ -428,7 +430,7 @@ doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape"
 generate_rtfreport(doc, "ae_tplyr.rtf", overwrite = TRUE)
 ```
 
-```{r img-ae-tplyr, eval = TRUE, echo = FALSE, out.width = "100%"}
+```{r img-ae-tplyr, eval = TRUE, echo = FALSE, out.width = "100%", purl = FALSE}
 .snapshot("ae_tplyr.png", "AE summary via Tplyr (transpose-and-set)")
 ```
 
@@ -503,7 +505,7 @@ doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape"
 generate_rtfreport(doc, "ae_tfrmt.rtf", overwrite = TRUE)
 ```
 
-```{r img-ae-tfrmt, eval = TRUE, echo = FALSE, out.width = "100%"}
+```{r img-ae-tfrmt, eval = TRUE, echo = FALSE, out.width = "100%", purl = FALSE}
 .snapshot("ae_tfrmt.png", "AE summary via cards + tfrmt (group == label puts the count on the SOC row)")
 ```
 
@@ -564,11 +566,11 @@ doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape"
 generate_rtfreport(doc, "ae_huxtable.rtf", overwrite = TRUE)
 ```
 
-```{r img-ae-flextable, eval = TRUE, echo = FALSE, out.width = "100%"}
+```{r img-ae-flextable, eval = TRUE, echo = FALSE, out.width = "100%", purl = FALSE}
 .snapshot("ae_flextable.png", "AE summary via gtsummary -> flextable")
 ```
 
-```{r img-ae-huxtable, eval = TRUE, echo = FALSE, out.width = "100%"}
+```{r img-ae-huxtable, eval = TRUE, echo = FALSE, out.width = "100%", purl = FALSE}
 .snapshot("ae_huxtable.png", "AE summary via gtsummary -> huxtable")
 ```
 

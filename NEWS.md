@@ -2,6 +2,18 @@
 
 ### Documentation
 
+- `showcase` RTF generators now **derive from the articles** instead of
+  duplicating them (#179). `data-raw/showcase_dm.R` / `showcase_ae.R` are now
+  ~20-line drivers that `knitr::purl()` the matching `showcase-*.Rmd` and run its
+  code chunks, writing `inst/rtf-examples/showcase/{dm,ae}_*.rtf`. The article is
+  the single source of truth, so the committed RTFs can no longer drift from the
+  shown code (the previous duplication caused exactly that -- e.g. a footnote fix
+  landed in the article but not the generator). The articles' display-only chunks
+  (snapshot helper, `library()` setup, `img-*` chunks) are marked `purl = FALSE`.
+  The old generators' pre-#169 helpers (`reorder_ae` / `add_any_ae_row` /
+  `render_*` wrappers) are retired with the duplication. All DM + AE RTFs were
+  regenerated from the articles. Refs #146.
+
 - `showcase-ae` article + `data-raw/showcase_ae.R` generator + regenerated
   `inst/rtf-examples/showcase/ae_*.rtf` (#177):
   - **Zero cells now align.** `fmt_ae` previously collapsed a zero cell

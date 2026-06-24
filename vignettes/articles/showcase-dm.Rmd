@@ -2,7 +2,7 @@
 title: "Same report, every framework: Demographics (DM)"
 ---
 
-```{r, include = FALSE}
+```{r, include = FALSE, purl = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
                       message = FALSE, warning = FALSE, eval = FALSE)
 
@@ -27,7 +27,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
 }
 ```
 
-```{r setup}
+```{r setup, purl = FALSE}
 library(rtfreporter)
 ```
 
@@ -52,10 +52,12 @@ adverse-events table.
 > rtfreporter **directly** -- `as_rtftables()`, `rtf_document()`,
 > `generate_rtfreport()` -- to write its `.rtf`. We render with `eval = FALSE` in the
 > article itself -- so pkgdown does not have to run the entire framework stack --
-> and show the Word output as a screenshot. The same generator also lives in
-> [`data-raw/showcase_dm.R`](https://github.com/ichirio/rtfreporter/blob/main/data-raw/showcase_dm.R),
-> and the rendered `.rtf` files are committed to
-> [`inst/rtf-examples/showcase/`](https://github.com/ichirio/rtfreporter/tree/main/inst/rtf-examples/showcase).
+> and show the Word output as a screenshot. The committed `.rtf` files are
+> produced by **running these very chunks**:
+> [`data-raw/showcase_dm.R`](https://github.com/ichirio/rtfreporter/blob/main/data-raw/showcase_dm.R)
+> extracts them with `knitr::purl()` and writes them to
+> [`inst/rtf-examples/showcase/`](https://github.com/ichirio/rtfreporter/tree/main/inst/rtf-examples/showcase)
+> -- so the code you read here *is* the generator.
 
 ## The data
 
@@ -167,7 +169,7 @@ doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape"
 generate_rtfreport(doc, "dm_gtsummary.rtf", overwrite = TRUE)
 ```
 
-```{r img-gtsummary, eval = TRUE, echo = FALSE, out.width = "100%"}
+```{r img-gtsummary, eval = TRUE, echo = FALSE, out.width = "100%", purl = FALSE}
 .snapshot("dm_gtsummary.png", "DM summary via gtsummary")
 ```
 
@@ -203,7 +205,7 @@ doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape"
 generate_rtfreport(doc, "dm_gtsummary_ard.rtf", overwrite = TRUE)
 ```
 
-```{r img-gtsummary-ard, eval = TRUE, echo = FALSE, out.width = "100%"}
+```{r img-gtsummary-ard, eval = TRUE, echo = FALSE, out.width = "100%", purl = FALSE}
 .snapshot("dm_gtsummary_ard.png", "DM summary via gtsummary on a cards/cardx ARD")
 ```
 
@@ -236,7 +238,7 @@ doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape"
 generate_rtfreport(doc, "dm_rtables.rtf", overwrite = TRUE)
 ```
 
-```{r img-rtables, eval = TRUE, echo = FALSE, out.width = "100%"}
+```{r img-rtables, eval = TRUE, echo = FALSE, out.width = "100%", purl = FALSE}
 .snapshot("dm_rtables.png", "DM summary via rtables/tern")
 ```
 
@@ -326,7 +328,7 @@ doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape"
 generate_rtfreport(doc, "dm_tfrmt.rtf", overwrite = TRUE)   # tfrmt's alignment
 ```
 
-```{r img-tfrmt, eval = TRUE, echo = FALSE, out.width = "100%"}
+```{r img-tfrmt, eval = TRUE, echo = FALSE, out.width = "100%", purl = FALSE}
 .snapshot("dm_tfrmt.png", "DM summary via cards + tfrmt, formatted by tfrmt")
 ```
 
@@ -348,7 +350,7 @@ doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape"
 generate_rtfreport(doc, "dm_tfrmt_rtfreporter.rtf", overwrite = TRUE)  # rtfreporter aligns
 ```
 
-```{r img-tfrmt-rtfreporter, eval = TRUE, echo = FALSE, out.width = "100%"}
+```{r img-tfrmt-rtfreporter, eval = TRUE, echo = FALSE, out.width = "100%", purl = FALSE}
 .snapshot("dm_tfrmt_rtfreporter.png", "DM summary via cards + tfrmt, formatted by rtfreporter")
 ```
 
@@ -428,7 +430,7 @@ doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape"
 generate_rtfreport(doc, "dm_tplyr.rtf", overwrite = TRUE)
 ```
 
-```{r img-tplyr, eval = TRUE, echo = FALSE, out.width = "100%"}
+```{r img-tplyr, eval = TRUE, echo = FALSE, out.width = "100%", purl = FALSE}
 .snapshot("dm_tplyr.png", "DM summary via Tplyr")
 ```
 
