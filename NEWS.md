@@ -2,6 +2,19 @@
 
 ### Documentation
 
+- `showcase-ae` article, three fixes from maintainer review (#175): (1) lower
+  `AE_MAX_ROWS` 32 -> 30 so page 1 still fits once Word re-renders the RTF; (2)
+  pass `read_meta = FALSE` in every framework block so the gtsummary hierarchical
+  tables' `{n} ({p}%)` statistic footnote (which appeared as stray lines below
+  the table) is no longer read -- each block already supplies the column header /
+  spec / widths and the footer, so no framework metadata is needed; (3) localise
+  variables -- `AE_SORT` (gtsummary-family only) moves to the gtsummary block,
+  the `.pt_order` / `.keep_pt` / `.soc_pt` orderings (transpose-and-set only) move
+  to the Tplyr block, and the single-use helpers `add_overall_row()` /
+  `bake_indent()` move into the cards + gtsummary and flextable / huxtable blocks
+  respectively; only genuinely shared furniture stays in the setup block. Refs
+  #146.
+
 - `showcase` article **split into two**: `showcase-dm.Rmd` (*"Same report, every
   framework: Demographics"*) and `showcase-ae.Rmd` (*"... Adverse events"*)
   (#173). The old single-page URL `articles/showcase.html` now redirects to
