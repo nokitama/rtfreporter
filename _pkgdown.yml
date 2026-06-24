@@ -1,5 +1,10 @@
 url: https://ichirio.github.io/rtfreporter/
 
+# The showcase article was split into a Demographics and an Adverse-events
+# article; keep the old single-page URL working.
+redirects:
+  - ["articles/showcase.html", "articles/showcase-dm.html"]
+
 template:
   bootstrap: 5
   bootswatch: cosmo
@@ -116,8 +121,10 @@ navbar:
         # ── Worked clinical examples ────────────────────────────────────
         - text: -------
         - text: "Worked clinical examples"
-        - text: "Same report, every table framework"
-          href: articles/showcase.html
+        - text: "Same report, every framework: Demographics"
+          href: articles/showcase-dm.html
+        - text: "Same report, every framework: Adverse events"
+          href: articles/showcase-ae.html
         - text: "Pharmaverse Example tables to RTF"
           href: articles/tlg-catalog.html
         - text: "Demographics table"
@@ -359,7 +366,8 @@ articles:
     desc: End-to-end recipes for typical clinical TFL deliverables.
     navbar: ~
     contents:
-      - articles/showcase
+      - articles/showcase-dm
+      - articles/showcase-ae
       - articles/tlg-catalog
       - articles/example-demog
       - articles/example-lab

@@ -2,6 +2,21 @@
 
 ### Documentation
 
+- `showcase` article **split into two**: `showcase-dm.Rmd` (*"Same report, every
+  framework: Demographics"*) and `showcase-ae.Rmd` (*"... Adverse events"*)
+  (#173). The old single-page URL `articles/showcase.html` now redirects to
+  `articles/showcase-dm.html`. The AE article is now self-contained (it builds
+  `adsl` itself) and cross-links the DM article, and vice versa.
+
+- `showcase` AE article: restructured so rtfreporter's own functions are used
+  **directly** instead of behind a `render_ae()` wrapper (#173), matching the DM
+  treatment in #171. The shared furniture (`rtf_header()` / `rtf_footer()` + the
+  column header / spec / widths) is defined **once**, and each framework block
+  ends with the full `as_rtftables()` -> `rtf_document() |> rtf_section() |>
+  rtf_tables()` -> `generate_rtfreport()` pipeline written out in the open. The
+  footer is now a single shared `ae_footer` (was built per framework inside the
+  wrapper); rendered RTF is unchanged. Refs #146.
+
 - `showcase` article, DM chapter: restructured so rtfreporter's own functions are
   used **directly** instead of behind a `render_dm()` wrapper (#171). The shared
   report furniture (`rtf_header()` / `rtf_footer()` plus the column header, spec

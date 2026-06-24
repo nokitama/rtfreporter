@@ -25,7 +25,7 @@
 #
 # Each framework writes inst/rtf-examples/showcase/ae_<framework>.rtf .  PNG
 # snapshots are captured MANUALLY (open the .rtf in Word) and saved next to
-# them as ae_<framework>.png (same basename); see showcase.Rmd / the
+# them as ae_<framework>.png (same basename); see showcase-ae.Rmd / the
 # data-raw/showcase_placeholders.R note.
 #
 # Run with:  Rscript data-raw/showcase_ae.R

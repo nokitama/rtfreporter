@@ -10,7 +10,7 @@
 # snapshots for the article are created MANUALLY from these RTFs (open the .rtf
 # in Word, export / screenshot) and saved NEXT TO them as
 # inst/rtf-examples/showcase/dm_<framework>.png (same basename).  The article
-# (vignettes/articles/showcase.Rmd) copies whichever PNGs exist into its own
+# (vignettes/articles/showcase-dm.Rmd) copies whichever PNGs exist into its own
 # figures/ folder at build time and shows a "snapshot not captured yet"
 # placeholder for any that are missing -- so it builds with or without them.
 #
@@ -326,6 +326,6 @@ try_block("cards-tfrmt", local({
 # -- Snapshots --------------------------------------------------------------
 # The article embeds a PNG snapshot per RTF, made MANUALLY in Word and saved
 # next to each .rtf as inst/rtf-examples/showcase/dm_<framework>.png .  Nothing
-# to generate here: showcase.Rmd copies whatever PNGs exist and shows a textual
+# to generate here: showcase-dm.Rmd copies whatever PNGs exist and shows a textual
 # "snapshot not captured yet" placeholder for any that are missing.
 cat("Done.  Capture PNGs into", rtf_dir, "to replace the article placeholders.\n")

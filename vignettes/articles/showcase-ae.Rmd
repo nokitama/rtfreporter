@@ -1,0 +1,568 @@
+---
+title: "Same report, every framework: Adverse events (AE)"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
+                      message = FALSE, warning = FALSE, eval = FALSE)
+
+# Show a screenshot of the rendered RTF if it has been captured.  The PNGs sit
+# next to the .rtf files in inst/rtf-examples/showcase/; we copy the one we need
+# into the article's own figures/ folder (so pkgdown serves it) and include it.
+# If the screenshot does not exist yet, a small placeholder is shown instead so
+# the article still builds.
+.snapshot <- function(file, alt = "rendered RTF") {
+  src <- file.path("..", "..", "inst", "rtf-examples", "showcase", file)
+  if (file.exists(src)) {
+    dir.create(file.path("figures", "showcase"), showWarnings = FALSE,
+               recursive = TRUE)
+    dest <- file.path("figures", "showcase", file)
+    file.copy(src, dest, overwrite = TRUE)
+    knitr::include_graphics(dest)
+  } else {
+    knitr::asis_output(sprintf(
+      "<p><em>(snapshot <code>inst/rtf-examples/showcase/%s</code> not captured yet)</em></p>",
+      file))
+  }
+}
+```
+
+```{r setup}
+library(rtfreporter)
+```
+
+The R ecosystem for clinical tables is wonderfully diverse -- **rtables/tern**,
+**tfrmt**, **gtsummary** (on its own or on a **cards/cardx** ARD), **Tplyr**,
+**gt**, **flextable**, **huxtable** -- and teams pick whichever fits their style
+and validation story. What they all have in common is the *last* step: a
+**regulatory RTF** that opens cleanly in Word.
+
+That last step is exactly what `rtfreporter` does, for **all of them**. This
+article builds the **same adverse-events report from the same data** with several
+frameworks and renders each to RTF through `rtfreporter`. The point is not that
+one framework is best -- it is that **whatever you already use, rtfreporter is
+the RTF back end**. Its companion,
+[Demographics](showcase-dm.html), does the same for a single-page demographics
+table; this article tackles a longer table that `rtfreporter` must **paginate**.
+
+> **Every block here is copy-paste runnable, from data creation to the written
+> `.rtf`.** Run a section's **data** and **furniture** blocks once (they prepare
+> the data and the shared rtfreporter header / footer / column spec), then copy
+> any single framework block: it builds that framework's table and then calls
+> rtfreporter **directly** -- `as_rtftables()`, `rtf_document()`,
+> `generate_rtfreport()` -- to write its `.rtf`. We render with `eval = FALSE` in the
+> article itself -- so pkgdown does not have to run the entire framework stack --
+> and show the Word output as a screenshot. The same generator also lives in
+> [`data-raw/showcase_ae.R`](https://github.com/ichirio/rtfreporter/blob/main/data-raw/showcase_ae.R),
+> and the rendered `.rtf` files are committed to
+> [`inst/rtf-examples/showcase/`](https://github.com/ichirio/rtfreporter/tree/main/inst/rtf-examples/showcase).
+
+The demographics table fits on a page; a real **adverse-events** table does not.
+This is where `rtfreporter`'s **pagination** earns its keep: a long
+System-Organ-Class / Preferred-Term table is split across pages, and a class
+that straddles a page boundary has its label **repeated with `(Cont.)`** at the
+top of the next page.
+
+We count the **number of subjects** with at least one treatment-emergent AE,
+by treatment group, shown as `n (xx.x%)`:
+
+- **"Subjects with any adverse event"** overall on top, then per **System Organ
+  Class (SOC)**, and -- indented -- per **Preferred Term (PT)**.
+- Each level is an **independent distinct-subject count**: the SOC count sits on
+  the **SOC row itself** and counts a subject once even if they had several PTs
+  in that class, so a SOC count is **not** the sum of its PTs.
+- Limited to PTs occurring in **>= 3% of subjects in any group** (the overall /
+  SOC counts are still over *all* TEAEs), so the table is a readable couple of
+  pages.
+- **SOCs are listed alphabetically**; within each SOC the **PTs are ordered by
+  subject count (all arms), descending**, ties broken **alphabetically**.
+
+## The data
+
+We use [`pharmaverseadam`](https://pharmaverse.github.io/pharmaverseadam/)'s
+`adsl` (for the treatment groups and their denominators) and `adae`, both
+restricted to the three randomised arms. This block also computes the canonical
+orderings every framework reuses, so the tables match cell-for-cell.
+
+```{r ae-data}
+library(dplyr)
+arm_levels <- c("Placebo", "Xanomeline Low Dose", "Xanomeline High Dose")
+adsl <- pharmaverseadam::adsl |>
+  filter(TRT01A %in% arm_levels) |>
+  mutate(TRT01A = factor(TRT01A, levels = arm_levels))
+arm_n <- table(adsl$TRT01A)
+
+# Treatment-emergent AEs only, in the same three arms.
+adae <- pharmaverseadam::adae |>
+  filter(TRT01A %in% arm_levels, TRTEMFL == "Y") |>
+  mutate(TRT01A = factor(TRT01A, levels = arm_levels))
+ANY_AE <- "Subjects with any adverse event"
+
+# -- Canonical order -------------------------------------------------------
+# SOCs alphabetical; within each SOC, PTs by total distinct subjects (all arms)
+# descending, ties A -> Z.  The gtsummary / cards + gtsummary tables get this in
+# one native call -- sort_hierarchical() takes a PER-VARIABLE `sort` (one rule
+# per hierarchy level); "descending" sorts by the total distinct-subject count
+# across all by-groups and breaks ties A -> Z, exactly the order we want.
+AE_SORT <- list(AESOC ~ "alphanumeric", AEDECOD ~ "descending")
+# The transpose-and-set frameworks (Tplyr, tfrmt) build the body themselves, so
+# they need the same PT order as an explicit vector.
+.pt_order <- adae |> distinct(USUBJID, AEDECOD) |>
+  count(AEDECOD, name = "tot") |>
+  arrange(desc(tot), AEDECOD) |> pull(AEDECOD) |> as.character()
+# PTs kept in the table: >= 3% of subjects in any treatment group.
+.keep_pt <- adae |> distinct(USUBJID, TRT01A, AEDECOD) |>
+  count(TRT01A, AEDECOD, name = "n") |>
+  mutate(p = 100 * n / as.integer(arm_n[as.character(TRT01A)])) |>
+  group_by(AEDECOD) |> summarise(mx = max(p), .groups = "drop") |>
+  filter(mx >= 3) |> pull(AEDECOD) |> as.character()
+# Real SOC / PT pairs (a PT belongs to exactly one SOC).
+.soc_pt <- adae |> distinct(AESOC, AEDECOD) |>
+  mutate(across(everything(), as.character))
+```
+
+## The shared rtfreporter furniture, defined once
+
+The running **header** and **footer**, the **Letter landscape** page, the column
+header with the arm Ns, the column spec and widths, and a couple of small
+table-shaping helpers are the same for every framework below. We build them
+**once here**; each framework block then references them. Only the table *body*
+changes from framework to framework.
+
+```{r ae-furniture}
+# Shared column header / spec / widths / page budget.
+ae_col_header <- c("System Organ Class /\nPreferred Term",
+                   paste0(arm_levels, "\nN = ", as.integer(arm_n)))
+ae_col_spec <- c(
+  list(list(col = 1L, align = "left",   header_align = "left")),
+  lapply(2:4, function(j) list(col = j, align = "center", header_align = "center")))
+ae_widths   <- c(0.52, 0.16, 0.16, 0.16)
+AE_MAX_ROWS <- 32L
+
+# Running header and the shared footer (one footer for every framework).
+ae_header <- rtf_header(rows = list(
+  c(l = "Acme Biopharma, Inc.",  r = "Page {AUTO_PAGE} of {AUTO_TOTAL_PAGES}"),
+  c(l = "Protocol ABC-2026-001", r = "Status: Draft"),
+  c(c = "Table 14.3.1"),
+  c(c = "Treatment-Emergent Adverse Events Occurring in >= 3% of Subjects in Any Treatment Group"),
+  c(c = "by System Organ Class and Preferred Term -- Safety Population"),
+  c(c = "")))
+ae_footer <- rtf_footer(rows = list(
+  c(l = "Note: A subject with multiple events within a category is counted once for that category. Percentages use the number of subjects in the safety population per group."),
+  c(l = "Program: /prod/abc/tfl/t_14_3_1_ae.R", r = "Generated: 2026-06-17 09:14"),
+  c(l = "Source: ADSL, ADAE", r = "CONFIDENTIAL")))
+
+# Cell format shared by the read-meta frameworks: collapse a zero cell
+# "0 (0.0%)" to a bare "0" (so SOC and PT zeros match tern), then align.
+fmt_ae <- function(x, nbsp = " ") {
+  z <- grepl("^[[:space:]]*0[[:space:]]*\\([[:space:]]*0(\\.0)?%?[[:space:]]*\\)[[:space:]]*$", x)
+  x[z] <- "0"
+  fmt_count_paren_bare(x, nbsp = nbsp)
+}
+
+# Prepend an "any event" overall row to a tbl_ard_hierarchical() (which, unlike
+# tbl_hierarchical(), has no overall_row argument).  This is generic and
+# ARD-driven: the overall n / N / p are read straight off an ARD built with
+# `cards::ard_stack_hierarchical(..., over_variables = TRUE)` -- the rows whose
+# variable is "..ard_hierarchical_overall..".  The by-level -> stat_* column
+# mapping comes from the table's own header (`modify_stat_level`), and each cell
+# is formatted with the same glue `statistic` template the table uses.  Nothing
+# here touches the original data frame.
+add_overall_row <- function(tbl, ard, label = ANY_AE,
+                            statistic = "{n} ({p}%)", digits = 1L) {
+  hdr <- tbl$table_styling$header
+  hdr <- hdr[startsWith(hdr$column, "stat_"), ]
+  hdr <- hdr[order(hdr$column), ]                  # stat_1, stat_2, ... order
+  ov <- ard |>
+    dplyr::filter(variable == "..ard_hierarchical_overall..",
+                  stat_name %in% c("n", "N", "p")) |>
+    dplyr::transmute(level = as.character(unlist(group1_level)),
+                     stat_name, stat = unlist(stat)) |>
+    tidyr::pivot_wider(names_from = stat_name, values_from = stat)
+  cells <- vapply(hdr$modify_stat_level, function(lvl) {
+    r <- ov[match(lvl, ov$level), ]
+    glue::glue_data(list(n = r$n, N = r$N,
+                         p = formatC(100 * r$p, format = "f", digits = digits)),
+                    statistic)
+  }, character(1))
+  tb  <- tbl$table_body
+  row <- tb[1, ]; row[seq_len(ncol(row))] <- NA
+  row$variable <- "..ard_hierarchical_overall.."
+  row$row_type <- "level"
+  row$label    <- label
+  for (j in seq_len(nrow(hdr))) row[[hdr$column[j]]] <- cells[j]
+  tbl$table_body <- dplyr::bind_rows(row, tb)
+  # Un-indent the injected row via the public API so it lines up with the SOCs.
+  gtsummary::modify_indent(tbl, columns = "label",
+                           rows = variable == "..ard_hierarchical_overall..",
+                           indent = 0L)
+}
+
+# Bake the PT indent into the label TEXT (NBSP), because as_flex_table() /
+# as_hux_table() turn gtsummary's indent into cell padding that the flextable /
+# huxtable adapters do not read as a row-label indent.
+bake_indent <- function(tbl, n = 4L) {
+  tb <- tbl$table_body
+  pt <- tb$variable == "AEDECOD"
+  tb$label[pt] <- paste0(strrep(" ", n), tb$label[pt])
+  tbl$table_body <- tb
+  tbl$table_styling$indent <- tbl$table_styling$indent[0, ]
+  tbl
+}
+
+```
+
+Every framework block below ends with the **same three rtfreporter steps**,
+written out in full so nothing is hidden:
+
+1. `as_rtftables()` paginates the framework's table into a list of pages with
+   `split = "group_force"` (`max_rows = AE_MAX_ROWS`), so a System Organ Class
+   that straddles a page boundary repeats with `(Cont.)`;
+2. `rtf_document() |> rtf_section() |> rtf_tables()` wraps the pages with the
+   shared `ae_header` / `ae_footer` on a Letter-landscape page;
+3. `generate_rtfreport()` writes the `.rtf`.
+
+## rtables / tern
+
+`tern` is the pharmaverse standard for this table. `analyze_num_patients()`
+gives the overall "any AE" row; a SOC-level content summary
+(`summarize_row_groups()` with `child_labels = "hidden"`) puts each SOC's
+distinct-subject count **on the SOC name row**; `count_occurrences()` gives the
+indented PT rows. We build on the full data, **prune** PT rows below 3% with
+`rtables::prune_table()`, and **sort** by subject count -- alphabetical factor
+levels plus a stable `sort_at_path()` break ties A -> Z. `rtfreporter` then
+paginates with **`split = "group_force"`** (`max_rows` per page), which is what
+inserts the `(Cont.)` rows.
+
+```{r ae-tern}
+library(rtables); library(tern)
+# Alphabetical factor levels so SOCs / PTs tie-break A -> Z.
+adae_f <- adae |>
+  mutate(AESOC   = factor(AESOC,   levels = sort(unique(AESOC))),
+         AEDECOD = factor(AEDECOD, levels = sort(unique(AEDECOD))))
+
+# Distinct subjects with any AE in a SOC, per column -- shown on the SOC row.
+# A zero count prints as a bare "0" (no parens), exactly like count_occurrences()
+# renders the PT rows, so both levels format a zero the same way.
+soc_count <- function(df, labelstr, .N_col, ...) {
+  n <- length(unique(df$USUBJID))
+  cell <- if (n == 0L) rcell(0L, format = "xx")
+          else         rcell(c(n, n / .N_col), format = "xx (xx.x%)")
+  in_rows(cell, .labels = labelstr)
+}
+
+ae <- basic_table(show_colcounts = TRUE) |>
+  split_cols_by("TRT01A") |>
+  analyze_num_patients(vars = "USUBJID", .stats = "unique",
+                       .labels = c(unique = ANY_AE)) |>
+  split_rows_by("AESOC", child_labels = "hidden", nested = FALSE,
+                split_fun = drop_split_levels) |>
+  summarize_row_groups(cfun = soc_count) |>              # SOC count on the SOC row
+  count_occurrences(vars = "AEDECOD", .indent_mods = 1L) |>
+  build_table(df = adae_f, alt_counts_df = adsl) |>
+  prune_table(keep_rows(has_fraction_in_any_col(atleast = 0.03))) |>    # >= 3%
+  # SOCs stay alphabetical (factor order); only the PTs within each SOC are
+  # ordered by subject count (all arms), ties A -> Z.
+  sort_at_path(path = c("AESOC", "*", "AEDECOD"), scorefun = score_occurrences)
+
+# group_force = fill each page to max_rows and repeat a split SOC with "(Cont.)"
+pages <- as_rtftables(ae, split = "group_force", max_rows = AE_MAX_ROWS,
+                      blank_rows = "between_groups", cell_format = fmt_count_paren_bare,
+                      col_header = ae_col_header, col_spec = ae_col_spec,
+                      col_rel_width = ae_widths, row_height_twips = 200)
+doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape")) |>
+  rtf_section(page = 1, secinfo = list(header = ae_header, footer = ae_footer)) |>
+  rtf_tables(pages)
+generate_rtfreport(doc, "ae_tern.rtf", overwrite = TRUE)
+```
+
+```{r img-ae-tern, eval = TRUE, echo = FALSE, out.width = "100%"}
+.snapshot("ae_tern.png", "AE summary via rtables/tern, paginated with (Cont.)")
+```
+
+The same `as_rtftables()` call returns a **list of pages**; `rtf_tables()`
+renders them in order, and the running header's `{AUTO_PAGE}` /
+`{AUTO_TOTAL_PAGES}` number them.
+
+## gtsummary
+
+`gtsummary::tbl_hierarchical()` builds the **same** table directly:
+`overall_row = TRUE` is the any-AE row, each SOC row carries its own subject
+count, and PTs are nested beneath. `filter_hierarchical()` keeps the >= 3% PTs,
+and `sort_hierarchical()` puts them in the canonical order natively -- its `sort`
+takes one rule **per hierarchy level** (`AE_SORT` from setup: SOCs alphabetical,
+PTs by subject count, ties A -> Z). The overall row is labelled to match tern via
+the native `label` argument, and `fmt_ae()` collapses a zero cell to a bare `0`.
+
+```{r ae-gtsummary}
+library(gtsummary)
+tbl <- tbl_hierarchical(
+    data = adae, variables = c(AESOC, AEDECOD), by = TRT01A,
+    denominator = adsl, id = USUBJID, overall_row = TRUE,
+    label = list("..ard_hierarchical_overall.." ~ ANY_AE),
+    statistic = ~ "{n} ({p}%)", digits = everything() ~ list(p = 1)) |>
+  filter_hierarchical(p >= 0.03) |>
+  sort_hierarchical(sort = AE_SORT)    # SOCs A->Z, PTs by subject count
+
+pages <- as_rtftables(tbl, read_meta = TRUE, split = "group_force", max_rows = AE_MAX_ROWS,
+                      blank_rows = "between_groups", cell_format = fmt_ae,
+                      col_header = ae_col_header, col_spec = ae_col_spec,
+                      col_rel_width = ae_widths, row_height_twips = 200)
+doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape")) |>
+  rtf_section(page = 1, secinfo = list(header = ae_header, footer = ae_footer)) |>
+  rtf_tables(pages)
+generate_rtfreport(doc, "ae_gtsummary.rtf", overwrite = TRUE)
+```
+
+```{r img-ae-gtsummary, eval = TRUE, echo = FALSE, out.width = "100%"}
+.snapshot("ae_gtsummary.png", "AE summary via gtsummary tbl_hierarchical()")
+```
+
+## cards + gtsummary
+
+The ARD-first variant: compute the hierarchical **Analysis Results Dataset** with
+`cards::ard_stack_hierarchical()`, then summarise it with `tbl_ard_hierarchical()`.
+`tbl_ard_hierarchical()` has no `overall_row` argument -- but the any-AE row is
+still **the ARD's job, not the raw data's**: a second `ard_stack_hierarchical()`
+with **`over_variables = TRUE`** computes the distinct-subject "any event" count
+across all the hierarchy variables, and `add_overall_row()` reads it straight off
+that ARD (no re-counting of `adae`). Ordering uses the same native
+`sort_hierarchical(sort = AE_SORT)`, so the rendered table matches the two above
+cell-for-cell.
+
+```{r ae-cards-gtsummary}
+library(cards); library(gtsummary)
+# Hierarchical ARD for the SOC / PT body.
+ard <- ard_stack_hierarchical(
+  data = adae, variables = c(AESOC, AEDECOD), by = TRT01A,
+  denominator = adsl, id = USUBJID)
+# "Any event" ARD: over_variables = TRUE adds the distinct-subject overall count.
+ard_any <- ard_stack_hierarchical(
+  data = adae, variables = c(AESOC, AEDECOD), by = TRT01A,
+  denominator = adsl, id = USUBJID, over_variables = TRUE)
+
+tbl <- tbl_ard_hierarchical(
+    cards = ard, variables = c(AESOC, AEDECOD), by = TRT01A,
+    statistic = ~ "{n} ({p}%)") |>
+  filter_hierarchical(p >= 0.03) |>
+  sort_hierarchical(sort = AE_SORT) |> # SOCs A->Z, PTs by subject count (native)
+  add_overall_row(ard_any)             # any-AE row read from the ARD, generically
+
+pages <- as_rtftables(tbl, read_meta = TRUE, split = "group_force", max_rows = AE_MAX_ROWS,
+                      blank_rows = "between_groups", cell_format = fmt_ae,
+                      col_header = ae_col_header, col_spec = ae_col_spec,
+                      col_rel_width = ae_widths, row_height_twips = 200)
+doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape")) |>
+  rtf_section(page = 1, secinfo = list(header = ae_header, footer = ae_footer)) |>
+  rtf_tables(pages)
+generate_rtfreport(doc, "ae_gtsummary_ard.rtf", overwrite = TRUE)
+```
+
+```{r img-ae-cards-gtsummary, eval = TRUE, echo = FALSE, out.width = "100%"}
+.snapshot("ae_gtsummary_ard.png", "AE summary via cards + gtsummary tbl_ard_hierarchical()")
+```
+
+> The three AE tables above are the **same report** -- same numbers, same SOC /
+> PT order -- built three different ways and all rendered by `rtfreporter`.
+
+## Tplyr (transpose-and-set)
+
+`Tplyr` returns **formatted strings**; as with the DM table we do the
+*transpose-and-set* here -- Tplyr counts the distinct subjects, and we assemble
+the layout (overall row, SOC count on the SOC row, indented PTs in subject-count
+order) and hand the column header to `rtfreporter` via the setup block's
+`ae_col_header` / `ae_col_spec`.
+
+```{r ae-tplyr}
+library(Tplyr)
+varcols <- paste0("var1_", arm_levels)
+rn <- function(df) df |> dplyr::rename_with(~ arm_levels, dplyr::all_of(varcols))
+
+# distinct-subject counts: one layer for SOC totals, one for PT-by-SOC.
+soc <- tplyr_table(adae, TRT01A) |> set_pop_data(adsl) |> set_pop_treat_var(TRT01A) |>
+  add_layer(group_count(AESOC) |> set_distinct_by(USUBJID) |>
+              set_format_strings(f_str("xx (xx.x%)", distinct_n, distinct_pct))) |>
+  build() |> dplyr::transmute(AESOC = as.character(row_label1),
+                              dplyr::across(dplyr::all_of(varcols))) |> rn()
+pt <- tplyr_table(adae, TRT01A) |> set_pop_data(adsl) |> set_pop_treat_var(TRT01A) |>
+  add_layer(group_count(AEDECOD, by = vars(AESOC)) |> set_distinct_by(USUBJID) |>
+              set_format_strings(f_str("xx (xx.x%)", distinct_n, distinct_pct))) |>
+  build() |> dplyr::transmute(AESOC = as.character(row_label1),
+                              AEDECOD = as.character(row_label2),
+                              dplyr::across(dplyr::all_of(varcols))) |>
+  dplyr::semi_join(.soc_pt, by = c("AESOC", "AEDECOD")) |>
+  dplyr::filter(AEDECOD %in% .keep_pt) |> rn()
+
+# Assemble `disp`: an overall any-AE row, then each SOC row (its count) and its
+# PTs indented in subject-count order.
+any_n <- adae |> dplyr::distinct(TRT01A, USUBJID) |> dplyr::count(TRT01A)
+ov <- vapply(arm_levels, function(a) {
+  n <- any_n$n[match(a, as.character(any_n$TRT01A))]
+  sprintf("%d (%.1f%%)", n, 100 * n / as.integer(arm_n[a]))
+}, character(1))
+
+rows <- list(setNames(data.frame(ANY_AE, t(ov), check.names = FALSE,
+                                 stringsAsFactors = FALSE),
+                      c("Characteristic", arm_levels)))
+for (s in sort(unique(pt$AESOC))) {
+  sc <- soc |> dplyr::filter(AESOC == s)
+  rows[[length(rows) + 1]] <- setNames(
+    data.frame(s, sc[, arm_levels], check.names = FALSE, stringsAsFactors = FALSE),
+    c("Characteristic", arm_levels))
+  pts <- pt |> dplyr::filter(AESOC == s) |> dplyr::arrange(match(AEDECOD, .pt_order))
+  if (nrow(pts))
+    rows[[length(rows) + 1]] <- setNames(
+      data.frame(paste0("    ", pts$AEDECOD), pts[, arm_levels],
+                 check.names = FALSE, stringsAsFactors = FALSE),
+      c("Characteristic", arm_levels))
+}
+disp <- dplyr::bind_rows(rows)
+
+# Metadata lives HERE, in rtfreporter -- not in Tplyr.
+pages <- as_rtftables(disp, col_header = ae_col_header, split = "group_force",
+                      max_rows = AE_MAX_ROWS, blank_rows = "between_groups",
+                      cell_format = fmt_ae, col_spec = ae_col_spec,
+                      col_rel_width = ae_widths, row_height_twips = 200)
+doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape")) |>
+  rtf_section(page = 1, secinfo = list(header = ae_header, footer = ae_footer)) |>
+  rtf_tables(pages)
+generate_rtfreport(doc, "ae_tplyr.rtf", overwrite = TRUE)
+```
+
+```{r img-ae-tplyr, eval = TRUE, echo = FALSE, out.width = "100%"}
+.snapshot("ae_tplyr.png", "AE summary via Tplyr (transpose-and-set)")
+```
+
+## cards + tfrmt
+
+`tfrmt` is driven by a long **group / label / column / param / value** table. The
+trick for an AE table is that a row whose **`group` equals its `label`** renders
+as a *single* line that also carries its statistic -- so giving each SOC a
+`group = label = <SOC>` row puts the SOC count **on the SOC row**, just like the
+others; the PT rows (`group = SOC`, `label = PT`) become the indented children,
+and the overall row is its own one-row group. We complete the arm x row grid so
+a zero is a real `0`, and sort via `sorting_cols`.
+
+```{r ae-tfrmt}
+library(tidyr); library(tfrmt)
+N          <- as.integer(arm_n[arm_levels]); names(N) <- arm_levels
+real_pairs <- .soc_pt |> dplyr::filter(AEDECOD %in% .keep_pt)
+kept_socs  <- sort(unique(real_pairs$AESOC))
+
+# PT counts per arm, completed to a full grid so a missing cell is a real 0.
+pt_c <- adae |> dplyr::distinct(TRT01A, USUBJID, AESOC, AEDECOD) |>
+  dplyr::count(TRT01A, AESOC, AEDECOD, name = "n") |>
+  dplyr::mutate(AESOC = as.character(AESOC), AEDECOD = as.character(AEDECOD)) |>
+  dplyr::semi_join(real_pairs, by = c("AESOC", "AEDECOD")) |>
+  tidyr::complete(TRT01A, tidyr::nesting(AESOC, AEDECOD), fill = list(n = 0)) |>
+  dplyr::mutate(p = n / N[as.character(TRT01A)])
+# SOC distinct-subject counts (independent of the PTs).
+soc_c <- adae |> dplyr::distinct(TRT01A, USUBJID, AESOC) |>
+  dplyr::count(TRT01A, AESOC, name = "n") |>
+  dplyr::mutate(AESOC = as.character(AESOC)) |>
+  dplyr::filter(AESOC %in% kept_socs) |>
+  tidyr::complete(TRT01A, AESOC = kept_socs, fill = list(n = 0)) |>
+  dplyr::mutate(p = n / N[as.character(TRT01A)])
+# Overall any-AE count.
+ov_c <- adae |> dplyr::distinct(TRT01A, USUBJID) |> dplyr::count(TRT01A, name = "n") |>
+  dplyr::mutate(p = n / N[as.character(TRT01A)])
+
+# long form: a SOC row has group == label (count shown on the SOC line); PT rows
+# are group = SOC, label = PT; the overall row is its own group.  ord1 / ord2 are
+# the SOC and PT sort keys.
+long <- dplyr::bind_rows(
+    ov_c  |> dplyr::transmute(group = ANY_AE, label = ANY_AE,
+                              column = as.character(TRT01A), n, p),
+    soc_c |> dplyr::transmute(group = AESOC,  label = AESOC,
+                              column = as.character(TRT01A), n, p),
+    pt_c  |> dplyr::transmute(group = AESOC,  label = AEDECOD,
+                              column = as.character(TRT01A), n, p)) |>
+  tidyr::pivot_longer(c(n, p), names_to = "param", values_to = "value") |>
+  dplyr::mutate(
+    ord1   = ifelse(group == ANY_AE, 0L, match(group, kept_socs)),
+    ord2   = ifelse(label == group, 0L, match(label, .pt_order)),
+    column = factor(column, levels = arm_levels),
+    group  = factor(group, levels = c(ANY_AE, kept_socs)))
+
+spec <- tfrmt(
+  group = group, label = label, column = column, param = param, value = value,
+  sorting_cols = c(ord1, ord2),                       # SOCs A->Z, PTs by count
+  body_plan = body_plan(frmt_structure(".default", ".default",
+    frmt_combine("{n} ({p}%)", n = frmt("x"),
+                 p = frmt("x.x", transform = ~ . * 100)))),
+  col_plan = col_plan(group, label, Placebo, `Xanomeline Low Dose`,
+                      `Xanomeline High Dose`, -ord1, -ord2))
+
+pages <- as_rtftables(print_to_gt(spec, long), read_meta = TRUE, split = "group_force",
+                      max_rows = AE_MAX_ROWS, blank_rows = "between_groups",
+                      cell_format = fmt_ae, col_header = ae_col_header,
+                      col_spec = ae_col_spec, col_rel_width = ae_widths,
+                      row_height_twips = 200)
+doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape")) |>
+  rtf_section(page = 1, secinfo = list(header = ae_header, footer = ae_footer)) |>
+  rtf_tables(pages)
+generate_rtfreport(doc, "ae_tfrmt.rtf", overwrite = TRUE)
+```
+
+```{r img-ae-tfrmt, eval = TRUE, echo = FALSE, out.width = "100%"}
+.snapshot("ae_tfrmt.png", "AE summary via cards + tfrmt (group == label puts the count on the SOC row)")
+```
+
+## flextable and huxtable (convert and render)
+
+No need to rebuild the table for these two: the gtsummary table converts straight
+to a **flextable** or a **huxtable**, and `rtfreporter` reads either. (We bake
+the PT indent into the label text first with `bake_indent()`, because the
+converters turn gtsummary's indent into cell padding that the flextable /
+huxtable adapters do not read as a row-label indent.)
+
+```{r ae-flextable-huxtable}
+library(gtsummary); library(flextable); library(huxtable)
+# The same gtsummary table as the gtsummary section above.
+g <- tbl_hierarchical(
+    data = adae, variables = c(AESOC, AEDECOD), by = TRT01A,
+    denominator = adsl, id = USUBJID, overall_row = TRUE,
+    label = list("..ard_hierarchical_overall.." ~ ANY_AE),
+    statistic = ~ "{n} ({p}%)", digits = everything() ~ list(p = 1)) |>
+  filter_hierarchical(p >= 0.03) |>
+  sort_hierarchical(sort = AE_SORT)
+
+# flextable
+pages <- as_rtftables(gtsummary::as_flex_table(bake_indent(g)), split = "group_force",
+                      max_rows = AE_MAX_ROWS, blank_rows = "between_groups",
+                      cell_format = fmt_ae, col_header = ae_col_header,
+                      col_spec = ae_col_spec, col_rel_width = ae_widths,
+                      row_height_twips = 200)
+doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape")) |>
+  rtf_section(page = 1, secinfo = list(header = ae_header, footer = ae_footer)) |>
+  rtf_tables(pages)
+generate_rtfreport(doc, "ae_flextable.rtf", overwrite = TRUE)
+
+# huxtable
+pages <- as_rtftables(gtsummary::as_hux_table(bake_indent(g)), split = "group_force",
+                      max_rows = AE_MAX_ROWS, blank_rows = "between_groups",
+                      cell_format = fmt_ae, col_header = ae_col_header,
+                      col_spec = ae_col_spec, col_rel_width = ae_widths,
+                      row_height_twips = 200)
+doc <- rtf_document(page = list(paper_size = "letter", orientation = "landscape")) |>
+  rtf_section(page = 1, secinfo = list(header = ae_header, footer = ae_footer)) |>
+  rtf_tables(pages)
+generate_rtfreport(doc, "ae_huxtable.rtf", overwrite = TRUE)
+```
+
+```{r img-ae-flextable, eval = TRUE, echo = FALSE, out.width = "100%"}
+.snapshot("ae_flextable.png", "AE summary via gtsummary -> flextable")
+```
+
+```{r img-ae-huxtable, eval = TRUE, echo = FALSE, out.width = "100%"}
+.snapshot("ae_huxtable.png", "AE summary via gtsummary -> huxtable")
+```
+
+> **Seven ways, one report.** rtables/tern, gtsummary, cards + gtsummary, Tplyr,
+> cards + tfrmt, and gtsummary converted to flextable / huxtable -- all the same
+> AE table, all rendered to the same paginated RTF by `rtfreporter`.
+
+---
+
+*Coming next, under the same showcase: real Word snapshots in place of the
+current placeholders.*
