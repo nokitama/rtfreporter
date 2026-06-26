@@ -12,9 +12,18 @@ library(rtfreporter)
 ```
 
 `as_rtftables()` turns a table into a **list of `rtftable` page objects** --
-one per RTF page -- ready to hand to `rtf_tables()`. The `split =` argument
-decides *how* the rows are grouped into pages. This article walks through the
-ways to control that:
+one per RTF page -- ready to hand to `rtf_tables()`. Pagination has three
+pillars, and this article is organised around them:
+
+1. **How the rows are split into pages** -- the `split =` strategies (and custom
+   / pre-split / hybrid variants).
+2. **Which column those page-shaping operations act on, and what to do with it**
+   -- one shared idea behind `group_col`, `group_by`, `sort_by`,
+   `collapse_repeats` and `drop_cols` (see
+   [Selecting a column](#selecting-a-column)).
+3. **Blank separator rows** -- inserting and counting the gaps between groups.
+
+We start with the split strategies:
 
 1. the **built-in split strategies**,
 2. a **custom split function**,
@@ -142,6 +151,34 @@ These arguments shape pagination regardless of the strategy:
 | `min_group_rows` | Widow/orphan control: avoid stranding a lone group header (or too few of its rows) at a page boundary. Set `0` to disable. |
 | `cont_label` | The continuation suffix (`" (Cont.)"`) repeated on a mid-group cut. |
 
+### Selecting a column {#selecting-a-column}
+
+Five arguments operate on **one column of the rendered body**, and they all name
+that column the same way -- by a column **name** or a 1-based **integer index**,
+in the body's coordinate space:
+
+| Argument | What it does to the column |
+|----------|----------------------------|
+| `group_col` | detects group boundaries on it (with `group_by`) |
+| `sort_by` | orders the rows by it, before the split |
+| `collapse_repeats` | blanks consecutive repeated values in it |
+| `drop_cols` | hides it from the printed pages |
+
+Because they share one coordinate space, the same key works across them -- e.g.
+sort on a column, group on it, and hide it:
+`as_rtftables(x, sort_by = "k", group_col = "k", drop_cols = "k")`.
+
+Two things make the *name* source-dependent, so they are worth repeating here:
+
+- **It is the body column id, not the visible header.** A gtsummary `stat_1`
+  column shows as "Drug (N = …)" but is selected as `"stat_1"`.
+- **The names differ by source** -- your own for a `data.frame`, gt ids for
+  gt / gtsummary / tfrmt, and `V1`, `V2`, … for rtables / flextable / huxtable.
+  An **integer index is the most portable** choice across sources. Check the
+  actual names with `names(as_rtftables(x)[[1]]$data)`. The full per-source table
+  and check recipes are in
+  [What the columns are called](importing-tables.html#column-names).
+
 ### Choosing how groups are detected -- `group_by`
 
 `group_col` picks the *column*; `group_by` picks the *logic* used to find where
@@ -176,10 +213,9 @@ pages <- as_rtftables(df_filled, split = "group_safe", max_rows = 3,
 length(pages)
 ```
 
-`group_col` accepts an **integer** index, which is the most portable choice when
-reading from gt / gtsummary (whose body keeps gt's column ids such as `"label"`)
-or from rtables / flextable / huxtable (whose columns are renamed `V1`, `V2`,
-...). The grouping column need not be the first column:
+The grouping column need not be the first column -- name it (or, for portability
+across sources, give its integer index; see
+[Selecting a column](#selecting-a-column)):
 
 ```{r group-by-col}
 df2 <- data.frame(

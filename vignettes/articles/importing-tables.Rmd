@@ -62,6 +62,74 @@ class(tbl)
 ```
 
 
+## What the columns are called (and how to check) {#column-names}
+
+Several `as_rtftables()` arguments select a column **by name or position** --
+`group_col` (grouping), `sort_by` (ordering), `drop_cols` (hiding) and
+`collapse_repeats` (repeat suppression), all covered in
+[Paginating with `as_rtftables()`](pagination.html). They all act on the
+**rendered body** -- the intermediate `data.frame` that `as_rtftables()` builds
+-- *not* on the visible column headers. **What that body's columns are called
+depends on the source**, and this is the single most common stumbling block, so
+it is worth knowing the rule up front.
+
+| Source | Body column names | Naming rule |
+|--------|-------------------|-------------|
+| `data.frame` / tibble | your own column names | exactly what you named them |
+| **gt** (`gt(df)`) | gt's column **ids** (default: the original data names) | follows gt |
+| **gtsummary** | `label`, `stat_1`, `stat_2`, … | gtsummary's internal ids |
+| **tfrmt** | `rowname`, then the `column` values | gt stub id + your `column` levels |
+| **rtables / tern** | `V1`, `V2`, `V3`, … | **positional**, content-independent |
+| **flextable** | `V1`, `V2`, `V3`, … | positional |
+| **huxtable** | `V1`, `V2`, `V3`, … | positional |
+
+Two families fall out of this:
+
+- **gt-based sources (gt, gtsummary, tfrmt)** keep meaningful **id** names -- but
+  each family's convention differs (gt = the data names, gtsummary =
+  `label` / `stat_N`, tfrmt = `rowname` + your column levels).
+- **rtables / flextable / huxtable** discard the names and renumber the columns
+  `V1`, `V2`, … -- the name tells you nothing about the content, only the
+  position.
+
+### The universal check
+
+Whatever the source, the body column names are exactly
+`names(as_rtftables(x)[[1]]$data)` -- the same thing the selection arguments see.
+When in doubt, print it:
+
+```{r names-df}
+names(as_rtftable(df)$data)            # a data.frame keeps its own names
+```
+
+```{r names-gtsummary, eval = requireNamespace("gtsummary", quietly = TRUE)}
+library(gtsummary)
+tbl <- tbl_summary(trial[c("age", "grade")], by = NULL)
+names(as_rtftables(tbl)[[1]]$data)     # gtsummary -> "label", "stat_0"
+```
+
+Source packages also offer their own inspectors: **gtsummary**'s
+`show_header_names()` lists the internal column names (`label`, `stat_1`, …) that
+you pass here, and **gt**'s `gt::extract_body()` shows the rendered body with its
+ids.
+
+### Two practical rules
+
+1. **Use the *id*, not the visible header.** A gtsummary `stat_1` column may
+   display as "Drug (N = …)", but you must select it as `"stat_1"`. Passing the
+   on-screen label fails with "column not found".
+2. **Integer indices are the most portable.** Because rtables / flextable /
+   huxtable expose only `V1`, `V2`, …, and the gt families differ, a 1-based
+   **position** works identically across every source:
+
+   ```r
+   as_rtftables(x, group_col = 1, sort_by = 1, drop_cols = 1)  # "the 1st column"
+   ```
+
+   Reach for names when they are stable and readable (your own `data.frame`, or a
+   known gtsummary layout); reach for indices when writing source-agnostic code.
+
+
 ## Reading metadata -- `read_meta`
 
 For a rich source (gt / gtsummary / rtables / flextable / huxtable),
