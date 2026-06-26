@@ -124,10 +124,17 @@ list(
 ```
 
 `gt_adapter.R` and `rtables_adapter.R` each produce exactly this shape.
-`as_rtftables()` then paginates the body (`.paginate_df()`), slices
-`cell_styles` per page, replicates the shared header/width/spanning
-metadata onto every page, and attaches the title/footnote blocks as the
-`rtf_titles` / `rtf_footnotes` attributes that `rtf_tables()` reads.
+`as_rtftables()` then (optionally) **sorts** the body rows before the split
+(`sort_by` / `sort_desc`, so grouping sees the ordered rows), paginates the body
+(`.paginate_df()`), slices `cell_styles` per page, replicates the shared
+header/width/spanning metadata onto every page, and attaches the title/footnote
+blocks as the `rtf_titles` / `rtf_footnotes` attributes that `rtf_tables()`
+reads. A column can be carried through the split for grouping/ordering and then
+**hidden** from the rendered pages (`drop_cols`): the columns stay present for
+`.paginate_df()`, then `.apply_col_drop()` removes them and reindexes every
+position-indexed argument (header incl. spanning, `col_spec`, widths,
+`row_title`, `cell_styles`) to the remaining columns just before each page's
+`rtftable()` is built.
 
 Because the adapters all converge on one shape, **adding a new source type
 is a small, well-contained job** — see
