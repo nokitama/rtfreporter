@@ -12,6 +12,8 @@ as_rtftables(
   split_rows = NULL,
   group_col = NULL,
   group_by = c("auto", "indent", "value", "filled"),
+  sort_by = NULL,
+  sort_desc = NULL,
   cont_label = " (Cont.)",
   min_group_rows = 2L,
   blank_rows = NULL,
@@ -97,6 +99,26 @@ is the most portable.}
     non-empty; only `NA` / `""` cells are members (the label appears once,
     on the group's first row).}
 }}
+
+\item{sort_by}{Columns to **order the body rows by, before pagination**, or
+`NULL` (default, keep the input order).  A character / integer vector (or a
+`list()` to mix names and indices) in the **input body's** coordinates --
+the same space as `group_col`, `collapse_repeats` and `drop_cols`.  The sort
+is applied *first*, so group detection, `(Cont.)` labels and `blank_rows`
+positions all see the sorted order.  A sort key may also be listed in
+`drop_cols` to order on a column that is not printed (the classic hidden
+"sort-key" carrier column).  The sort is **stable** (rows that compare equal
+keep their input order) and `NA` keys sort **last** regardless of
+`sort_desc`.  Note that `sort_by` reorders rendered body rows as-is, so it
+suits flat / tabular bodies (a `data.frame`, or a pre-flattened table); on a
+gt / rtables body whose group-label and child rows are already interleaved
+it would scramble that visual hierarchy -- sort the source data before
+building such a table instead.}
+
+\item{sort_desc}{Sort direction for `sort_by`: `NULL`/`FALSE` (default, all
+ascending), a single `TRUE` (all `sort_by` columns descending), or a logical
+vector the same length as `sort_by` (one direction per key).  Ignored when
+`sort_by` is `NULL`.}
 
 \item{cont_label}{Character (default `" (Cont.)"`).  Suffix appended to a
 group's label on the second and later pages it continues onto (the

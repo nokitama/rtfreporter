@@ -162,6 +162,24 @@
 #'       non-empty; only `NA` / `""` cells are members (the label appears once,
 #'       on the group's first row).}
 #'   }
+#' @param sort_by Columns to **order the body rows by, before pagination**, or
+#'   `NULL` (default, keep the input order).  A character / integer vector (or a
+#'   `list()` to mix names and indices) in the **input body's** coordinates --
+#'   the same space as `group_col`, `collapse_repeats` and `drop_cols`.  The sort
+#'   is applied *first*, so group detection, `(Cont.)` labels and `blank_rows`
+#'   positions all see the sorted order.  A sort key may also be listed in
+#'   `drop_cols` to order on a column that is not printed (the classic hidden
+#'   "sort-key" carrier column).  The sort is **stable** (rows that compare equal
+#'   keep their input order) and `NA` keys sort **last** regardless of
+#'   `sort_desc`.  Note that `sort_by` reorders rendered body rows as-is, so it
+#'   suits flat / tabular bodies (a `data.frame`, or a pre-flattened table); on a
+#'   gt / rtables body whose group-label and child rows are already interleaved
+#'   it would scramble that visual hierarchy -- sort the source data before
+#'   building such a table instead.
+#' @param sort_desc Sort direction for `sort_by`: `NULL`/`FALSE` (default, all
+#'   ascending), a single `TRUE` (all `sort_by` columns descending), or a logical
+#'   vector the same length as `sort_by` (one direction per key).  Ignored when
+#'   `sort_by` is `NULL`.
 #' @param cont_label Character (default `" (Cont.)"`).  Suffix appended to a
 #'   group's label on the second and later pages it continues onto (the
 #'   group-aware splits), marking a continued group.
@@ -316,6 +334,8 @@ as_rtftables <- function(x,
                          group_col       = NULL,
                          group_by        = c("auto", "indent", "value",
                                              "filled"),
+                         sort_by         = NULL,
+                         sort_desc       = NULL,
                          cont_label      = " (Cont.)",
                          min_group_rows  = 2L,
                          blank_rows      = NULL,
@@ -347,6 +367,7 @@ as_rtftables <- function(x,
       chunks <- as_rtftables(
         x[[i]], read_meta = read_meta, max_rows = max_rows, split = split,
         split_rows = split_rows, group_col = group_col, group_by = group_by,
+        sort_by = sort_by, sort_desc = sort_desc,
         cont_label = cont_label, min_group_rows = min_group_rows,
         blank_rows = blank_rows, blank_row_first = blank_row_first,
         blank_row_end = blank_row_end, count_blank_rows = count_blank_rows,
@@ -423,6 +444,24 @@ as_rtftables <- function(x,
   # hidden).  Resolved here, on the input body's coordinates, before the sidx
   # helper column is appended below.
   drop_idx <- .resolve_drop_cols(drop_cols, body)
+
+  # ---- sort body rows ---------------------------------------------------
+  # Order the body BEFORE pagination so group detection, (Cont.) labels and
+  # blank_rows positions all see the sorted order.  cell_styles (per original
+  # row) is reordered in lockstep so per-cell styling stays attached to its row.
+  ord <- .resolve_sort_order(sort_by, sort_desc, body)
+  if (!is.null(ord)) {
+    body <- body[ord, , drop = FALSE]
+    rownames(body) <- NULL
+    # Adapter-extracted cell_styles (per original row) follow the new order.
+    if (!is.null(cell_styles)) cell_styles <- cell_styles[ord]
+    # An explicitly supplied cell_styles (one per body row) likewise reorders so
+    # it stays attached to its row through the sort.
+    if (!is.null(user_args$cell_styles) &&
+        length(user_args$cell_styles) == length(ord)) {
+      user_args$cell_styles <- user_args$cell_styles[ord]
+    }
+  }
 
   # ---- auto column widths -----------------------------------------------
   # When requested, size each column to its widest content (header label or
@@ -581,6 +620,58 @@ as_rtftables <- function(x,
     stop("`drop_cols` must leave at least one column to display.", call. = FALSE)
   }
   idx
+}
+
+
+# Resolve a `sort_by` / `sort_desc` request to an integer row permutation of
+# `df` (or NULL for "keep input order").  Columns are given as names and/or
+# integer indices (a vector, or a list to mix the two), in body coordinates.
+# The sort is stable and NA keys are placed last; descending keys are handled
+# via `-xtfrm()` so mixed column types (character, numeric, factor) all work.
+.resolve_sort_order <- function(sort_by, sort_desc, df) {
+  if (is.null(sort_by) || length(sort_by) == 0L) return(NULL)
+  idx  <- .resolve_sort_cols(sort_by, df)
+  desc <- .normalize_sort_desc(sort_desc, length(idx))
+  keys <- lapply(seq_along(idx), function(k) {
+    r <- xtfrm(df[[idx[k]]])           # rank-transform: comparable as numeric
+    if (isTRUE(desc[k])) -r else r
+  })
+  do.call(order, c(keys, list(na.last = TRUE)))
+}
+
+# Resolve `sort_by` columns (names / integers / a mixing list) to integer
+# indices into `df`, preserving the supplied order (sort priority).
+.resolve_sort_cols <- function(cols, df) {
+  vapply(cols, function(c1) {
+    if (is.character(c1)) {
+      m <- match(c1, names(df))
+      if (is.na(m)) {
+        stop(sprintf("`sort_by` column '%s' not found in the table.", c1),
+             call. = FALSE)
+      }
+      as.integer(m)
+    } else {
+      i <- as.integer(c1)
+      if (is.na(i) || i < 1L || i > ncol(df)) {
+        stop(sprintf("`sort_by` index %s out of range (1..%d).", c1, ncol(df)),
+             call. = FALSE)
+      }
+      i
+    }
+  }, integer(1L), USE.NAMES = FALSE)
+}
+
+# Normalise `sort_desc` to a logical vector of length `n` (one per sort key).
+.normalize_sort_desc <- function(sort_desc, n) {
+  if (is.null(sort_desc)) return(rep(FALSE, n))
+  d <- as.logical(sort_desc)
+  if (anyNA(d)) stop("`sort_desc` must be TRUE / FALSE.", call. = FALSE)
+  if (length(d) == 1L) return(rep(d, n))
+  if (length(d) != n) {
+    stop(sprintf("`sort_desc` must have length 1 or %d (one per `sort_by`).", n),
+         call. = FALSE)
+  }
+  d
 }
 
 

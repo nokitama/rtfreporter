@@ -2,6 +2,17 @@
 
 ### New features
 
+- `as_rtftables()` / `as_rtftable()` gain **`sort_by`** / **`sort_desc`** to
+  order the body rows **before pagination** (#183). Name (or index) the sort
+  keys -- in the input body's coordinates, the same space as `group_col` /
+  `drop_cols` -- with optional per-key descending direction. Because the sort
+  runs first, group detection, `(Cont.)` labels and `blank_rows` positions all
+  see the sorted order; a sort key may also be listed in `drop_cols` to order on
+  a column that is not printed (a hidden "sort-key" carrier column). The sort is
+  stable and `NA` keys sort last. (Intended for flat / tabular bodies; on a gt /
+  rtables body whose group + child rows are already interleaved, sort the source
+  data before building the table instead.)
+
 - `as_rtftables()` / `as_rtftable()` gain a **`drop_cols`** argument to hide a
   column from the printed table while still using it for pagination / grouping
   (#184). Name (or index) the columns -- in the input body's coordinates, the
