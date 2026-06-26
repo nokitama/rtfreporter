@@ -1,5 +1,20 @@
 # rtfreporter (development version)
 
+### New features
+
+- `as_rtftables()` / `as_rtftable()` gain a **`drop_cols`** argument to hide a
+  column from the printed table while still using it for pagination / grouping
+  (#184). Name (or index) the columns -- in the input body's coordinates, the
+  same space as `group_col` / `collapse_repeats` -- and they stay present
+  through the split (so `group_col`, `collapse_repeats`, and
+  `blank_rows_by_change()` can reference them), then are removed from every page
+  before it is rendered. This makes a column usable as a hidden grouping /
+  sort-key / carrier column without it appearing in the report. All
+  position-indexed metadata (`col_header` incl. spanning headers, `col_spec`,
+  column widths, `col_header_align`, `row_title`, per-cell `cell_styles`) is
+  reindexed automatically to the remaining columns; `drop_cols` must leave at
+  least one column to display.
+
 ### Documentation
 
 - `showcase` RTF generators now **derive from the articles** instead of

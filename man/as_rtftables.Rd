@@ -21,6 +21,7 @@ as_rtftables(
   align_count_pct = FALSE,
   cell_format = NULL,
   collapse_repeats = NULL,
+  drop_cols = NULL,
   auto_width = FALSE,
   table_width_twips = NULL,
   border = "tfl",
@@ -172,6 +173,26 @@ repeated values -- group boundaries and `(Cont.)` labels stay correct, and a
 group continued onto the next page shows its label again at the top.  (In
 `group_by` terms: value-based grouping happens first, then the column is
 collapsed to a `"filled"`-style display.)}
+
+\item{drop_cols}{Columns to **hide from the printed table while still using
+them for pagination / grouping**, or `NULL` (default, drop nothing).  A
+character / integer vector (or a `list()` to mix names and indices) naming
+the columns in the **input body's** coordinates -- the same coordinate
+space as `group_col` and `collapse_repeats`.  The named columns stay
+present through the split (so
+`group_col`, `collapse_repeats` and [blank_rows_by_change()] can reference
+them), then are removed from **every page** before that page's table is
+rendered.  This makes a column usable as a hidden grouping / sort-key /
+carrier column without it appearing in the report.  Position-indexed
+metadata (`col_header` incl. spanning headers, `col_spec`, column widths,
+`col_header_align`, `row_title`, and per-cell `cell_styles`) is reindexed
+automatically to the remaining columns.  `drop_cols` must leave at least
+one column to display.  Note that for `split = "by_value"` the page
+**names** come from the `group_col` value, so that column may be dropped and
+the pages are still named by it; but under `"group_safe"` / `"group_force"`
+the `" (Cont.)"` marker is written into the `group_col` cell, so if
+`group_col` is itself dropped the marker is not shown (group on the visible
+label column if the marker is wanted).}
 
 \item{auto_width}{Logical (default `FALSE`).  When `TRUE`, each column is
 sized to its widest content (column header label or data cell) via

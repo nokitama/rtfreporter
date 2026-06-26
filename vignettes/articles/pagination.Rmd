@@ -233,6 +233,52 @@ res$Pt   # row 3 keeps "Failure"; row 5 blanks the repeated "Angina" under Vascu
 ```
 
 
+### Hiding a grouping / carrier column -- `drop_cols`
+
+`group_col` chooses which column drives the split, but that column is normally
+*printed* too. Often you want to break or group on a key that should **not**
+appear in the report -- a numeric ordering key, a raw group id, a sort helper.
+`drop_cols` names columns (in the input body's coordinates -- the same space as
+`group_col` and `collapse_repeats`) that are kept **through** the split and then
+removed from every page **before** it is rendered.
+
+```{r drop-cols-byvalue}
+df_carrier <- data.frame(
+  soc_ord = c(1, 1, 2, 2),                  # hidden ordering / group key
+  Term    = c("Angina", "Failure", "Rash", "Pruritus"),
+  N       = c("12", "7", "9", "4")
+)
+# Group + page on the hidden key, but print only Term + N.
+pages <- as_rtftables(df_carrier, split = "by_value",
+                      group_col = "soc_ord", drop_cols = "soc_ord")
+names(pages)                 # pages still named by the group value: "1", "2"
+names(pages[[1]]$data)       # the carrier column is gone: "Term", "N"
+#> [1] "Term" "N"
+```
+
+The column is present while the split runs -- so `group_col`,
+`collapse_repeats`, and `blank_rows_by_change()` can all reference it -- and only
+then dropped. All position-indexed metadata (column headers, including spanning
+headers; `col_spec`; column widths; `col_header_align`; `row_title`; per-cell
+`cell_styles`) is reindexed automatically to the columns that remain, so explicit
+headers/widths you pass for the full table still line up after the hide.
+
+A few interactions worth knowing:
+
+* `drop_cols`, `group_col`, and `collapse_repeats` all index the **pre-drop**
+  input body.
+* For `split = "by_value"` the page *names* come from the `group_col` value, so
+  that column can be hidden and the pages are still named by it (above).
+* Under `"group_safe"` / `"group_force"` the `" (Cont.)"` marker is written into
+  the `group_col` cell. If you hide that very column the marker is removed with
+  it, so group on the *visible* label column when you want the continuation
+  label to show.
+* `drop_cols` must leave at least one column to display.
+
+To **mix** column names and integer indices, pass a `list()` (a plain `c()`
+would coerce to one type): `drop_cols = list("soc_ord", 3)`.
+
+
 ## 2. A custom split function
 
 When the built-ins don't fit, pass a **function** as `split =`. It is called on
