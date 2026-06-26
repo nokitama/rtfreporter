@@ -309,8 +309,9 @@ For a plain data.frame (no metadata), set them on `rtf_tables()` with `titles =`
 
 Everything above is independent of how the table is split into pages. When the
 body is longer than one page, control the split with `as_rtftables()`s
-`split` / `max_rows` / `group_col` arguments (or a custom function) --
-all of that is covered in
+`split` / `max_rows` / `group_col` arguments (or a custom function), order the
+rows first with `sort_by` / `sort_desc`, and hide a grouping / sort-key column
+from the output with `drop_cols` -- all of that is covered in
 [Paginating with as_rtftables()](pagination.html).
 
 See `?as_rtftables` for the complete argument reference and the per-source
