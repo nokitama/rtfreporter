@@ -27,10 +27,6 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
 }
 ```
 
-```{r setup, purl = FALSE}
-library(rtfreporter)
-```
-
 The R ecosystem for clinical tables is wonderfully diverse -- **rtables/tern**,
 **tfrmt**, **gtsummary** (on its own or on a **cards/cardx** ARD), **Tplyr**,
 **gt**, **flextable**, **huxtable** -- and teams pick whichever fits their style
@@ -67,7 +63,9 @@ We use [`pharmaverseadam`](https://pharmaverse.github.io/pharmaverseadam/)'s
 treatment -- a production-style Table 14.1 demographics layout.
 
 ```{r data}
+library(rtfreporter)
 library(dplyr)
+
 arm_levels <- c("Placebo", "Xanomeline Low Dose", "Xanomeline High Dose")
 adsl <- pharmaverseadam::adsl |>
   filter(TRT01A %in% arm_levels) |>
@@ -281,28 +279,16 @@ long <- d |>
     param  = ifelse(stat_name == "p", "pct", stat_name),
     value  = ifelse(stat_name == "p", value * 100, value))
 
-# Everything except the categorical "n (pct%)" cell is shared; only the
-# count/percent formatting -- and who aligns it -- changes between the two
-# renders below.
-tfrmt_spec <- function(count_pct) tfrmt(
-  group = group, label = label, column = column, param = param, value = value,
-  body_plan = body_plan(
-    frmt_structure(".default", ".default", frmt("xx.x")),
-    frmt_structure("Age (years)", "n", frmt("xx")),
-    frmt_structure(".default", "Mean (SD)",
-                   frmt_combine("{Mean} ({SD})",
-                                Mean = frmt("xx.x"), SD = frmt("xx.xx"))),
-    frmt_structure(".default", "Min, Max",
-                   frmt_combine("{Min}, {Max}",
-                                Min = frmt("xx"), Max = frmt("xx"))),
-    frmt_structure(c("Age category", "Sex", "Race"), ".default", count_pct)))
+# `long` is now ready.  The two render chunks below each write out their own
+# tfrmt spec in full -- they share this `long`, but nothing else.
 ```
 
 #### Who formats the `n (xx.x%)` cell?
 
 This is a nice place to see the same table formatted **two ways**, because the
 count/percent cell is exactly where formatters differ. (Both render chunks
-reuse `long` and `tfrmt_spec` from the block just above.)
+reuse `long` from the block just above, and each writes out its own `tfrmt`
+spec in full -- the only line that changes is the count/percent `frmt`.)
 
 A small but important detail first: write the percent as **`x.x`**, not `xx.x`.
 `frmt("xx.x")` right-pads the integer part, so a one-digit percent prints with a
@@ -314,9 +300,22 @@ padded to `xx`. `rtfreporter` reads the strings and renders them *as-is*
 (`align_count_pct` left off):
 
 ```{r tfrmt-self}
-g1 <- print_to_gt(
-  tfrmt_spec(frmt_combine("{n} ({pct}%)", n = frmt("xx"), pct = frmt("x.x"))),
-  long)
+# tfrmt formats AND aligns: the count is padded to "xx", the percent is "x.x".
+spec <- tfrmt(
+  group = group, label = label, column = column, param = param, value = value,
+  body_plan = body_plan(
+    frmt_structure(".default", ".default", frmt("xx.x")),
+    frmt_structure("Age (years)", "n", frmt("xx")),
+    frmt_structure(".default", "Mean (SD)",
+                   frmt_combine("{Mean} ({SD})",
+                                Mean = frmt("xx.x"), SD = frmt("xx.xx"))),
+    frmt_structure(".default", "Min, Max",
+                   frmt_combine("{Min}, {Max}",
+                                Min = frmt("xx"), Max = frmt("xx"))),
+    frmt_structure(c("Age category", "Sex", "Race"), ".default",
+                   frmt_combine("{n} ({pct}%)", n = frmt("xx"), pct = frmt("x.x")))))
+g1 <- print_to_gt(spec, long)
+
 # tfrmt already aligned the strings; rtfreporter renders them as-is (no
 # align_count_pct).  Direct render:
 pages <- as_rtftables(g1, read_meta = TRUE,
@@ -337,9 +336,23 @@ generate_rtfreport(doc, "dm_tfrmt.rtf", overwrite = TRUE)   # tfrmt's alignment
 `align_count_pct = TRUE`:
 
 ```{r tfrmt-rtfreporter}
-g2 <- print_to_gt(
-  tfrmt_spec(frmt_combine("{n} ({pct}%)", n = frmt("x"), pct = frmt("x.x"))),
-  long)
+# Same spec as Way 1, except the count is just "x" (no padding): tfrmt emits
+# clean "n (x.x%)" strings and leaves the column alignment to rtfreporter.
+spec <- tfrmt(
+  group = group, label = label, column = column, param = param, value = value,
+  body_plan = body_plan(
+    frmt_structure(".default", ".default", frmt("xx.x")),
+    frmt_structure("Age (years)", "n", frmt("xx")),
+    frmt_structure(".default", "Mean (SD)",
+                   frmt_combine("{Mean} ({SD})",
+                                Mean = frmt("xx.x"), SD = frmt("xx.xx"))),
+    frmt_structure(".default", "Min, Max",
+                   frmt_combine("{Min}, {Max}",
+                                Min = frmt("xx"), Max = frmt("xx"))),
+    frmt_structure(c("Age category", "Sex", "Race"), ".default",
+                   frmt_combine("{n} ({pct}%)", n = frmt("x"), pct = frmt("x.x")))))
+g2 <- print_to_gt(spec, long)
+
 # rtfreporter owns the count/percent alignment via align_count_pct = TRUE.
 pages <- as_rtftables(g2, read_meta = TRUE, align_count_pct = TRUE,
                       col_header = dm_col_header, col_spec = dm_col_spec,

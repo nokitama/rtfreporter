@@ -27,10 +27,6 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
 }
 ```
 
-```{r setup, purl = FALSE}
-library(rtfreporter)
-```
-
 The R ecosystem for clinical tables is wonderfully diverse -- **rtables/tern**,
 **tfrmt**, **gtsummary** (on its own or on a **cards/cardx** ARD), **Tplyr**,
 **gt**, **flextable**, **huxtable** -- and teams pick whichever fits their style
@@ -90,7 +86,9 @@ commented with *which* blocks use it -- so that, once this block has run, any on
 framework block below is self-contained.
 
 ```{r ae-data}
+library(rtfreporter)
 library(dplyr)
+
 arm_levels <- c("Placebo", "Xanomeline Low Dose", "Xanomeline High Dose")
 adsl <- pharmaverseadam::adsl |>
   filter(TRT01A %in% arm_levels) |>
