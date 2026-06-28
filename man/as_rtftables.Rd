@@ -276,8 +276,13 @@ The body is always the table's *rendered* body -- for gt/gtsummary via
 `gt::extract_body()`, for rtables/tern via `formatters::matrix_form()`.
 Only visible columns appear (hidden / helper columns such as tfrmt's
 `..tfrmt_row_grp_lbl` are dropped), row-group / stub rows are already
-interleaved, and indentation is rendered into the label text.  On top of
-that body the following *metadata* is read:
+interleaved, and indentation is rendered into the label text.  (A gt table
+with more than one stub column -- e.g. a tfrmt
+`row_grp_plan(label_loc = element_row_grp_loc(location = "column"))` layout --
+is read from the table's own `_data` / `_boxhead` slots instead, as
+`gt::extract_body()` does not support multiple stub columns; the group and
+label columns then come through as ordinary columns.)  On top of that body the
+following *metadata* is read:
 
 \tabular{lllll}{
   **Metadata** \tab **gt / gtsummary** \tab **rtables / tern** \tab **flextable** \tab **huxtable** \cr

@@ -236,6 +236,56 @@
 }
 
 
+# ── Body extraction (public extract_body, with a multi-stub fallback) ─────
+
+# gt::extract_body() is the primary, PUBLIC route to the rendered body.  It
+# assumes a SINGLE stub column, though: internally it does
+# `rowname_col <- dt_boxhead_get_var_stub(data); if (is.na(rowname_col)) ...`,
+# which errors `the condition has length > 1` when a table has more than one
+# stub column.  That happens with tfrmt's `row_grp_plan(label_loc =
+# element_row_grp_loc(location = "column" | "spanned"))`, which marks BOTH the
+# group and the label columns as stub.  (gt's own renderer copes -- it takes
+# `stub_var[length(stub_var)]` as the primary stub -- but extract_body does not.)
+#
+# For that one case we read the body from gt's own object slots `_data` +
+# `_boxhead` -- list access only, the same coupling level the rest of this
+# adapter already relies on, and deliberately NOT gt's unexported render
+# internals.  tfrmt writes already-formatted strings into `_data`, so the body
+# is display-ready.  The first stub column is renamed "::rowname::" so every
+# metadata mapping below is identical to the extract_body() path.
+.gt_extract_body_safe <- function(gt_obj) {
+  boxh <- gt_obj[["_boxhead"]]
+  multi_stub <- !is.null(boxh) &&
+    sum(as.character(boxh$type) == "stub", na.rm = TRUE) > 1L
+  if (!multi_stub) return(gt::extract_body(gt_obj, output = "html"))
+  .gt_body_from_slots(gt_obj)
+}
+
+# Reconstruct the rendered body from `_data` + `_boxhead` for the multi-stub
+# case.  Keeps visible columns (drops `type == "hidden"`) in boxhead (display)
+# order, and names the first stub column "::rowname::" to match extract_body().
+.gt_body_from_slots <- function(gt_obj) {
+  boxh <- gt_obj[["_boxhead"]]
+  dat  <- gt_obj[["_data"]]
+  if (is.null(boxh) || is.null(dat)) {
+    stop("Could not read the gt table body: `_boxhead` / `_data` missing.",
+         call. = FALSE)
+  }
+  type <- as.character(boxh$type)
+  vars <- as.character(boxh$var)
+  vis  <- which(type %in% c("stub", "default") & vars %in% names(dat))
+  if (!length(vis)) {
+    stop("Could not read the gt table body: no visible columns found.",
+         call. = FALSE)
+  }
+  out <- as.data.frame(dat[vars[vis]], stringsAsFactors = FALSE,
+                       check.names = FALSE)
+  st  <- which(type[vis] == "stub")
+  if (length(st)) names(out)[st[1L]] <- "::rowname::"
+  out
+}
+
+
 # ── Central mapping: gt_tbl + tokens -> rtftable kwargs ───────────────────
 
 # Returns list(data, col_header, col_spec, column_widths_twips / col_rel_width,
@@ -248,7 +298,7 @@
   }
 
   # ---- clean rendered body (visible columns only) ----------------------
-  eb        <- gt::extract_body(gt_obj, output = "html")
+  eb        <- .gt_extract_body_safe(gt_obj)
   body_vars <- names(eb)                                  # stub == "::rowname::"
   ncol_t    <- length(body_vars)
 

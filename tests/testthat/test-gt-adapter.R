@@ -155,3 +155,67 @@ test_that("explicit args win over gt-extracted values", {
   tbl <- as_rtftable(g, col_header = "Override")
   expect_identical(tbl$col_header[[1L]], "Override")
 })
+
+# ── multi-stub fallback (gt::extract_body() can't read >1 stub column) ─────────
+#
+# tfrmt's row_grp_plan(label_loc = element_row_grp_loc(location = "column"))
+# marks BOTH the group and label columns as stub.  gt::extract_body() then errors
+# "the condition has length > 1" (its `if (is.na(rowname_col))` sees a length-2
+# stub var).  The adapter detects that and reads the body from `_data` +
+# `_boxhead` instead, naming the first stub "::rowname::".
+
+# Build a two-stub tfrmt gt (label_loc = "column").
+.mk_two_stub_gt <- function() {
+  dat <- data.frame(group = c("Age", "Age", "Sex", "Sex"),
+                    label = c("n", "Mean", "Male", "Female"),
+                    column = "Trt A", param = "v", value = 1:4,
+                    stringsAsFactors = FALSE)
+  tf <- tfrmt::tfrmt(
+    group = group, label = label, column = column, param = param, value = value,
+    row_grp_plan = tfrmt::row_grp_plan(
+      label_loc = tfrmt::element_row_grp_loc(location = "column")),
+    body_plan = tfrmt::body_plan(
+      tfrmt::frmt_structure(".default", ".default", tfrmt::frmt("xx"))))
+  tfrmt::print_to_gt(tf, dat)
+}
+
+test_that("a two-stub gt actually breaks gt::extract_body() (the bug we handle)", {
+  skip_if_not_installed("gt")
+  skip_if_not_installed("tfrmt")
+  g <- .mk_two_stub_gt()
+  expect_gt(sum(as.character(g[["_boxhead"]]$type) == "stub"), 1L)
+  expect_error(gt::extract_body(g, output = "html"), "length > 1")
+})
+
+test_that(".gt_extract_body_safe() reads a two-stub body via the _data fallback", {
+  skip_if_not_installed("gt")
+  skip_if_not_installed("tfrmt")
+  g  <- .mk_two_stub_gt()
+  eb <- rtfreporter:::.gt_extract_body_safe(g)
+  # first stub renamed to the extract_body() sentinel; both stub cols kept,
+  # hidden helper column dropped.
+  expect_identical(names(eb)[1L], "::rowname::")
+  expect_false(any(grepl("tfrmt", names(eb))))
+  expect_equal(nrow(eb), 4L)
+  expect_equal(as.character(eb[[1L]]), c("Age", "Age", "Sex", "Sex"))
+  expect_equal(as.character(eb[[2L]]), c("n", "Mean", "Male", "Female"))
+})
+
+test_that("as_rtftable() reads a label_loc='column' tfrmt gt (was an error)", {
+  skip_if_not_installed("gt")
+  skip_if_not_installed("tfrmt")
+  g  <- .mk_two_stub_gt()
+  rt <- expect_no_error(as_rtftable(g, read_meta = TRUE))
+  expect_s3_class(rt, "rtftable")
+  expect_equal(ncol(rt$data), 3L)            # group + label + data column
+  expect_equal(nrow(rt$data), 4L)
+})
+
+test_that("the multi-stub fallback does not disturb single-stub tables", {
+  skip_if_not_installed("gt")
+  # a normal single-stub gt still goes through gt::extract_body()
+  g  <- gt::gt(head(mtcars, 3)[, c("mpg", "cyl")], rownames_to_stub = TRUE) |>
+    gt::fmt_number(mpg, decimals = 1)
+  eb <- rtfreporter:::.gt_extract_body_safe(g)
+  expect_identical(eb, gt::extract_body(g, output = "html"))
+})

@@ -1,5 +1,16 @@
 # rtfreporter (development version)
 
+### Bug fixes
+
+- `as_rtftables()` / `as_rtftable()` no longer error on a `gt_tbl` with **more
+  than one stub column** (#193). `gt::extract_body()` assumes a single stub and
+  fails with *"the condition has length > 1"* on such tables -- which `tfrmt`
+  produces via `row_grp_plan(label_loc = element_row_grp_loc(location =
+  "column"))`. The gt adapter now detects the multi-stub case and reads the body
+  from the table's own `_data` / `_boxhead` slots instead (list access only, no
+  gt internals), so the group and label columns come through as ordinary
+  columns.
+
 ### New features
 
 - `as_rtftables()` / `as_rtftable()` gain **`sort_by`** / **`sort_desc`** to
