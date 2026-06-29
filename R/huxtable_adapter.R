@@ -40,20 +40,7 @@
 # -- Token resolution --------------------------------------------------------
 
 .resolve_huxtable_tokens <- function(read) {
-  if (is.null(read) || isFALSE(read)) return(character(0))
-  if (isTRUE(read))                    return(.HUXTABLE_TOKENS_ALL)
-  if (!is.character(read)) {
-    stop("`read` must be FALSE/TRUE or a character vector of tokens.",
-         call. = FALSE)
-  }
-  bad <- setdiff(read, .HUXTABLE_TOKENS_ALL)
-  if (length(bad)) {
-    stop(sprintf("Unknown huxtable `read` token(s): %s.  Allowed: %s",
-                 paste(sQuote(bad), collapse = ", "),
-                 paste(sQuote(.HUXTABLE_TOKENS_ALL), collapse = ", ")),
-         call. = FALSE)
-  }
-  read
+  .resolve_meta_tokens(read, .HUXTABLE_TOKENS_ALL, "huxtable")
 }
 
 

@@ -42,6 +42,31 @@
   best
 }
 
+# Resolve a `read_meta` request to the concrete vector of enabled metadata
+# tokens.  Shared by every table-object adapter (gt, rtables, flextable,
+# huxtable), each of which wraps this with its own allowed-token set and label:
+#   FALSE / NULL      -> character(0) (read no metadata)
+#   TRUE              -> `allowed`    (read everything the adapter offers)
+#   character vector  -> itself, after validating it is a subset of `allowed`
+# `label` names the adapter in the "unknown token" error.
+.resolve_meta_tokens <- function(read, allowed, label) {
+  if (is.null(read) || isFALSE(read)) return(character(0))
+  if (isTRUE(read))                   return(allowed)
+  if (!is.character(read)) {
+    stop("`read_meta` must be FALSE/TRUE or a character vector of tokens.",
+         call. = FALSE)
+  }
+  bad <- setdiff(read, allowed)
+  if (length(bad)) {
+    stop(sprintf("Unknown %s `read_meta` token(s): %s.  Allowed: %s",
+                 label,
+                 paste(sQuote(bad),     collapse = ", "),
+                 paste(sQuote(allowed), collapse = ", ")),
+         call. = FALSE)
+  }
+  read
+}
+
 #' Convert a table object into rtfreporter table pages
 #'
 #' `as_rtftables()` is the single entry point for turning a *table object*

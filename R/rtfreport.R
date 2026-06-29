@@ -422,3 +422,45 @@ rtf_footer <- function(rows,
   }
   report
 }
+
+
+#' Print an rtfreport object
+#'
+#' Prints a compact summary of the internal `rtfreport` render product: its
+#' page and section counts, the default page geometry (paper, orientation and
+#' size in inches), and the font / colour table sizes.
+#'
+#' Most users never build an `rtfreport` directly: assemble documents with
+#' [rtf_document()] and the pipe verbs (that object has its own `print` method),
+#' then hand them to [generate_rtfreport()]. An `rtfreport` is the lower-level
+#' render product that `generate_rtfreport()` also accepts, and this method lets
+#' you inspect one if you hold it.
+#'
+#' @param x An `rtfreport` object.
+#' @param ... Additional arguments (unused).
+#'
+#' @return `x`, invisibly. Called for the side effect of printing the summary.
+#'
+#' @export
+print.rtfreport <- function(x, ...) {
+  np <- length(x$pages)
+  ns <- length(x$sections)
+  cat(sprintf("<rtfreport> %d page%s, %d section%s\n",
+              np, if (np == 1L) "" else "s",
+              ns, if (ns == 1L) "" else "s"))
+
+  pg <- x$document$default_page
+  if (!is.null(pg)) {
+    in_of <- function(t) if (is.null(t)) NA_real_ else t / 1440
+    cat(sprintf("  Page:    %s %s, %.2f x %.2f in\n",
+                pg$paper %||% "?", pg$orientation %||% "?",
+                in_of(pg$width_twips), in_of(pg$height_twips)))
+  }
+
+  nf  <- length(x$document$font_table)
+  ncl <- length(x$document$color_table)
+  fn1 <- tryCatch(x$document$font_table[[1L]]$name, error = function(e) NULL)
+  cat(sprintf("  Fonts:   %d%s   Colors: %d\n",
+              nf, if (!is.null(fn1)) paste0(" (", fn1, ")") else "", ncl))
+  invisible(x)
+}

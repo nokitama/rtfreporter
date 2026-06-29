@@ -225,12 +225,11 @@
   .rtf_escape_unicode_raw(as.character(x))
 }
 
-# Replace page tokens, then RTF-escape.
-# Token reference:
-#   {AUTO_PAGE}        -> RTF \chpgn field (dynamic, updated per page by the viewer)
-#   {AUTO_TOTAL_PAGES} -> RTF NUMPAGES field (dynamic total, with static fallback)
-#   {PAGE}             -> static first-page number of the section (integer)
-#   {TOTAL_PAGES}      -> static total page count of the document (integer)
+# Replace every literal occurrence of `token` in `x` with `replacement`.
+# A generic string substitution helper -- it does NOT escape, and knows nothing
+# about page tokens (that semantics lives in .render_tokens() below).  A rare
+# sentinel is appended before splitting so strsplit() does not silently drop a
+# trailing empty match (R drops a trailing "" when the delimiter ends the string).
 .replace_token <- function(x, token, replacement) {
   # Append a rare sentinel so strsplit never drops a trailing empty string
   # (R's strsplit silently drops trailing "" when the match is at end-of-string).

@@ -19,6 +19,9 @@ S3method(print, rtf_default_format)
 # Content constructors (for detailed formatting)
 export(rtftable)
 export(rtfplot)
+S3method(print, rtftable)
+S3method(print, rtfplot)
+S3method(print, rtfreport)
 
 # gt / gtsummary / rtables integration (see vignette("gt-integration") and
 # the "Adding a table-object adapter" article)

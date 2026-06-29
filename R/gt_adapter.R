@@ -61,20 +61,7 @@
 # ── Token resolution ─────────────────────────────────────────────────────
 
 .resolve_gt_tokens <- function(read_meta) {
-  if (is.null(read_meta) || isFALSE(read_meta)) return(character(0))
-  if (isTRUE(read_meta))                        return(.GT_META_TOKENS)
-  if (!is.character(read_meta)) {
-    stop("`read_meta` must be FALSE/TRUE or a character vector of tokens.",
-         call. = FALSE)
-  }
-  bad <- setdiff(read_meta, .GT_META_TOKENS)
-  if (length(bad)) {
-    stop(sprintf("Unknown gt `read_meta` token(s): %s.  Allowed: %s",
-                 paste(sQuote(bad), collapse = ", "),
-                 paste(sQuote(.GT_META_TOKENS), collapse = ", ")),
-         call. = FALSE)
-  }
-  read_meta
+  .resolve_meta_tokens(read_meta, .GT_META_TOKENS, "gt")
 }
 
 

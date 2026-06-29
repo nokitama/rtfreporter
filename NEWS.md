@@ -1,5 +1,16 @@
 # rtfreporter (development version)
 
+### New features
+
+- `print()` methods for the three central objects -- **`rtftable`**, **`rtfplot`**
+  and **`rtfreport`** -- now show a concise, reporting-oriented summary instead of
+  dumping the raw list (#196). For an `rtftable`: body dimensions, the column
+  (leaf) labels, row-title column(s), border and width mode, any attached title /
+  footnote line counts, and a short preview of the rendered body. For an
+  `rtfplot`: the image's native pixel size versus the embedded display size (in
+  twips and inches) and alignment. For an `rtfreport`: page / section counts, the
+  page geometry, and the font / colour table sizes.
+
 ### Bug fixes
 
 - `as_rtftables()` / `as_rtftable()` no longer error on a `gt_tbl` with **more

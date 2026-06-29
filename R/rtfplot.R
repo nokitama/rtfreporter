@@ -94,3 +94,32 @@ rtfplot <- function(path, width_twips = NULL, height_twips = NULL,
     class = "rtfplot"
   )
 }
+
+
+#' Print an rtfplot object
+#'
+#' Prints a compact summary of an [rtfplot()] figure: the image type and file,
+#' the image's native pixel size, the display size that will be embedded (in
+#' twips and inches, or the defaults when unset), and the alignment.
+#'
+#' @param x An `rtfplot` object.
+#' @param ... Additional arguments (unused).
+#'
+#' @return `x`, invisibly. Called for the side effect of printing the summary.
+#'
+#' @examples
+#' \dontrun{
+#' print(rtfplot("scatter.png", width_twips = 9000L))
+#' }
+#'
+#' @export
+print.rtfplot <- function(x, ...) {
+  cat(sprintf("<rtfplot> %s: %s\n", toupper(x$img_type), basename(x$path)))
+  cat(sprintf("  Native size:  %d x %d px\n", x$img_width, x$img_height))
+  twips_in <- function(t) sprintf("%d twips (%.2f in)", t, t / 1440)
+  w <- if (is.null(x$width_twips))  "full writable width" else twips_in(x$width_twips)
+  h <- if (is.null(x$height_twips)) "auto (aspect ratio)" else twips_in(x$height_twips)
+  cat(sprintf("  Display:      %s wide x %s\n", w, h))
+  cat(sprintf("  Align:        %s\n", x$align))
+  invisible(x)
+}
