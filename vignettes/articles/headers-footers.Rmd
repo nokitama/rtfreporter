@@ -121,6 +121,52 @@ header plus its own label -- a compact way to get per-table headings without
 writing a `rtf_section()` call for every table. `auto_section` is sugar built on
 the same section mechanism described above.
 
+### Sectioning converted (multi-page) tables
+
+`auto_section` reads the list **names**: a non-empty name starts a new section
+(its text goes in the header), and an empty / unnamed element falls through into
+the current section. The example above works because each item is a single
+table. But `as_rtftables()` returns **one element per page**, so a paginated
+table is already a list -- naming the whole list once is not enough, and naming
+*every* page would start a fresh section on each page.
+
+Two ways to get clean sections from converted tables:
+
+- **Group is a real column** (a `data.frame` / Tplyr body you assemble, or a
+  `cards` + `tfrmt` table with `label_loc = "column"`): let `as_rtftables()` do
+  it. `split = "by_value"` names each page by the group value, so
+  `auto_section = TRUE` gives one section per group with no extra step:
+
+  ```{r by-value-section, eval = FALSE}
+  pages <- as_rtftables(lab_df, split = "by_value", group_col = "PARAM",
+                        drop_cols = "PARAM")
+  doc <- rtf_document() |>
+    rtf_section(secinfo = list(header = hdr)) |>
+    rtf_tables(pages, auto_section = TRUE)        # one section per parameter
+  ```
+
+- **Group is row-grouped** (gt, gtsummary, rtables/tern, or `tfrmt` indented --
+  the group is rendered as label rows, not a column), **or you are combining
+  several distinct tables**: use [`combine_sections()`]. Each argument's name
+  becomes one section, applied to that argument's first page with the remaining
+  pages falling through:
+
+  ```{r combine-sections, eval = FALSE}
+  dm <- as_rtftables(dm_gt)                         # may be several pages
+  ae <- as_rtftables(ae_tbl, split = "group_force", max_rows = 30)
+
+  doc <- rtf_document() |>
+    rtf_section(secinfo = list(header = hdr)) |>
+    rtf_tables(
+      combine_sections(Demographics = dm, `Adverse Events` = ae),
+      auto_section = TRUE)                          # one clean section per table
+  ```
+
+Leaving the pages named one-per-page is also fine -- it simply yields one RTF
+section per page, which is harmless (it matches the common one-page-one-section
+convention). `combine_sections()` is just for the tidier one-section-per-table
+layout.
+
 
 ## Page numbering
 

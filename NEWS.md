@@ -2,6 +2,16 @@
 
 ### New features
 
+- New **`combine_sections()`** assembles several converted tables -- each an
+  `rtftable` or an `as_rtftables()` page list -- into one flat, named list ready
+  for `rtf_tables(..., auto_section = TRUE)`, so each argument renders as **one
+  clean RTF section** (its name placed on the first page, the remaining pages
+  falling through into the same section). This is the tidy way to section
+  multi-page or row-grouped tables (gt / gtsummary / rtables / tern), where the
+  grouping is not a body column; for column-grouped bodies, `as_rtftables(x,
+  split = "by_value")` already names pages per group. See the *Headers and
+  footers* article.
+
 - `print()` methods for the three central objects -- **`rtftable`**, **`rtfplot`**
   and **`rtfreport`** -- now show a concise, reporting-oriented summary instead of
   dumping the raw list (#196). For an `rtftable`: body dimensions, the column

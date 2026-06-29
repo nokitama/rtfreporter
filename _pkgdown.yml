@@ -228,6 +228,7 @@ reference:
     contents:
       - as_rtftables
       - as_rtftable
+      - combine_sections
 
   # ── 5. Column headers ──────────────────────────────────────────────────
   - title: Column headers

@@ -30,6 +30,7 @@ export(as_rtftable)
 # Unified table-object -> rtftable page converter (v0.0.44; supersedes
 # paginate() + rtf_tables(read_gt=))
 export(as_rtftables)
+export(combine_sections)
 
 # Header / footer constructors
 export(rtf_header)
